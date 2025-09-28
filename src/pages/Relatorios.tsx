@@ -38,6 +38,7 @@ export default function Relatorios() {
     status: "todos",
     medico: "",
   });
+  const [exporting, setExporting] = useState(false);
   const { toast } = useToast();
 
   const gerarRelatorio = async () => {
@@ -125,6 +126,8 @@ export default function Relatorios() {
       return;
     }
 
+    setExporting(true);
+
     const headers = [
       "Médico",
       "WhatsApp",
@@ -169,6 +172,8 @@ export default function Relatorios() {
       title: "Sucesso",
       description: "Relatório exportado com sucesso!",
     });
+    
+    setExporting(false);
   };
 
   const exportarGoogleSheets = async () => {
@@ -307,9 +312,9 @@ export default function Relatorios() {
               
               {dados.length > 0 && (
                 <>
-                  <Button onClick={exportarCSV} variant="outline">
+                  <Button onClick={exportarCSV} variant="outline" disabled={exporting}>
                     <Download className="h-4 w-4 mr-2" />
-                    Exportar CSV
+                    {exporting ? "Exportando..." : "Exportar CSV"}
                   </Button>
                   
                   <Button onClick={exportarGoogleSheets} variant="outline">

@@ -41,6 +41,7 @@ export default function Medicos() {
   const [showDialog, setShowDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [editingMedico, setEditingMedico] = useState<Medico | null>(null);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -52,6 +53,18 @@ export default function Medicos() {
 
   useEffect(() => {
     loadMedicos();
+    
+    // Realtime updates
+    const channel = supabase
+      .channel('medicos-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'medicos' }, () => {
+        loadMedicos();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadMedicos = async () => {
@@ -78,6 +91,7 @@ export default function Medicos() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    setSaving(true);
     try {
       if (editingMedico) {
         const { error } = await supabase
@@ -115,6 +129,8 @@ export default function Medicos() {
         description: "Falha ao salvar médico",
         variant: "destructive",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -278,8 +294,8 @@ export default function Medicos() {
                   <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit">
-                    {editingMedico ? "Atualizar" : "Salvar"}
+                  <Button type="submit" disabled={saving}>
+                    {saving ? "Salvando..." : (editingMedico ? "Atualizar" : "Salvar")}
                   </Button>
                 </div>
               </form>

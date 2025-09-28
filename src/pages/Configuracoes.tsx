@@ -29,6 +29,18 @@ export default function Configuracoes() {
 
   useEffect(() => {
     loadConfiguracoes();
+    
+    // Realtime updates
+    const channel = supabase
+      .channel('configuracoes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracoes' }, () => {
+        loadConfiguracoes();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadConfiguracoes = async () => {

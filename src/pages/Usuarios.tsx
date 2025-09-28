@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import AppLayout from "@/components/layout/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { User, Trash2, UserPlus } from "lucide-react";
+import { User, Trash2, UserPlus, Edit } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -24,7 +24,12 @@ export default function Usuarios() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [newUser, setNewUser] = useState({
@@ -37,6 +42,18 @@ export default function Usuarios() {
   useEffect(() => {
     checkCurrentUser();
     loadProfiles();
+    
+    // Realtime updates
+    const channel = supabase
+      .channel('profiles-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        loadProfiles();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const checkCurrentUser = async () => {
@@ -96,6 +113,7 @@ export default function Usuarios() {
       return;
     }
 
+    setCreating(true);
     try {
       // Criar usuário no auth
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -141,12 +159,52 @@ export default function Usuarios() {
         title: "Erro",
         description: error.message || "Falha ao criar usuário",
       });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleEditUser = (profile: Profile) => {
+    setEditingProfile(profile);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateUser = async (updatedData: { name: string; email: string; role: 'usuario' | 'gestor' }) => {
+    if (!editingProfile) return;
+
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(updatedData)
+        .eq('id', editingProfile.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Usuário atualizado",
+        description: "Dados do usuário atualizados com sucesso",
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingProfile(null);
+      loadProfiles();
+    } catch (error: any) {
+      console.error('Erro ao atualizar usuário:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: error.message || "Falha ao atualizar usuário",
+      });
+    } finally {
+      setUpdating(false);
     }
   };
 
   const handleDeleteUser = async (profileId: string) => {
     if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
 
+    setDeleting(profileId);
     try {
       const { error } = await supabase
         .from('profiles')
@@ -168,6 +226,8 @@ export default function Usuarios() {
         title: "Erro",
         description: "Falha ao excluir usuário",
       });
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -259,11 +319,75 @@ export default function Usuarios() {
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleCreateUser}>
-                    Criar Usuário
+                  <Button onClick={handleCreateUser} disabled={creating}>
+                    {creating ? "Criando..." : "Criar Usuário"}
                   </Button>
                 </div>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog de Edição */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar Usuário</DialogTitle>
+              </DialogHeader>
+              {editingProfile && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="edit-name">Nome Completo</Label>
+                    <Input
+                      id="edit-name"
+                      defaultValue={editingProfile.name}
+                      onChange={(e) => setEditingProfile({ ...editingProfile, name: e.target.value })}
+                      placeholder="Nome do usuário"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-email">Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      defaultValue={editingProfile.email}
+                      onChange={(e) => setEditingProfile({ ...editingProfile, email: e.target.value })}
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-role">Nível de Acesso</Label>
+                    <Select 
+                      value={editingProfile.role} 
+                      onValueChange={(value: "usuario" | "gestor") => 
+                        setEditingProfile({ ...editingProfile, role: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="usuario">Usuário</SelectItem>
+                        <SelectItem value="gestor">Gestor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={() => handleUpdateUser({
+                        name: editingProfile.name,
+                        email: editingProfile.email,
+                        role: editingProfile.role
+                      })}
+                      disabled={updating}
+                    >
+                      {updating ? "Atualizando..." : "Atualizar"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         </div>
@@ -280,7 +404,7 @@ export default function Usuarios() {
                   <TableHead>Email</TableHead>
                   <TableHead>Nível</TableHead>
                   <TableHead>Data de Criação</TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
+                  <TableHead className="w-[150px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -310,14 +434,25 @@ export default function Usuarios() {
                         {new Date(profile.created_at).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteUser(profile.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditUser(profile)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteUser(profile.id)}
+                            disabled={deleting === profile.id}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

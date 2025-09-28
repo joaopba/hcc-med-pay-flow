@@ -133,7 +133,7 @@ serve(async (req) => {
 
         const messagePayload = {
           body: "Por favor, acesse nosso portal para enviar sua nota fiscal: " + 
-                `${req.headers.get('origin') || 'https://nnytrkgsjajsecotasqv.supabase.co'}/notas-medicos\n\n` +
+                `https://hcc-med-pay-flow.lovable.app/dashboard-medicos\n\n` +
                 "Digite seu CPF para localizar seus pagamentos pendentes e anexe o arquivo PDF da nota fiscal.",
           number: from,
           externalKey: `nota_request_button_${Date.now()}`,
