@@ -71,6 +71,39 @@ export default function Pagamentos() {
 
   useEffect(() => {
     loadData();
+
+    // Configurar realtime para atualizações automáticas
+    const channel = supabase
+      .channel('pagamentos-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pagamentos'
+        },
+        (payload) => {
+          console.log('Atualização em pagamentos:', payload);
+          loadData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notas_medicos'
+        },
+        (payload) => {
+          console.log('Atualização em notas_medicos:', payload);
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadData = async () => {

@@ -58,6 +58,27 @@ export default function NotasAprovacao() {
 
   useEffect(() => {
     loadNotas();
+
+    // Configurar realtime para atualizações automáticas
+    const channel = supabase
+      .channel('notas-aprovacao-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notas_medicos'
+        },
+        (payload) => {
+          console.log('Nova atualização em notas_medicos:', payload);
+          loadNotas();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {

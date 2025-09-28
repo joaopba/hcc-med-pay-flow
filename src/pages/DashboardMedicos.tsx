@@ -70,6 +70,7 @@ interface PagamentoPendente {
   mes_competencia: string;
   valor: number;
   status: string;
+  temNotaRejeitada?: boolean;
 }
 
 export default function DashboardMedicos() {
@@ -137,22 +138,39 @@ export default function DashboardMedicos() {
 
       setMedico(medicoData);
 
-      // Buscar pagamentos pendentes sem notas
+      // Buscar pagamentos pendentes (incluindo pagamentos com notas rejeitadas para permitir reenvio)
       const { data: pagamentosPendentesData, error: pagamentosError } = await supabase
         .from("pagamentos")
-        .select("*")
+        .select(`
+          *,
+          notas_medicos!left (
+            id,
+            status,
+            arquivo_url
+          )
+        `)
         .eq("medico_id", medicoData.id)
-        .in("status", ["pendente", "solicitado"])
-        .is("nota_pdf_url", null)
+        .in("status", ["pendente", "solicitado", "nota_recebida"])
         .order("mes_competencia", { ascending: false });
 
       if (pagamentosError) throw pagamentosError;
 
-      const pagamentosPendentesProcessados = pagamentosPendentesData?.map(p => ({
+      // Filtrar pagamentos que realmente precisam de nota:
+      // 1. Sem nota (nota_pdf_url null)
+      // 2. Com nota rejeitada (permite reenvio)
+      const pagamentosPendentesProcessados = pagamentosPendentesData?.filter(p => {
+        // Se não tem nota_pdf_url, precisa de nota
+        if (!p.nota_pdf_url) return true;
+        
+        // Se tem notas rejeitadas, permite reenvio
+        const notasRejeitadas = p.notas_medicos?.some((nota: any) => nota.status === 'rejeitado');
+        return notasRejeitadas;
+      }).map(p => ({
         id: p.id,
         mes_competencia: p.mes_competencia,
         valor: p.valor,
-        status: p.status
+        status: p.status,
+        temNotaRejeitada: p.notas_medicos?.some((nota: any) => nota.status === 'rejeitado') || false
       })) || [];
 
       setPagamentosPendentes(pagamentosPendentesProcessados);
@@ -261,11 +279,13 @@ export default function DashboardMedicos() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pendente':
-        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pendente</Badge>;
+        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pendente Análise</Badge>;
       case 'aprovado':
         return <Badge variant="default"><FileCheck className="h-3 w-3 mr-1" />Aprovado</Badge>;
       case 'rejeitado':
         return <Badge variant="destructive">❌ Rejeitado</Badge>;
+      case 'enviado':
+        return <Badge variant="outline"><Upload className="h-3 w-3 mr-1" />Enviado</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -317,15 +337,19 @@ export default function DashboardMedicos() {
         throw insertError;
       }
 
-      toast({
-        title: "Sucesso",
-        description: "Nota fiscal enviada com sucesso! Aguarde a análise.",
-      });
-
       // Fechar modal e recarregar dados
       setShowUploadModal(false);
       setSelectedPagamento(null);
       buscarDados();
+
+      // Mostrar mensagem de sucesso mais específica
+      const isReenvio = selectedPagamento?.temNotaRejeitada;
+      toast({
+        title: "Sucesso",
+        description: isReenvio 
+          ? "Nota fiscal reenviada com sucesso! Aguarde a nova análise." 
+          : "Nota fiscal enviada com sucesso! Aguarde a análise.",
+      });
 
     } catch (error: any) {
       console.error("Erro no upload:", error);
@@ -442,8 +466,12 @@ export default function DashboardMedicos() {
             <AlertDescription className="text-orange-800">
               <div className="flex items-center justify-between">
                 <div>
-                  <strong>Atenção!</strong> Você possui {pagamentosPendentes.length} pagamento(s) pendente(s) 
-                  que precisam de nota fiscal para liberação.
+                  <strong>Atenção!</strong> Você possui {pagamentosPendentes.length} pagamento(s) que precisam de nota fiscal para liberação.
+                  {pagamentosPendentes.some(p => p.temNotaRejeitada) && (
+                    <div className="mt-1 text-sm">
+                      ⚠️ Algumas notas foram rejeitadas e precisam ser reenviadas.
+                    </div>
+                  )}
                 </div>
                 <Button 
                   size="sm" 
@@ -455,7 +483,7 @@ export default function DashboardMedicos() {
                   }}
                 >
                   <Upload className="h-3 w-3 mr-1" />
-                  Enviar Nota
+                  {pagamentosPendentes.some(p => p.temNotaRejeitada) ? 'Reenviar Nota' : 'Enviar Nota'}
                 </Button>
               </div>
             </AlertDescription>
