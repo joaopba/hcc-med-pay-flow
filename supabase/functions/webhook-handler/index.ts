@@ -152,16 +152,34 @@ serve(async (req) => {
         const messageResponseData = await messageResponse.json();
         console.log('Resposta da mensagem de solicitação via botão:', messageResponseData);
 
-        // Registrar log da mensagem de solicitação
-        await supabase
-          .from('message_logs')
-          .insert([{
-            pagamento_id: null,
-            tipo: 'solicitacao_nota',
-            payload: messagePayload,
-            success: messageResponse.ok,
-            response: messageResponseData
-          }]);
+        // Registrar log da mensagem de solicitação (apenas se houver pagamento associado)
+        try {
+          const numeroLimpo = String(from || '').replace(/\D/g, '');
+          const { data: pagamentosAssoc } = await supabase
+            .from('pagamentos')
+            .select(`id, status, medicos!inner(numero_whatsapp)`) 
+            .in('status', ['pendente','solicitado'])
+            .ilike('medicos.numero_whatsapp', `%${numeroLimpo}%`)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          const pagamentoId = pagamentosAssoc?.[0]?.id;
+          if (pagamentoId) {
+            await supabase
+              .from('message_logs')
+              .insert([{ 
+                pagamento_id: pagamentoId,
+                tipo: 'solicitacao_nota',
+                payload: messagePayload,
+                success: messageResponse.ok,
+                response: messageResponseData
+              }]);
+          } else {
+            console.warn('Sem pagamento associado para log de solicitação; pulando insert.');
+          }
+        } catch (logError) {
+          console.warn('Falha ao registrar log de solicitação:', logError);
+        }
 
         return new Response(JSON.stringify({
           success: true,
@@ -220,10 +238,12 @@ serve(async (req) => {
             id, 
             valor,
             status,
+            created_at,
             medicos!inner(numero_whatsapp, nome)
           `)
-          .eq('status', 'solicitado')
+          .in('status', ['pendente','solicitado'])
           .ilike('medicos.numero_whatsapp', `%${numeroLimpo}%`)
+          .order('created_at', { ascending: false })
           .limit(1);
         
         console.log('Pagamentos encontrados:', pagamentos);
@@ -263,12 +283,14 @@ serve(async (req) => {
             
             if (fileResponse.ok) {
               const fileData = await fileResponse.arrayBuffer();
-              const fileName = filename.endsWith('.pdf') ? filename : `${filename.replace(/\.[^/.]+$/, '')}.pdf`;
+              const baseName = filename.endsWith('.pdf') ? filename : `${filename.replace(/\.[^/.]+$/, '')}.pdf`;
+              const uniqueName = `${pagamento.id}_${mediaId}_${Date.now()}_${baseName}`;
+              const filePath = `${pagamento.id}/${uniqueName}`;
               
               // Fazer upload para o Supabase Storage
               const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('notas')
-                .upload(fileName, fileData, {
+                .upload(filePath, fileData, {
                   contentType: 'application/pdf',
                   cacheControl: '3600',
                 });
@@ -294,7 +316,7 @@ serve(async (req) => {
               const updateData: any = {
                 status: 'nota_recebida',
                 data_resposta: new Date().toISOString(),
-                nota_pdf_url: `notas/${fileName}`,
+                nota_pdf_url: `notas/${filePath}`,
               };
 
               if (valorLiquido) {
@@ -363,7 +385,7 @@ serve(async (req) => {
                   body: {
                     type: 'nova_nota',
                     pagamentoId: pagamento.id,
-                    fileName,
+                    filePath,
                     valorLiquido
                   }
                 });
