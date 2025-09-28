@@ -115,6 +115,23 @@ export default function Pagamentos() {
     e.preventDefault();
     
     try {
+      // Verificar se já existe pagamento para este médico e mês
+      const { data: existingPayment } = await supabase
+        .from("pagamentos")
+        .select("id")
+        .eq("medico_id", formData.medico_id)
+        .eq("mes_competencia", formData.mes_competencia)
+        .single();
+
+      if (existingPayment) {
+        toast({
+          title: "Erro",
+          description: "Já existe um pagamento para este médico neste mês de competência",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from("pagamentos")
         .insert([{
@@ -123,7 +140,18 @@ export default function Pagamentos() {
           valor: parseFloat(formData.valor),
         }]);
       
-      if (error) throw error;
+      if (error) {
+        // Verificar se é erro de constraint única
+        if (error.code === '23505' && error.message.includes('pagamentos_medico_id_mes_competencia_key')) {
+          toast({
+            title: "Erro",
+            description: "Já existe um pagamento para este médico neste mês de competência",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
       
       toast({
         title: "Sucesso",
@@ -259,6 +287,7 @@ export default function Pagamentos() {
   const handleExcelImport = async (data: any[]) => {
     try {
       const pagamentosData = [];
+      const duplicados = [];
       
       for (const row of data) {
         // Buscar médico pelo nome
@@ -269,11 +298,30 @@ export default function Pagamentos() {
           throw new Error(`Médico não encontrado: ${medicoNome}`);
         }
 
+        const mesCompetencia = row.mes_competencia || row.competencia || row.Competencia;
+        
+        // Verificar se já existe pagamento para este médico e mês
+        const { data: existingPayment } = await supabase
+          .from("pagamentos")
+          .select("id")
+          .eq("medico_id", medico.id)
+          .eq("mes_competencia", mesCompetencia)
+          .single();
+
+        if (existingPayment) {
+          duplicados.push(`${medico.nome} - ${mesCompetencia}`);
+          continue;
+        }
+
         pagamentosData.push({
           medico_id: medico.id,
-          mes_competencia: row.mes_competencia || row.competencia || row.Competencia,
+          mes_competencia: mesCompetencia,
           valor: parseFloat(row.valor || row.Valor || "0")
         });
+      }
+
+      if (pagamentosData.length === 0) {
+        throw new Error("Nenhum pagamento válido para importar (todos são duplicados ou inválidos)");
       }
 
       const { error } = await supabase
@@ -281,6 +329,16 @@ export default function Pagamentos() {
         .insert(pagamentosData);
 
       if (error) throw error;
+
+      let successMessage = `${pagamentosData.length} pagamento(s) importado(s) com sucesso!`;
+      if (duplicados.length > 0) {
+        successMessage += ` ${duplicados.length} duplicado(s) ignorado(s): ${duplicados.join(', ')}`;
+      }
+
+      toast({
+        title: "Importação Concluída",
+        description: successMessage,
+      });
 
       setShowImportDialog(false);
       await loadData();
