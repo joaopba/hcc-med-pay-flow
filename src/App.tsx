@@ -17,6 +17,7 @@ import NotasMedicos from "./pages/NotasMedicos";
 import DashboardMedicos from "./pages/DashboardMedicos";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -41,7 +42,9 @@ const App = () => (
           } />
           <Route path="/pagamentos" element={
             <ProtectedRoute>
-              <Pagamentos />
+              <ErrorBoundary pageName="Pagamentos">
+                <Pagamentos />
+              </ErrorBoundary>
             </ProtectedRoute>
           } />
           <Route path="/configuracoes" element={

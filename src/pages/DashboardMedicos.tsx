@@ -173,17 +173,13 @@ export default function DashboardMedicos() {
 
     setLoading(true);
     try {
-      // Buscar médico pelo CPF (aceita com e sem pontuação)
       const cpfNumeros = cpf.replace(/\D/g, '');
-      const cpfFormatado = formatCPF(cpfNumeros);
-      const { data: medicoData, error: medicoError } = await supabase
-        .from("medicos")
-        .select("*")
-        .or(`cpf.eq.${cpfNumeros},cpf.eq.${cpfFormatado}`)
-        .eq("ativo", true)
-        .maybeSingle();
 
-      if (medicoError || !medicoData) {
+      const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
+        body: { cpf: cpfNumeros }
+      });
+
+      if (fnError || !result?.medico) {
         toast({
           title: "CPF não encontrado",
           description: "Não encontramos um médico ativo com este CPF",
@@ -192,44 +188,21 @@ export default function DashboardMedicos() {
         return;
       }
 
+      const medicoData = result.medico;
       setMedico(medicoData);
 
-      // Buscar pagamentos pendentes (incluindo pagamentos com notas rejeitadas para permitir reenvio)
-      const { data: pagamentosPendentesData, error: pagamentosError } = await supabase
-        .from("pagamentos")
-        .select(`
-          *,
-          notas_medicos!left (
-            id,
-            status,
-            arquivo_url,
-            created_at
-          )
-        `)
-        .eq("medico_id", medicoData.id)
-        .in("status", ["pendente", "solicitado", "nota_recebida"])
-        .order("mes_competencia", { ascending: false });
+      const pagamentosPendentesData = result.pagamentos || [];
 
-      if (pagamentosError) throw pagamentosError;
-
-      // Filtrar pagamentos que realmente precisam de nota
-      const pagamentosPendentesProcessados = pagamentosPendentesData?.filter(p => {
+      const pagamentosPendentesProcessados = pagamentosPendentesData?.filter((p: any) => {
         const notasArray = Array.isArray(p.notas_medicos) ? p.notas_medicos : [];
-        
-        // Se não tem notas, precisa enviar
         if (notasArray.length === 0) return true;
-        
-        // Se tem apenas notas rejeitadas, permite reenvio
         const apenasRejeitadas = notasArray.every((nota: any) => nota.status === 'rejeitado');
         if (apenasRejeitadas) return true;
-        
-        // Se tem nota pendente ou aprovada, não precisa reenviar
-        const temNotaValidaOuPendente = notasArray.some((nota: any) => 
+        const temNotaValidaOuPendente = notasArray.some((nota: any) =>
           nota.status === 'pendente' || nota.status === 'aprovado'
         );
-        
         return !temNotaValidaOuPendente;
-      }).map(p => ({
+      }).map((p: any) => ({
         id: p.id,
         mes_competencia: p.mes_competencia,
         valor: p.valor,
@@ -240,22 +213,8 @@ export default function DashboardMedicos() {
 
       setPagamentosPendentes(pagamentosPendentesProcessados);
 
-      // Buscar todas as notas do médico
-      const { data: notasData, error: notasError } = await supabase
-        .from("notas_medicos")
-        .select(`
-          *,
-          pagamentos!inner (
-            valor,
-            mes_competencia
-          )
-        `)
-        .eq("medico_id", medicoData.id)
-        .order("created_at", { ascending: false });
-
-      if (notasError) throw notasError;
-
-      const notasProcessadas = notasData?.map(nota => ({
+      const notasData = result.notas || [];
+      const notasProcessadas = notasData.map((nota: any) => ({
         id: nota.id,
         status: nota.status,
         nome_arquivo: nota.nome_arquivo,
@@ -265,30 +224,28 @@ export default function DashboardMedicos() {
           valor: nota.pagamentos.valor,
           mes_competencia: nota.pagamentos.mes_competencia
         }
-      })) || [];
+      }));
 
       setNotas(notasProcessadas);
 
-      // Verificar se há notas rejeitadas para mostrar popup
-      const notasRejeitadas = notasProcessadas.filter(n => n.status === 'rejeitado');
+      const notasRejeitadas = notasProcessadas.filter((n: any) => n.status === 'rejeitado');
       if (notasRejeitadas.length > 0) {
         setRejectedNotes(notasRejeitadas);
         setShowRejectedAlert(true);
       }
 
-      // Calcular estatísticas
       const totalNotas = notasProcessadas.length;
-      const notasAprovadas = notasProcessadas.filter(n => n.status === 'aprovado').length;
-      const notasPendentes = notasProcessadas.filter(n => n.status === 'pendente').length;
-      const rejeitadasCount = notasProcessadas.filter(n => n.status === 'rejeitado').length;
-      
-      const valorTotal = notasProcessadas.reduce((sum, nota) => sum + nota.pagamento.valor, 0);
+      const notasAprovadas = notasProcessadas.filter((n: any) => n.status === 'aprovado').length;
+      const notasPendentes = notasProcessadas.filter((n: any) => n.status === 'pendente').length;
+      const rejeitadasCount = notasProcessadas.filter((n: any) => n.status === 'rejeitado').length;
+
+      const valorTotal = notasProcessadas.reduce((sum: number, nota: any) => sum + nota.pagamento.valor, 0);
       const valorAprovado = notasProcessadas
-        .filter(n => n.status === 'aprovado')
-        .reduce((sum, nota) => sum + nota.pagamento.valor, 0);
+        .filter((n: any) => n.status === 'aprovado')
+        .reduce((sum: number, nota: any) => sum + nota.pagamento.valor, 0);
       const valorPendente = notasProcessadas
-        .filter(n => n.status === 'pendente')
-        .reduce((sum, nota) => sum + nota.pagamento.valor, 0);
+        .filter((n: any) => n.status === 'pendente')
+        .reduce((sum: number, nota: any) => sum + nota.pagamento.valor, 0);
 
       setStats({
         totalNotas,
@@ -300,17 +257,16 @@ export default function DashboardMedicos() {
         valorPendente
       });
 
-      // Dados para gráficos
-      const monthlyData = notasProcessadas.reduce((acc, nota) => {
+      const monthlyData = notasProcessadas.reduce((acc: Record<string, any>, nota: any) => {
         const mes = nota.pagamento.mes_competencia;
         if (!acc[mes]) {
           acc[mes] = { mes, valor: 0, status: nota.status };
         }
         acc[mes].valor += nota.pagamento.valor;
         return acc;
-      }, {} as Record<string, ChartData>);
+      }, {} as Record<string, any>);
 
-      setChartData(Object.values(monthlyData).sort((a, b) => a.mes.localeCompare(b.mes)));
+      setChartData((Object.values(monthlyData) as ChartData[]).sort((a, b) => a.mes.localeCompare(b.mes)));
 
     } catch (error: any) {
       console.error("Erro ao buscar dados:", error);
