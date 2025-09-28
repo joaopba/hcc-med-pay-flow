@@ -159,6 +159,12 @@ export default function NotasAprovacao() {
   const handleAprovar = async (notaId: string) => {
     if (processingId) return; // Prevenir duplo clique
     setProcessingId(notaId);
+    
+    // Dobrar proteção contra duplo clique
+    const buttonKey = `aprovar_${notaId}`;
+    if (localStorage.getItem(buttonKey)) return;
+    localStorage.setItem(buttonKey, 'processing');
+    
     try {
       const nota = notas.find(n => n.id === notaId);
       if (!nota) return;
@@ -222,6 +228,9 @@ export default function NotasAprovacao() {
       });
     } finally {
       setProcessingId(null);
+      setTimeout(() => {
+        localStorage.removeItem(buttonKey);
+      }, 2000);
     }
   };
 
@@ -237,6 +246,12 @@ export default function NotasAprovacao() {
 
     if (processingId) return; // Prevenir duplo clique
     setProcessingId(notaId);
+    
+    // Dobrar proteção contra duplo clique
+    const buttonKey = `rejeitar_${notaId}`;
+    if (localStorage.getItem(buttonKey)) return;
+    localStorage.setItem(buttonKey, 'processing');
+    
     try {
       const nota = notas.find(n => n.id === notaId);
       if (!nota) return;
@@ -289,6 +304,9 @@ export default function NotasAprovacao() {
       });
     } finally {
       setProcessingId(null);
+      setTimeout(() => {
+        localStorage.removeItem(buttonKey);
+      }, 2000);
     }
   };
 

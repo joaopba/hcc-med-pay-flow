@@ -228,59 +228,55 @@ export default function Pagamentos() {
       return;
     }
 
-    // Verificar se algum pagamento já tem nota enviada
-    const pagamentosComNota = [];
-    const pagamentosSemNota = [];
+    const buttonKey = 'solicitar_notas';
+    if (processingButtons.has(buttonKey)) return; // Prevenir duplo clique
+    
+    setProcessingButtons(prev => new Set(prev).add(buttonKey));
 
-    for (const pagamentoId of selectedPagamentos) {
-      const pagamento = pagamentos.find(p => p.id === pagamentoId);
-      
-      // Verificar se já tem nota na tabela notas_medicos
-      const { data: notasExistentes } = await supabase
-        .from('notas_medicos')
-        .select('id, status')
-        .eq('pagamento_id', pagamentoId);
+    try {
+      // Verificar se algum pagamento já tem nota enviada
+      const pagamentosComNota = [];
+      const pagamentosSemNota = [];
 
-      if (notasExistentes && notasExistentes.length > 0) {
-        // Se tem nota pendente ou aprovada, não solicitar novamente
-        const temNotaValidaOuPendente = notasExistentes.some(n => n.status === 'pendente' || n.status === 'aprovado');
-        if (temNotaValidaOuPendente) {
-          pagamentosComNota.push(pagamento?.medicos?.nome || 'Médico desconhecido');
+      for (const pagamentoId of selectedPagamentos) {
+        const pagamento = pagamentos.find(p => p.id === pagamentoId);
+        
+        // Verificar se já tem nota na tabela notas_medicos
+        const { data: notasExistentes } = await supabase
+          .from('notas_medicos')
+          .select('id, status')
+          .eq('pagamento_id', pagamentoId);
+
+        if (notasExistentes && notasExistentes.length > 0) {
+          // Se tem nota pendente ou aprovada, não solicitar novamente
+          const temNotaValidaOuPendente = notasExistentes.some(n => n.status === 'pendente' || n.status === 'aprovado');
+          if (temNotaValidaOuPendente) {
+            pagamentosComNota.push(pagamento?.medicos?.nome || 'Médico desconhecido');
+          } else {
+            pagamentosSemNota.push(pagamento);
+          }
         } else {
           pagamentosSemNota.push(pagamento);
         }
-      } else {
-        pagamentosSemNota.push(pagamento);
       }
-    }
 
-    if (pagamentosComNota.length > 0) {
-      toast({
-        title: "Aviso",
-        description: `${pagamentosComNota.length} médico(s) já enviaram notas: ${pagamentosComNota.join(', ')}. Apenas ${pagamentosSemNota.length} solicitações serão enviadas.`,
-        variant: "default",
-      });
-    }
+      if (pagamentosComNota.length > 0) {
+        toast({
+          title: "Aviso",
+          description: `${pagamentosComNota.length} médico(s) já enviaram notas: ${pagamentosComNota.join(', ')}. Apenas ${pagamentosSemNota.length} solicitações serão enviadas.`,
+          variant: "default",
+        });
+      }
 
-    if (pagamentosSemNota.length === 0) {
-      toast({
-        title: "Aviso",
-        description: "Todos os médicos selecionados já enviaram suas notas.",
-      });
-      setSelectedPagamentos([]);
-      return;
-    }
+      if (pagamentosSemNota.length === 0) {
+        toast({
+          title: "Aviso",
+          description: "Todos os médicos selecionados já enviaram suas notas.",
+        });
+        setSelectedPagamentos([]);
+        return;
+      }
 
-    // Prevenir duplo clique
-    const button = document.querySelector('[data-solicitar-notas]') as HTMLButtonElement;
-    if (button) {
-      button.disabled = true;
-      setTimeout(() => {
-        button.disabled = false;
-      }, 3000);
-    }
-
-    try {
       for (const pagamento of pagamentosSemNota) {
         if (!pagamento?.medicos) {
           console.warn('Pagamento sem médico vinculado:', pagamento?.id);
@@ -322,12 +318,44 @@ export default function Pagamentos() {
         description: "Falha ao enviar solicitações",
         variant: "destructive",
       });
+    } finally {
+      setTimeout(() => {
+        setProcessingButtons(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(buttonKey);
+          return newSet;
+        });
+      }, 2000);
     }
   };
 
-  const handlePagamento = async (pagamentoId: string, dataPagamento: string) => {
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string>("");
+  const [paymentDate, setPaymentDate] = useState("");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [processingButtons, setProcessingButtons] = useState<Set<string>>(new Set());
+
+  const openPaymentDialog = (pagamentoId: string) => {
+    setSelectedPaymentId(pagamentoId);
+    setPaymentDate(new Date().toISOString().split('T')[0]); // Data atual por padrão
+    setPaymentDialogOpen(true);
+  };
+
+  const handlePagamento = async () => {
+    if (!paymentDate || !selectedPaymentId) {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione uma data de pagamento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isProcessingPayment) return; // Prevenir duplo clique
+    setIsProcessingPayment(true);
+
     try {
-      const pagamento = pagamentos.find(p => p.id === pagamentoId);
+      const pagamento = pagamentos.find(p => p.id === selectedPaymentId);
       if (!pagamento) return;
 
       // Enviar notificação de pagamento
@@ -336,7 +364,7 @@ export default function Pagamentos() {
           type: 'pagamento',
           numero: pagamento.medicos.numero_whatsapp,
           nome: pagamento.medicos.nome,
-          dataPagamento: dataPagamento,
+          dataPagamento: new Date(paymentDate).toLocaleDateString('pt-BR'),
         }
       });
 
@@ -345,15 +373,18 @@ export default function Pagamentos() {
         .from("pagamentos")
         .update({ 
           status: "pago",
-          data_pagamento: dataPagamento
+          data_pagamento: paymentDate
         })
-        .eq("id", pagamentoId);
+        .eq("id", selectedPaymentId);
 
       toast({
         title: "Sucesso",
         description: "Notificação de pagamento enviada!",
       });
 
+      setPaymentDialogOpen(false);
+      setSelectedPaymentId("");
+      setPaymentDate("");
       loadData();
     } catch (error) {
       console.error("Erro ao processar pagamento:", error);
@@ -362,6 +393,8 @@ export default function Pagamentos() {
         description: "Falha ao processar pagamento",
         variant: "destructive",
       });
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -737,16 +770,13 @@ export default function Pagamentos() {
                                 <Download className="h-4 w-4" />
                               </Button>
                             )}
-                            <Button
+                            <Button 
                               size="sm"
-                              onClick={() => {
-                                const data = prompt("Digite a data do pagamento (AAAA-MM-DD):", new Date().toISOString().split('T')[0]);
-                                if (data) {
-                                  handlePagamento(pagamento.id, data);
-                                }
-                              }}
+                              onClick={() => openPaymentDialog(pagamento.id)}
+                              disabled={isProcessingPayment}
                             >
-                              <CheckCircle className="h-4 w-4" />
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Pagar
                             </Button>
                           </>
                         )}
@@ -758,6 +788,39 @@ export default function Pagamentos() {
             </Table>
           </CardContent>
         </Card>
+        {/* Dialog para Data de Pagamento */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Informar Data de Pagamento</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="payment-date">Data do Pagamento</Label>
+                <Input
+                  id="payment-date"
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setPaymentDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={handlePagamento}
+                  disabled={isProcessingPayment || !paymentDate}
+                >
+                  {isProcessingPayment ? "Processando..." : "Confirmar Pagamento"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
