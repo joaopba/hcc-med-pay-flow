@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
 import NotasAprovacao from "@/components/NotasAprovacao";
 import ErrorBoundary from "@/components/ErrorBoundary";
+const NotasAprovacaoLazy = lazy(() => import("@/components/NotasAprovacao"));
 import {
   Dialog,
   DialogContent,
@@ -608,9 +609,11 @@ export default function Pagamentos() {
 
           {/* Seção de Aprovação de Notas */}
           <div className="mb-6">
-            <ErrorBoundary pageName="Aprovação de Notas">
-              <NotasAprovacao />
-            </ErrorBoundary>
+            <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+              <ErrorBoundary pageName="Aprovação de Notas">
+                <NotasAprovacaoLazy />
+              </ErrorBoundary>
+            </Suspense>
           </div>
 
           <Card className="mb-4">
