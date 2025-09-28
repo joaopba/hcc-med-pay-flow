@@ -10,6 +10,7 @@ import Medicos from "./pages/Medicos";
 import Pagamentos from "./pages/Pagamentos";
 import Configuracoes from "./pages/Configuracoes";
 import Relatorios from "./pages/Relatorios";
+import TesteWhatsApp from "./pages/TesteWhatsApp";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +48,11 @@ const App = () => (
           <Route path="/relatorios" element={
             <ProtectedRoute>
               <Relatorios />
+            </ProtectedRoute>
+          } />
+          <Route path="/teste-whatsapp" element={
+            <ProtectedRoute>
+              <TesteWhatsApp />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

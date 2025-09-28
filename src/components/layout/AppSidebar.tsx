@@ -1,4 +1,4 @@
-import { Home, Users, CreditCard, Settings, LogOut, FileText } from "lucide-react";
+import { Home, Users, CreditCard, Settings, LogOut, FileText, MessageCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -18,6 +18,7 @@ const navigation = [
   { name: "Médicos", href: "/medicos", icon: Users },
   { name: "Pagamentos", href: "/pagamentos", icon: CreditCard },
   { name: "Relatórios", href: "/relatorios", icon: FileText },
+  { name: "Teste WhatsApp", href: "/teste-whatsapp", icon: MessageCircle },
   { name: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 

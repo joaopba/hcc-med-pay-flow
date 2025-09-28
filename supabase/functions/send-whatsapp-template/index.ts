@@ -21,19 +21,32 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Recebendo requisição WhatsApp...');
     const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId }: WhatsAppRequest = await req.json();
+    console.log('Dados recebidos:', { type, numero, nome, valor, competencia, dataPagamento, pagamentoId });
 
     // Buscar configurações da API
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    console.log('Env vars check:', { 
+      hasUrl: !!supabaseUrl, 
+      hasKey: !!supabaseKey 
+    });
 
-    const { data: config } = await supabase
+    const supabase = createClient(supabaseUrl ?? '', supabaseKey ?? '');
+
+    console.log('Buscando configurações...');
+    const { data: config, error: configError } = await supabase
       .from('configuracoes')
       .select('api_url, auth_token')
       .single();
+
+    if (configError) {
+      console.error('Erro ao buscar configurações:', configError);
+      throw new Error(`Erro ao buscar configurações: ${configError.message}`);
+    }
 
     if (!config) {
       throw new Error('Configurações não encontradas');
@@ -101,10 +114,17 @@ serve(async (req) => {
     console.log('Enviando mensagem WhatsApp:', {
       template: templateName,
       numero,
-      payload
+      payload,
+      apiUrl: `${config.api_url}/template`
+    });
+
+    console.log('Config encontrada:', {
+      apiUrl: config.api_url,
+      hasToken: !!config.auth_token
     });
 
     // Enviar para a API do WhatsApp
+    console.log('Fazendo requisição para:', `${config.api_url}/template`);
     const response = await fetch(`${config.api_url}/template`, {
       method: 'POST',
       headers: {
@@ -114,7 +134,11 @@ serve(async (req) => {
       body: JSON.stringify(payload),
     });
 
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers));
+
     const responseData = await response.json();
+    console.log('Response data:', responseData);
     logData.response = responseData;
 
     if (!response.ok) {
