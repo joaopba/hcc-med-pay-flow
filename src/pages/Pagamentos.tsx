@@ -1,0 +1,467 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Search, Send, Download, Calendar, CheckCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import AppLayout from "@/components/layout/AppLayout";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface Medico {
+  id: string;
+  nome: string;
+  numero_whatsapp: string;
+}
+
+interface Pagamento {
+  id: string;
+  medico_id: string;
+  mes_competencia: string;
+  valor: number;
+  status: string;
+  data_solicitacao: string;
+  data_resposta: string;
+  data_pagamento: string;
+  valor_liquido: number;
+  nota_pdf_url: string;
+  comprovante_url: string;
+  observacoes: string;
+  medicos: Medico;
+}
+
+export default function Pagamentos() {
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
+  const [medicos, setMedicos] = useState<Medico[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const [mesFilter, setMesFilter] = useState("");
+  const [showDialog, setShowDialog] = useState(false);
+  const [selectedPagamentos, setSelectedPagamentos] = useState<string[]>([]);
+  const { toast } = useToast();
+
+  const [formData, setFormData] = useState({
+    medico_id: "",
+    mes_competencia: "",
+    valor: "",
+  });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Carregar pagamentos com dados dos médicos
+      const { data: pagamentosData, error: pagamentosError } = await supabase
+        .from("pagamentos")
+        .select(`
+          *,
+          medicos (
+            id,
+            nome,
+            numero_whatsapp
+          )
+        `)
+        .order("mes_competencia", { ascending: false });
+
+      if (pagamentosError) throw pagamentosError;
+
+      // Carregar médicos ativos para o formulário
+      const { data: medicosData, error: medicosError } = await supabase
+        .from("medicos")
+        .select("id, nome, numero_whatsapp")
+        .eq("ativo", true)
+        .order("nome");
+
+      if (medicosError) throw medicosError;
+
+      setPagamentos(pagamentosData || []);
+      setMedicos(medicosData || []);
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar dados",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const { error } = await supabase
+        .from("pagamentos")
+        .insert([{
+          medico_id: formData.medico_id,
+          mes_competencia: formData.mes_competencia,
+          valor: parseFloat(formData.valor),
+        }]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Sucesso",
+        description: "Pagamento cadastrado com sucesso!",
+      });
+
+      setShowDialog(false);
+      setFormData({ medico_id: "", mes_competencia: "", valor: "" });
+      loadData();
+    } catch (error) {
+      console.error("Erro ao salvar pagamento:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao cadastrar pagamento",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSolicitarNotas = async () => {
+    if (selectedPagamentos.length === 0) {
+      toast({
+        title: "Aviso",
+        description: "Selecione pelo menos um pagamento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      for (const pagamentoId of selectedPagamentos) {
+        const pagamento = pagamentos.find(p => p.id === pagamentoId);
+        if (pagamento) {
+          await supabase.functions.invoke('send-whatsapp-template', {
+            body: {
+              type: 'nota',
+              numero: pagamento.medicos.numero_whatsapp,
+              nome: pagamento.medicos.nome,
+              valor: pagamento.valor.toString(),
+              competencia: pagamento.mes_competencia,
+              pagamentoId: pagamento.id
+            }
+          });
+
+          // Atualizar status
+          await supabase
+            .from("pagamentos")
+            .update({ 
+              status: "solicitado",
+              data_solicitacao: new Date().toISOString()
+            })
+            .eq("id", pagamento.id);
+        }
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `${selectedPagamentos.length} solicitação(ões) enviada(s) via WhatsApp!`,
+      });
+
+      setSelectedPagamentos([]);
+      loadData();
+    } catch (error) {
+      console.error("Erro ao enviar solicitações:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao enviar solicitações",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePagamento = async (pagamentoId: string, dataPagamento: string) => {
+    try {
+      const pagamento = pagamentos.find(p => p.id === pagamentoId);
+      if (!pagamento) return;
+
+      // Enviar notificação de pagamento
+      await supabase.functions.invoke('send-whatsapp-template', {
+        body: {
+          type: 'pagamento',
+          numero: pagamento.medicos.numero_whatsapp,
+          nome: pagamento.medicos.nome,
+          dataPagamento: dataPagamento,
+        }
+      });
+
+      // Atualizar status
+      await supabase
+        .from("pagamentos")
+        .update({ 
+          status: "pago",
+          data_pagamento: dataPagamento
+        })
+        .eq("id", pagamentoId);
+
+      toast({
+        title: "Sucesso",
+        description: "Notificação de pagamento enviada!",
+      });
+
+      loadData();
+    } catch (error) {
+      console.error("Erro ao processar pagamento:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao processar pagamento",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pendente": return "secondary";
+      case "solicitado": return "default";
+      case "nota_recebida": return "outline";
+      case "pago": return "secondary";
+      default: return "secondary";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "pendente": return "Pendente";
+      case "solicitado": return "Solicitado";
+      case "nota_recebida": return "Nota Recebida";
+      case "pago": return "Pago";
+      default: return status;
+    }
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
+  };
+
+  const filteredPagamentos = pagamentos.filter((pagamento) => {
+    const matchesSearch = pagamento.medicos.nome.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "todos" || pagamento.status === statusFilter;
+    const matchesMes = !mesFilter || pagamento.mes_competencia === mesFilter;
+    
+    return matchesSearch && matchesStatus && matchesMes;
+  });
+
+  return (
+    <AppLayout>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Pagamentos</h1>
+            <p className="text-muted-foreground">
+              Gerenciar pagamentos e solicitações de notas
+            </p>
+          </div>
+          
+          <div className="flex space-x-2">
+            {selectedPagamentos.length > 0 && (
+              <Button onClick={handleSolicitarNotas}>
+                <Send className="h-4 w-4 mr-2" />
+                Solicitar Notas ({selectedPagamentos.length})
+              </Button>
+            )}
+            
+            <Dialog open={showDialog} onOpenChange={setShowDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Pagamento
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Novo Pagamento</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSave} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="medico_id">Médico</Label>
+                    <Select value={formData.medico_id} onValueChange={(value) => setFormData({ ...formData, medico_id: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um médico" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {medicos.map((medico) => (
+                          <SelectItem key={medico.id} value={medico.id}>
+                            {medico.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mes_competencia">Mês/Ano</Label>
+                    <Input
+                      id="mes_competencia"
+                      type="month"
+                      value={formData.mes_competencia}
+                      onChange={(e) => setFormData({ ...formData, mes_competencia: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="valor">Valor (R$)</Label>
+                    <Input
+                      id="valor"
+                      type="number"
+                      step="0.01"
+                      value={formData.valor}
+                      onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit">Salvar</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+
+        <Card className="mb-4">
+          <CardHeader>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Search className="h-4 w-4" />
+                <Input
+                  placeholder="Buscar médicos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-48"
+                />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os status</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="solicitado">Solicitado</SelectItem>
+                  <SelectItem value="nota_recebida">Nota Recebida</SelectItem>
+                  <SelectItem value="pago">Pago</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Input
+                type="month"
+                value={mesFilter}
+                onChange={(e) => setMesFilter(e.target.value)}
+                className="w-48"
+              />
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <Checkbox
+                      checked={selectedPagamentos.length === filteredPagamentos.length && filteredPagamentos.length > 0}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedPagamentos(filteredPagamentos.filter(p => p.status === "pendente").map(p => p.id));
+                        } else {
+                          setSelectedPagamentos([]);
+                        }
+                      }}
+                    />
+                  </TableHead>
+                  <TableHead>Médico</TableHead>
+                  <TableHead>Competência</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Valor Líquido</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPagamentos.map((pagamento) => (
+                  <TableRow key={pagamento.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedPagamentos.includes(pagamento.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedPagamentos([...selectedPagamentos, pagamento.id]);
+                          } else {
+                            setSelectedPagamentos(selectedPagamentos.filter(id => id !== pagamento.id));
+                          }
+                        }}
+                        disabled={pagamento.status !== "pendente"}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{pagamento.medicos.nome}</TableCell>
+                    <TableCell>{pagamento.mes_competencia}</TableCell>
+                    <TableCell>{formatCurrency(pagamento.valor)}</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(pagamento.status)}>
+                        {getStatusLabel(pagamento.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {pagamento.valor_liquido ? formatCurrency(pagamento.valor_liquido) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        {pagamento.status === "nota_recebida" && (
+                          <>
+                            {pagamento.nota_pdf_url && (
+                              <Button size="sm" variant="outline">
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              onClick={() => handlePagamento(pagamento.id, new Date().toISOString().split('T')[0])}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  );
+}
