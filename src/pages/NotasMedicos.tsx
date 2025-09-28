@@ -241,6 +241,15 @@ export default function NotasMedicos() {
           <p className="text-muted-foreground">
             Envie suas notas fiscais de forma fácil e segura
           </p>
+          <div className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => window.location.href = '/dashboard-medicos'}
+              className="text-sm"
+            >
+              📊 Ver Dashboard com Estatísticas
+            </Button>
+          </div>
         </div>
 
         <Card className="mb-6">
