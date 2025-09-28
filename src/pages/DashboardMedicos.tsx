@@ -374,7 +374,8 @@ export default function DashboardMedicos() {
 
       // Enviar notificação via WhatsApp Template
       try {
-        await supabase.functions.invoke('send-whatsapp-template', {
+        console.log('Enviando notificação WhatsApp para:', medico.nome, medico.numero_whatsapp);
+        const whatsappResponse = await supabase.functions.invoke('send-whatsapp-template', {
           body: {
             type: 'nota_recebida',
             medico: {
@@ -385,9 +386,15 @@ export default function DashboardMedicos() {
             pagamentoId: selectedPagamento.id
           }
         });
-        console.log('Notificação de nota recebida enviada via WhatsApp');
+        console.log('Resposta da notificação WhatsApp:', whatsappResponse);
+        
+        if (whatsappResponse.error) {
+          console.error('Erro na notificação WhatsApp:', whatsappResponse.error);
+        } else {
+          console.log('Notificação de nota recebida enviada via WhatsApp');
+        }
       } catch (whatsappError) {
-        console.warn('Erro ao enviar notificação via WhatsApp:', whatsappError);
+        console.error('Erro ao enviar notificação via WhatsApp:', whatsappError);
       }
 
       // Atualizar o pagamento com a URL da nota
