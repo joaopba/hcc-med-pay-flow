@@ -222,6 +222,49 @@ export default function Pagamentos() {
       return;
     }
 
+    // Verificar se algum pagamento já tem nota enviada
+    const pagamentosComNota = [];
+    const pagamentosSemNota = [];
+
+    for (const pagamentoId of selectedPagamentos) {
+      const pagamento = pagamentos.find(p => p.id === pagamentoId);
+      
+      // Verificar se já tem nota na tabela notas_medicos
+      const { data: notasExistentes } = await supabase
+        .from('notas_medicos')
+        .select('id, status')
+        .eq('pagamento_id', pagamentoId);
+
+      if (notasExistentes && notasExistentes.length > 0) {
+        // Se tem nota pendente ou aprovada, não solicitar novamente
+        const temNotaValidaOuPendente = notasExistentes.some(n => n.status === 'pendente' || n.status === 'aprovado');
+        if (temNotaValidaOuPendente) {
+          pagamentosComNota.push(pagamento?.medicos?.nome || 'Médico desconhecido');
+        } else {
+          pagamentosSemNota.push(pagamento);
+        }
+      } else {
+        pagamentosSemNota.push(pagamento);
+      }
+    }
+
+    if (pagamentosComNota.length > 0) {
+      toast({
+        title: "Aviso",
+        description: `${pagamentosComNota.length} médico(s) já enviaram notas: ${pagamentosComNota.join(', ')}. Apenas ${pagamentosSemNota.length} solicitações serão enviadas.`,
+        variant: "default",
+      });
+    }
+
+    if (pagamentosSemNota.length === 0) {
+      toast({
+        title: "Aviso",
+        description: "Todos os médicos selecionados já enviaram suas notas.",
+      });
+      setSelectedPagamentos([]);
+      return;
+    }
+
     // Prevenir duplo clique
     const button = document.querySelector('[data-solicitar-notas]') as HTMLButtonElement;
     if (button) {
@@ -232,12 +275,12 @@ export default function Pagamentos() {
     }
 
     try {
-      for (const pagamentoId of selectedPagamentos) {
-        const pagamento = pagamentos.find(p => p.id === pagamentoId);
+      for (const pagamento of pagamentosSemNota) {
         if (!pagamento?.medicos) {
-          console.warn('Pagamento sem médico vinculado:', pagamentoId);
+          console.warn('Pagamento sem médico vinculado:', pagamento?.id);
           continue;
         }
+        
         await supabase.functions.invoke('send-whatsapp-template', {
           body: {
             type: 'nota',
@@ -249,7 +292,7 @@ export default function Pagamentos() {
           }
         });
 
-        // Atualizar status
+        // Atualizar status apenas dos que não tinham nota
         await supabase
           .from("pagamentos")
           .update({ 
@@ -261,7 +304,7 @@ export default function Pagamentos() {
 
       toast({
         title: "Sucesso",
-        description: `${selectedPagamentos.length} solicitação(ões) enviada(s) via WhatsApp!`,
+        description: `${pagamentosSemNota.length} solicitação(ões) enviada(s) via WhatsApp!`,
       });
 
       setSelectedPagamentos([]);
@@ -633,7 +676,7 @@ export default function Pagamentos() {
                 {filteredPagamentos.map((pagamento) => (
                   <TableRow key={pagamento.id}>
                     <TableCell>
-                      <Checkbox
+                       <Checkbox
                         checked={selectedPagamentos.includes(pagamento.id)}
                         onCheckedChange={(checked) => {
                           if (checked) {
@@ -642,7 +685,7 @@ export default function Pagamentos() {
                             setSelectedPagamentos(selectedPagamentos.filter(id => id !== pagamento.id));
                           }
                         }}
-                        disabled={pagamento.status !== "pendente"}
+                        disabled={pagamento.status === "pago" || pagamento.status === "nota_recebida"}
                       />
                     </TableCell>
                     <TableCell className="font-medium">{pagamento.medicos?.nome || '—'}</TableCell>

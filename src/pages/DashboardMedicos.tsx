@@ -67,6 +67,7 @@ interface PagamentoPendente {
   valor: number;
   status: string;
   temNotaRejeitada?: boolean;
+  temNotaPendente?: boolean;
 }
 
 export default function DashboardMedicos() {
@@ -101,8 +102,10 @@ export default function DashboardMedicos() {
 
   useEffect(() => {
     if (medico && pagamentosPendentes.length > 0) {
-      // Mostrar popup automaticamente após 1.5 segundos apenas para novos pagamentos pendentes
-      const pagamentosQueNecessitamNota = pagamentosPendentes.filter(p => !p.temNotaRejeitada);
+      // Mostrar popup automaticamente após 1.5 segundos apenas para pagamentos que realmente precisam de nota
+      const pagamentosQueNecessitamNota = pagamentosPendentes.filter(p => 
+        !p.temNotaRejeitada && !p.temNotaPendente
+      );
       if (pagamentosQueNecessitamNota.length > 0) {
         const timer = setTimeout(() => {
           setSelectedPagamento(pagamentosQueNecessitamNota[0]);
@@ -198,7 +201,8 @@ export default function DashboardMedicos() {
           notas_medicos!left (
             id,
             status,
-            arquivo_url
+            arquivo_url,
+            created_at
           )
         `)
         .eq("medico_id", medicoData.id)
@@ -209,19 +213,28 @@ export default function DashboardMedicos() {
 
       // Filtrar pagamentos que realmente precisam de nota
       const pagamentosPendentesProcessados = pagamentosPendentesData?.filter(p => {
-        // Se não tem nota_pdf_url, precisa de nota
-        if (!p.nota_pdf_url) return true;
-        
-        // Se tem notas rejeitadas, permite reenvio
         const notasArray = Array.isArray(p.notas_medicos) ? p.notas_medicos : [];
-        const notasRejeitadas = notasArray.some((nota: any) => nota.status === 'rejeitado');
-        return notasRejeitadas;
+        
+        // Se não tem notas, precisa enviar
+        if (notasArray.length === 0) return true;
+        
+        // Se tem apenas notas rejeitadas, permite reenvio
+        const apenasRejeitadas = notasArray.every((nota: any) => nota.status === 'rejeitado');
+        if (apenasRejeitadas) return true;
+        
+        // Se tem nota pendente ou aprovada, não precisa reenviar
+        const temNotaValidaOuPendente = notasArray.some((nota: any) => 
+          nota.status === 'pendente' || nota.status === 'aprovado'
+        );
+        
+        return !temNotaValidaOuPendente;
       }).map(p => ({
         id: p.id,
         mes_competencia: p.mes_competencia,
         valor: p.valor,
         status: p.status,
-        temNotaRejeitada: Array.isArray(p.notas_medicos) ? p.notas_medicos.some((nota: any) => nota.status === 'rejeitado') : false
+        temNotaRejeitada: Array.isArray(p.notas_medicos) ? p.notas_medicos.some((nota: any) => nota.status === 'rejeitado') : false,
+        temNotaPendente: Array.isArray(p.notas_medicos) ? p.notas_medicos.some((nota: any) => nota.status === 'pendente') : false
       })) || [];
 
       setPagamentosPendentes(pagamentosPendentesProcessados);
@@ -379,7 +392,7 @@ export default function DashboardMedicos() {
       }
 
       // Atualizar o pagamento com a URL da nota
-      await supabase
+      const { error: pagamentoUpdateError } = await supabase
         .from("pagamentos")
         .update({
           status: "nota_recebida",
@@ -387,6 +400,11 @@ export default function DashboardMedicos() {
           data_resposta: new Date().toISOString()
         })
         .eq("id", pagamentoId);
+
+      if (pagamentoUpdateError) {
+        console.error('Erro ao atualizar pagamento:', pagamentoUpdateError);
+        // Mesmo com erro no pagamento, a nota foi salva, então continuamos
+      }
 
       // Fechar modal e recarregar dados
       setShowUploadModal(false);
@@ -480,6 +498,64 @@ export default function DashboardMedicos() {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-7xl mx-auto">
+        {/* Seção especial para médicos com notas pendentes */}
+        {pagamentosPendentes.length > 0 && (
+          <div className="mb-8">
+            <Card className="border-amber-200 bg-amber-50">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                    <Upload className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-amber-800 mb-2">
+                      📋 Notas Fiscais Pendentes
+                    </h3>
+                    <p className="text-amber-700 mb-4">
+                      Você tem {pagamentosPendentes.length} pagamento(s) aguardando envio de nota fiscal.
+                    </p>
+                    <div className="grid gap-3">
+                      {pagamentosPendentes.map((pagamento) => (
+                        <div key={pagamento.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                          <div>
+                            <span className="font-medium">
+                              {new Date(pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
+                                month: 'long', 
+                                year: 'numeric' 
+                              })}
+                            </span>
+                            <span className="text-lg font-bold text-green-600 ml-2">
+                              {formatCurrency(pagamento.valor)}
+                            </span>
+                            {pagamento.temNotaRejeitada && (
+                              <Badge variant="destructive" className="ml-2">Rejeitada - Reenviar</Badge>
+                            )}
+                            {pagamento.temNotaPendente && (
+                              <Badge variant="secondary" className="ml-2">Aguardando Análise</Badge>
+                            )}
+                          </div>
+                          <Button
+                            onClick={() => {
+                              setSelectedPagamento(pagamento);
+                              setShowUploadModal(true);
+                            }}
+                            size="sm"
+                            variant={pagamento.temNotaRejeitada ? "destructive" : pagamento.temNotaPendente ? "secondary" : "default"}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            {pagamento.temNotaRejeitada ? "Reenviar Nota" : 
+                             pagamento.temNotaPendente ? "Nota Enviada" : "Enviar Nota"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
