@@ -10,6 +10,32 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Verificação inicial do webhook do WhatsApp
+  if (req.method === 'GET') {
+    const url = new URL(req.url);
+    const mode = url.searchParams.get('hub.mode');
+    const token = url.searchParams.get('hub.verify_token');
+    const challenge = url.searchParams.get('hub.challenge');
+
+    console.log('Verificação do webhook WhatsApp:', { mode, token: token ? 'presente' : 'ausente', challenge: challenge ? 'presente' : 'ausente' });
+
+    if (mode === 'subscribe' && token === (Deno.env.get('WHATSAPP_VERIFY_TOKEN') || 'webhook_verify_token')) {
+      console.log('Verificação do webhook aprovada');
+      return new Response(challenge, {
+        headers: {
+          'Content-Type': 'text/plain',
+          ...corsHeaders
+        }
+      });
+    } else {
+      console.log('Verificação do webhook rejeitada');
+      return new Response('Forbidden', { 
+        status: 403,
+        headers: corsHeaders 
+      });
+    }
+  }
+
   try {
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
     const supabase = createClient(
