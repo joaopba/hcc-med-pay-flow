@@ -248,8 +248,34 @@ serve(async (req) => {
         
         console.log('Pagamentos encontrados:', pagamentos);
 
-        if (pagamentos && pagamentos.length > 0) {
-          const pagamento = pagamentos[0];
+        let pagamento: any = (pagamentos && pagamentos.length > 0) ? pagamentos[0] : null;
+
+        // Fallback: associar pelo log de solicitação (message_logs) caso o número do WhatsApp não bata com o cadastro
+        if (!pagamento) {
+          try {
+            const { data: logAssoc } = await supabase
+              .from('message_logs')
+              .select('pagamento_id, payload, created_at')
+              .eq('tipo', 'solicitacao_nota')
+              .ilike('payload->>number', `%${numeroLimpo}%`)
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            const pagamentoId = logAssoc?.[0]?.pagamento_id;
+            if (pagamentoId) {
+              const { data: pagamentoById } = await supabase
+                .from('pagamentos')
+                .select('id, valor, status, created_at')
+                .eq('id', pagamentoId)
+                .maybeSingle();
+              if (pagamentoById) pagamento = pagamentoById;
+            }
+          } catch (assocErr) {
+            console.warn('Falha no fallback por logs:', assocErr);
+          }
+        }
+
+        if (pagamento) {
           
           // Fazer download do arquivo PDF usando o token do webhook
           try {
