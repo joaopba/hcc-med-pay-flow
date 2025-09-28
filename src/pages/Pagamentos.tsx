@@ -739,7 +739,12 @@ export default function Pagamentos() {
                             )}
                             <Button
                               size="sm"
-                              onClick={() => handlePagamento(pagamento.id, new Date().toISOString().split('T')[0])}
+                              onClick={() => {
+                                const data = prompt("Digite a data do pagamento (AAAA-MM-DD):", new Date().toISOString().split('T')[0]);
+                                if (data) {
+                                  handlePagamento(pagamento.id, data);
+                                }
+                              }}
                             >
                               <CheckCircle className="h-4 w-4" />
                             </Button>

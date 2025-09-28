@@ -51,7 +51,7 @@ serve(async (req) => {
     // Notas do médico com dados de pagamentos - SEGURANÇA REFORÇADA
     const { data: notas, error: notasError } = await supabase
       .from('notas_medicos')
-      .select(`*, pagamentos!inner ( valor, mes_competencia )`)
+      .select(`*, pagamentos!inner ( valor, mes_competencia, data_pagamento )`)
       .eq('medico_id', medico.id)
       .order('created_at', { ascending: false });
 

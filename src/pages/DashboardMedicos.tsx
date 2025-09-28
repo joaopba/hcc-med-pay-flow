@@ -52,6 +52,7 @@ interface NotaData {
   pagamento: {
     valor: number;
     mes_competencia: string;
+    data_pagamento?: string;
   };
 }
 
@@ -229,17 +230,18 @@ export default function DashboardMedicos() {
       setPagamentosPendentes(pagamentosPendentesProcessados);
 
       const notasData = result.notas || [];
-      const notasProcessadas = notasData.map((nota: any) => ({
-        id: nota.id,
-        status: nota.status,
-        nome_arquivo: nota.nome_arquivo,
-        created_at: nota.created_at,
-        observacoes: nota.observacoes,
-        pagamento: {
-          valor: nota.pagamentos.valor,
-          mes_competencia: nota.pagamentos.mes_competencia
-        }
-      }));
+       const notasProcessadas = notasData.map((nota: any) => ({
+         id: nota.id,
+         status: nota.status,
+         nome_arquivo: nota.nome_arquivo,
+         created_at: nota.created_at,
+         observacoes: nota.observacoes,
+         pagamento: {
+           valor: nota.pagamentos.valor,
+           mes_competencia: nota.pagamentos.mes_competencia,
+           data_pagamento: nota.pagamentos.data_pagamento
+         }
+       }));
 
       setNotas(notasProcessadas);
 
@@ -810,11 +812,16 @@ export default function DashboardMedicos() {
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-primary">
-                      {formatCurrency(nota.pagamento.valor)}
-                    </p>
-                  </div>
+                   <div className="text-right">
+                     <p className="text-lg font-bold text-primary">
+                       {formatCurrency(nota.pagamento.valor)}
+                     </p>
+                     {nota.pagamento.data_pagamento && (
+                       <p className="text-sm text-green-600 font-medium">
+                         💰 Pago em {new Date(nota.pagamento.data_pagamento).toLocaleDateString('pt-BR')}
+                       </p>
+                     )}
+                   </div>
                 </div>
               ))}
               

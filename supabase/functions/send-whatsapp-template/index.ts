@@ -87,7 +87,7 @@ serve(async (req) => {
         break;
       
       case 'encaminhar_nota':
-        message = `📄 *Link para Envio de Nota Fiscal*\n\nOlá ${nome}!\n\nAcesse o link abaixo para enviar sua nota fiscal:\n\n🔗 https://hcc-med-pay-flow.lovable.app/dashboard-medicos\n\n• Digite seu CPF\n• Anexe o PDF da nota fiscal\n• Aguarde a aprovação\n\nDúvidas? Entre em contato conosco.`;
+        message = `📄 *Portal de Notas Fiscais - HCC Hospital*\n\n👋 Olá ${nome}!\n\n📋 Para dar continuidade ao processo de pagamento, é necessário que você envie sua nota fiscal através do nosso portal oficial.\n\n🔗 **Acesse aqui:** https://hcc-med-pay-flow.lovable.app/dashboard-medicos\n\n📝 **Como proceder:**\n• Digite seu CPF no sistema\n• Localize o pagamento pendente\n• Faça o upload do arquivo PDF da nota fiscal\n• Aguarde a análise e aprovação\n\n⚡ **Importante:** Apenas arquivos em PDF são aceitos. Certifique-se de que todos os dados estão corretos antes do envio.\n\n📞 **Dúvidas?** Nossa equipe está disponível para auxiliá-lo.\n\n✅ Após a aprovação, você será notificado automaticamente sobre a liberação do pagamento.`;
         payload = {
           body: message,
           number: phoneNumber,
@@ -97,7 +97,7 @@ serve(async (req) => {
         break;
       
       case 'pagamento':
-        message = `💰 *Pagamento Processado*\n\nOlá ${nome}!\n\nSeu pagamento foi processado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
+        message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
         payload = {
           body: message,
           number: phoneNumber,

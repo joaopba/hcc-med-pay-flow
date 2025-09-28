@@ -157,6 +157,7 @@ export default function NotasAprovacao() {
   };
 
   const handleAprovar = async (notaId: string) => {
+    if (processingId) return; // Prevenir duplo clique
     setProcessingId(notaId);
     try {
       const nota = notas.find(n => n.id === notaId);
@@ -234,6 +235,7 @@ export default function NotasAprovacao() {
       return;
     }
 
+    if (processingId) return; // Prevenir duplo clique
     setProcessingId(notaId);
     try {
       const nota = notas.find(n => n.id === notaId);
