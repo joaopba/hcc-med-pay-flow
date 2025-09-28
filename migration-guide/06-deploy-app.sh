@@ -20,8 +20,23 @@ if [ -d "$DEPLOY_DIR/.git" ]; then
 else
     echo "📥 Clonando repositório..."
     # SUBSTITUA pela URL do seu repositório
-    git clone https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git $DEPLOY_DIR
+    echo "⚠️  Configure o repositório Git manualmente ou copie os arquivos"
+    echo "📁 Por enquanto, vamos criar a estrutura básica..."
+    mkdir -p $DEPLOY_DIR
     cd $DEPLOY_DIR
+fi
+
+# Copiar arquivos do projeto (temporário até ter Git configurado)
+echo "📁 Você precisa copiar os arquivos do projeto para $DEPLOY_DIR"
+echo "📁 Execute: scp -r ./seu-projeto/* root@seu-servidor:$DEPLOY_DIR/"
+echo ""
+echo "⏸️  O deploy será pausado aqui. Execute novamente após copiar os arquivos."
+
+# Verificar se existe package.json
+if [ ! -f "$DEPLOY_DIR/package.json" ]; then
+    echo "❌ package.json não encontrado em $DEPLOY_DIR"
+    echo "📋 Copie os arquivos do projeto primeiro e execute o script novamente"
+    exit 1
 fi
 
 # Instalar dependências
@@ -32,7 +47,7 @@ npm install
 echo "⚙️ Configurando variáveis de ambiente..."
 cat > .env << EOF
 VITE_SUPABASE_URL=http://localhost:8000
-VITE_SUPABASE_ANON_KEY=SEU_ANON_KEY_AQUI
+VITE_SUPABASE_ANON_KEY=ZTCoH/MfMPZY8+JQ6GKDiJ8ibEFJKSPa/qFWeTxwO20=
 EOF
 
 # Build da aplicação
@@ -41,7 +56,7 @@ npm run build
 
 # Configurar Nginx
 echo "🌐 Configurando Nginx..."
-sudo cp ../migration-guide/05-setup-nginx.conf /etc/nginx/sites-available/$APP_NAME
+sudo cp ./05-setup-nginx.conf /etc/nginx/sites-available/$APP_NAME
 
 # Configurar domínio
 DOMAIN="hcc.chatconquista.com"
