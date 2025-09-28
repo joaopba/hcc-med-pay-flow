@@ -16,9 +16,7 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell,
-  LineChart,
-  Line
+  Cell
 } from "recharts";
 import { 
   TrendingUp, 
@@ -26,7 +24,6 @@ import {
   Clock, 
   DollarSign, 
   Calendar,
-  Download,
   BarChart3,
   Upload,
   AlertTriangle,
@@ -35,7 +32,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import logo from "@/assets/logo.png";
 
 interface MedicoStats {
   totalNotas: number;
@@ -101,6 +97,60 @@ export default function DashboardMedicos() {
       .substr(0, 14);
   };
 
+  useEffect(() => {
+    if (medico && pagamentosPendentes.length > 0) {
+      // Mostrar popup automaticamente após 1.5 segundos apenas para novos pagamentos pendentes
+      const pagamentosQueNecessitamNota = pagamentosPendentes.filter(p => !p.temNotaRejeitada);
+      if (pagamentosQueNecessitamNota.length > 0) {
+        const timer = setTimeout(() => {
+          setSelectedPagamento(pagamentosQueNecessitamNota[0]);
+          setShowUploadModal(true);
+        }, 1500);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [medico, pagamentosPendentes]);
+
+  // Configurar realtime para atualizações automáticas
+  useEffect(() => {
+    if (!medico) return;
+
+    const channel = supabase
+      .channel('dashboard-medicos-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notas_medicos',
+          filter: `medico_id=eq.${medico.id}`
+        },
+        () => {
+          console.log('Nota atualizada, recarregando dados...');
+          buscarDados();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pagamentos',
+          filter: `medico_id=eq.${medico.id}`
+        },
+        () => {
+          console.log('Pagamento atualizado, recarregando dados...');
+          buscarDados();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [medico]);
+
   const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCPF(e.target.value);
     setCpf(formatted);
@@ -155,22 +205,21 @@ export default function DashboardMedicos() {
 
       if (pagamentosError) throw pagamentosError;
 
-      // Filtrar pagamentos que realmente precisam de nota:
-      // 1. Sem nota (nota_pdf_url null)
-      // 2. Com nota rejeitada (permite reenvio)
+      // Filtrar pagamentos que realmente precisam de nota
       const pagamentosPendentesProcessados = pagamentosPendentesData?.filter(p => {
         // Se não tem nota_pdf_url, precisa de nota
         if (!p.nota_pdf_url) return true;
         
         // Se tem notas rejeitadas, permite reenvio
-        const notasRejeitadas = p.notas_medicos?.some((nota: any) => nota.status === 'rejeitado');
+        const notasArray = Array.isArray(p.notas_medicos) ? p.notas_medicos : [];
+        const notasRejeitadas = notasArray.some((nota: any) => nota.status === 'rejeitado');
         return notasRejeitadas;
       }).map(p => ({
         id: p.id,
         mes_competencia: p.mes_competencia,
         valor: p.valor,
         status: p.status,
-        temNotaRejeitada: p.notas_medicos?.some((nota: any) => nota.status === 'rejeitado') || false
+        temNotaRejeitada: Array.isArray(p.notas_medicos) ? p.notas_medicos.some((nota: any) => nota.status === 'rejeitado') : false
       })) || [];
 
       setPagamentosPendentes(pagamentosPendentesProcessados);
@@ -228,40 +277,23 @@ export default function DashboardMedicos() {
         valorPendente
       });
 
-      // Preparar dados para gráficos
-      const chartDataMap = new Map();
-      notasProcessadas.forEach(nota => {
-        const mes = new Date(nota.pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
-          month: 'short', 
-          year: '2-digit' 
-        });
-        if (!chartDataMap.has(mes)) {
-          chartDataMap.set(mes, { mes, valor: 0, aprovado: 0, pendente: 0, rejeitado: 0 });
+      // Dados para gráficos
+      const monthlyData = notasProcessadas.reduce((acc, nota) => {
+        const mes = nota.pagamento.mes_competencia;
+        if (!acc[mes]) {
+          acc[mes] = { mes, valor: 0, status: nota.status };
         }
-        const current = chartDataMap.get(mes);
-        current.valor += nota.pagamento.valor;
-        current[nota.status] = (current[nota.status] || 0) + nota.pagamento.valor;
-      });
+        acc[mes].valor += nota.pagamento.valor;
+        return acc;
+      }, {} as Record<string, ChartData>);
 
-      setChartData(Array.from(chartDataMap.values()).slice(-6));
+      setChartData(Object.values(monthlyData).sort((a, b) => a.mes.localeCompare(b.mes)));
 
-      toast({
-        title: "Sucesso",
-        description: `Dados carregados para ${medicoData.nome}`,
-      });
-
-      // Mostrar modal se houver pagamentos pendentes
-      if (pagamentosPendentesProcessados.length > 0) {
-        setTimeout(() => {
-          setShowUploadModal(true);
-        }, 1000);
-      }
-
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao buscar dados:", error);
       toast({
         title: "Erro",
-        description: "Falha ao carregar dados",
+        description: error.message || "Falha ao carregar dados",
         variant: "destructive",
       });
     } finally {
@@ -336,6 +368,16 @@ export default function DashboardMedicos() {
         await supabase.storage.from('notas').remove([filePath]);
         throw insertError;
       }
+
+      // Atualizar o pagamento com a URL da nota
+      await supabase
+        .from("pagamentos")
+        .update({
+          status: "nota_recebida",
+          nota_pdf_url: filePath,
+          data_resposta: new Date().toISOString()
+        })
+        .eq("id", pagamentoId);
 
       // Fechar modal e recarregar dados
       setShowUploadModal(false);
@@ -489,6 +531,8 @@ export default function DashboardMedicos() {
             </AlertDescription>
           </Alert>
         )}
+
+        {/* Cards de estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -547,106 +591,94 @@ export default function DashboardMedicos() {
           </Card>
         </div>
 
-        {/* Alerta de pagamentos pendentes */}
-        {pagamentosPendentes.length > 0 && (
-          <Alert className="mb-8 border-yellow-200 bg-yellow-50">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="flex items-center justify-between">
-              <div>
-                <strong className="text-yellow-800">
-                  Atenção! Você possui {pagamentosPendentes.length} pagamento(s) pendente(s) de nota fiscal.
-                </strong>
-                <p className="text-yellow-700 mt-1">
-                  Clique no botão ao lado para enviar suas notas fiscais agora.
-                </p>
-              </div>
-              <Button 
-                onClick={() => setShowUploadModal(true)}
-                className="ml-4 bg-yellow-600 hover:bg-yellow-700"
-              >
-                📄 Enviar Notas Agora
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Gráfico de barras por mês */}
+          {/* Valores por mês */}
           <Card>
             <CardHeader>
-              <CardTitle>Valores por Mês</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Valores por Mês
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="mes" />
-                  <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} />
-                  <Tooltip 
-                    formatter={(value: number) => [formatCurrency(value), 'Valor']}
-                    labelStyle={{ color: '#000' }}
-                  />
-                  <Bar dataKey="valor" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="mes" />
+                    <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} />
+                    <Tooltip 
+                      formatter={(value) => [formatCurrency(Number(value)), "Valor"]}
+                      labelFormatter={(label) => `Mês: ${label}`}
+                    />
+                    <Bar dataKey="valor" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Gráfico de pizza - Status das notas */}
+          {/* Distribuição por status */}
           <Card>
             <CardHeader>
-              <CardTitle>Distribuição por Status</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Status das Notas
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={120}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Lista de notas recentes */}
+        {/* Histórico de notas */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
+              <FileCheck className="h-5 w-5" />
               Histórico de Notas Fiscais
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {notas.slice(0, 10).map((nota) => (
+              {notas.map((nota) => (
                 <div key={nota.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="font-medium">{nota.nome_arquivo}</h4>
-                      {getStatusBadge(nota.status)}
-                    </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p>
-                        <strong>Competência:</strong> {new Date(nota.pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
-                          month: 'long', 
-                          year: 'numeric' 
+                  <div className="flex items-center gap-4">
+                    <Calendar className="h-8 w-8 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{nota.nome_arquivo}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(nota.created_at).toLocaleDateString('pt-BR')} • 
+                        {new Date(nota.pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
+                          year: 'numeric', 
+                          month: 'long' 
                         })}
                       </p>
-                      <p>
-                        <strong>Enviado em:</strong> {new Date(nota.created_at).toLocaleDateString('pt-BR')}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {getStatusBadge(nota.status)}
+                      </div>
                       {nota.observacoes && (
                         <p className="text-destructive">
                           <strong>Observações:</strong> {nota.observacoes}
@@ -674,104 +706,91 @@ export default function DashboardMedicos() {
 
         {/* Modal para upload de notas */}
         <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-2xl">
-                <Upload className="h-6 w-6 text-primary" />
-                📄 Enviar Notas Fiscais Pendentes
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <Upload className="h-5 w-5 text-primary" />
+                {selectedPagamento?.temNotaRejeitada ? 'Reenviar Nota Fiscal' : 'Enviar Nota Fiscal'}
               </DialogTitle>
             </DialogHeader>
             
-            <div className="space-y-6">
-              <Alert className="border-yellow-200 bg-yellow-50">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <div className="space-y-4">
+              {selectedPagamento && (
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">Detalhes do Pagamento</h4>
+                    {selectedPagamento.temNotaRejeitada && (
+                      <Badge variant="destructive" className="text-xs">
+                        Nota Rejeitada - Reenvio Necessário
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Competência:</span>
+                      <p className="font-medium">
+                        {new Date(selectedPagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
+                          year: 'numeric', 
+                          month: 'long' 
+                        })}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Valor:</span>
+                      <p className="font-medium text-primary">
+                        {formatCurrency(selectedPagamento.valor)}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedPagamento.temNotaRejeitada && (
+                    <Alert className="mt-3 border-red-200 bg-red-50">
+                      <X className="h-4 w-4 text-red-600" />
+                      <AlertDescription className="text-red-800 text-sm">
+                        A nota anterior foi rejeitada. Envie uma nova nota fiscal corrigida.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Arquivo PDF da Nota Fiscal</Label>
+                <Input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && selectedPagamento) {
+                      handleFileUpload(selectedPagamento.id, file);
+                    }
+                  }}
+                  disabled={uploading}
+                />
+              </div>
+
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong className="text-yellow-800">
-                    Você possui {pagamentosPendentes.length} pagamento(s) aguardando documentação!
-                  </strong>
-                  <p className="text-yellow-700 mt-1">
-                    Envie as notas fiscais correspondentes aos valores abaixo para liberar seus pagamentos.
-                  </p>
+                  <strong>Importante:</strong>
+                  <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                    <li>Apenas arquivos PDF são aceitos</li>
+                    <li>Certifique-se de que todos os dados estão corretos</li>
+                    <li>A nota deve corresponder ao valor e período informado</li>
+                    {selectedPagamento?.temNotaRejeitada && (
+                      <li className="text-red-600 font-medium">Corrija os problemas da nota anterior antes de reenviar</li>
+                    )}
+                  </ul>
                 </AlertDescription>
               </Alert>
 
-              <div className="grid gap-4">
-                {pagamentosPendentes.map((pagamento) => (
-                  <Card key={pagamento.id} className="border-2 border-primary/20">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg text-primary">
-                            {new Date(pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
-                              month: 'long', 
-                              year: 'numeric' 
-                            })}
-                          </CardTitle>
-                          <p className="text-3xl font-bold text-green-600 mt-2">
-                            {formatCurrency(pagamento.valor)}
-                          </p>
-                        </div>
-                        <Badge variant="outline" className="bg-yellow-50">
-                          Aguardando Nota
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="space-y-4">
-                        <div className="p-4 bg-muted/50 rounded-lg">
-                          <p className="text-sm font-medium mb-2">
-                            📋 Instruções para envio:
-                          </p>
-                          <ul className="text-sm text-muted-foreground space-y-1">
-                            <li>• Arquivo deve estar em formato PDF</li>
-                            <li>• Nota fiscal deve corresponder ao valor: <strong>{formatCurrency(pagamento.valor)}</strong></li>
-                            <li>• Competência: <strong>{new Date(pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</strong></li>
-                          </ul>
-                        </div>
-
-                        <div className="pt-2 border-t">
-                          <Input
-                            type="file"
-                            accept=".pdf"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                handleFileUpload(pagamento.id, file);
-                              }
-                            }}
-                            disabled={uploading}
-                            className="hidden"
-                            id={`file-${pagamento.id}`}
-                          />
-                          <Label htmlFor={`file-${pagamento.id}`} className="cursor-pointer">
-                            <div className="w-full p-6 border-2 border-dashed border-primary/30 rounded-lg hover:border-primary/50 transition-colors bg-primary/5 hover:bg-primary/10">
-                              <div className="text-center">
-                                <Upload className="h-8 w-8 text-primary mx-auto mb-2" />
-                                <p className="font-medium text-primary">
-                                  {uploading ? "Enviando..." : "📄 Clique para enviar a nota fiscal"}
-                                </p>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  Valor: {formatCurrency(pagamento.valor)} | Apenas arquivos PDF
-                                </p>
-                              </div>
-                            </div>
-                          </Label>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              <div className="flex justify-end pt-4 border-t">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowUploadModal(false)}
-                  disabled={uploading}
-                >
-                  Fechar
-                </Button>
-              </div>
+              {uploading && (
+                <div className="text-center py-4">
+                  <div className="inline-flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span>Enviando arquivo...</span>
+                  </div>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
