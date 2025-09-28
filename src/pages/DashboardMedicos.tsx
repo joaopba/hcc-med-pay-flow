@@ -210,14 +210,11 @@ export default function DashboardMedicos() {
 
       const pagamentosPendentesProcessados = pagamentosPendentesData?.filter((p: any) => {
         const s = notasPorPagamento[p.id];
-        // Sem nota: precisa enviar
-        if (!s) return true;
-        // Com nota pendente ou aprovada: NÃO precisa enviar
-        if (s.temAprovado || s.temPendente) return false;
-        // Apenas rejeitadas: precisa reenviar
-        if (s.temRejeitado && !s.temPendente && !s.temAprovado) return true;
-        // Qualquer outro caso: por segurança, considerar pendente
-        return true;
+        // Mostrar como pendente quando: não há nota enviada ainda OU houve rejeição
+        if (!s) return ['pendente','solicitado'].includes(p.status || 'pendente');
+        if (s.temAprovado || s.temPendente) return false; // já enviado/aprovado → não mostrar
+        if (s.temRejeitado && !s.temPendente && !s.temAprovado) return true; // precisa reenviar
+        return false;
       }).map((p: any) => ({
         id: p.id,
         mes_competencia: p.mes_competencia,

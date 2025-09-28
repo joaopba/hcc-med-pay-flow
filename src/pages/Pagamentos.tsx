@@ -351,6 +351,11 @@ export default function Pagamentos() {
       return;
     }
 
+    // Trava extra contra duplo clique (idempotência por pagamento)
+    const lockKey = `pay_${selectedPaymentId}`;
+    if (localStorage.getItem(lockKey)) return;
+    localStorage.setItem(lockKey, '1');
+
     if (isProcessingPayment) return; // Prevenir duplo clique
     setIsProcessingPayment(true);
 
@@ -395,6 +400,7 @@ export default function Pagamentos() {
       });
     } finally {
       setIsProcessingPayment(false);
+      setTimeout(() => localStorage.removeItem(lockKey), 2000);
     }
   };
 

@@ -132,9 +132,7 @@ serve(async (req) => {
         }
 
         const messagePayload = {
-          body: "Por favor, acesse nosso portal para enviar sua nota fiscal: " + 
-                `https://hcc-med-pay-flow.lovable.app/dashboard-medicos\n\n` +
-                "Digite seu CPF para localizar seus pagamentos pendentes e anexe o arquivo PDF da nota fiscal.",
+          body: "🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá! Para agilizar seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal: https://hcc-med-pay-flow.lovable.app/dashboard-medicos\n\nPasso a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Faça upload do PDF (máx. 10MB)\n\nDicas:\n• Envie o documento legível e completo\n• Confira os dados antes de enviar\n\nApós o envio, você receberá confirmação e será avisado sobre a análise.",
           number: from,
           externalKey: `nota_request_button_${Date.now()}`,
           isClosed: false
@@ -176,6 +174,12 @@ serve(async (req) => {
                 success: messageResponse.ok,
                 response: messageResponseData
               }]);
+
+            // Atualizar status do pagamento para garantir visibilidade no portal do médico
+            await supabase
+              .from('pagamentos')
+              .update({ status: 'solicitado', data_solicitacao: new Date().toISOString() })
+              .eq('id', pagamentoId);
           } else {
             console.warn('Sem pagamento associado para log de solicitação; pulando insert.');
           }
@@ -268,7 +272,7 @@ serve(async (req) => {
 
         // Enviar mensagem com o link do portal
         const linkPayload = {
-          body: `📄 *Link para Envio de Nota Fiscal*\n\nOlá ${medico.nome}!\n\nAcesse o link abaixo para enviar sua nota fiscal:\n\n🔗 https://hcc-med-pay-flow.lovable.app/dashboard-medicos\n\n• Digite seu CPF\n• Anexe o PDF da nota fiscal\n• Aguarde a aprovação\n\nDúvidas? Entre em contato conosco.`,
+          body: `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá ${medico.nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal oficial:\nhttps://hcc-med-pay-flow.lovable.app/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Envie o arquivo PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Envie o documento completo e sem senha\n• Revise os dados antes de enviar\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`,
           number: from,
           externalKey: `encaminhar_nota_${Date.now()}`,
           isClosed: false
@@ -301,6 +305,16 @@ serve(async (req) => {
             }]);
         } catch (logError) {
           console.warn('Erro ao registrar log:', logError);
+        }
+
+        // Atualizar status do pagamento para garantir visibilidade no portal do médico
+        try {
+          await supabase
+            .from('pagamentos')
+            .update({ status: 'solicitado', data_solicitacao: new Date().toISOString() })
+            .eq('id', pagamento.id);
+        } catch (updateErr) {
+          console.warn('Falha ao atualizar status do pagamento:', updateErr);
         }
 
         return new Response(JSON.stringify({
