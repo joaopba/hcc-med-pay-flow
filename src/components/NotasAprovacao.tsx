@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check, X, Eye, Clock, FileText } from "lucide-react";
+import { Check, X, Eye, Clock, FileText, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -46,15 +47,37 @@ interface NotaMedico {
 
 export default function NotasAprovacao() {
   const [notas, setNotas] = useState<NotaMedico[]>([]);
+  const [notasFiltradas, setNotasFiltradas] = useState<NotaMedico[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [observacoes, setObservacoes] = useState("");
   const [selectedNota, setSelectedNota] = useState<NotaMedico | null>(null);
+  const [filtroMes, setFiltroMes] = useState<string>("todos");
+  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const { toast } = useToast();
 
   useEffect(() => {
     loadNotas();
   }, []);
+
+  useEffect(() => {
+    let filtered = notas;
+
+    if (filtroMes !== "todos") {
+      filtered = filtered.filter(nota => nota.pagamentos.mes_competencia === filtroMes);
+    }
+
+    if (filtroStatus !== "todos") {
+      filtered = filtered.filter(nota => nota.status === filtroStatus);
+    }
+
+    setNotasFiltradas(filtered);
+  }, [notas, filtroMes, filtroStatus]);
+
+  const getMesesDisponiveis = () => {
+    const meses = Array.from(new Set(notas.map(nota => nota.pagamentos.mes_competencia)));
+    return meses.sort().reverse();
+  };
 
   const loadNotas = async () => {
     try {
@@ -75,6 +98,7 @@ export default function NotasAprovacao() {
 
       if (error) throw error;
       setNotas(data || []);
+      setNotasFiltradas(data || []);
     } catch (error) {
       console.error("Erro ao carregar notas:", error);
       toast({
@@ -282,8 +306,45 @@ export default function NotasAprovacao() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          Aprovação de Notas Fiscais ({notas.filter(n => n.status === 'pendente').length} pendentes)
+          Aprovação de Notas Fiscais ({notasFiltradas.filter(n => n.status === 'pendente').length} pendentes)
         </CardTitle>
+        
+        <div className="flex gap-4 mt-4">
+          <div className="flex-1">
+            <Label htmlFor="filtro-mes">Filtrar por Mês</Label>
+            <Select value={filtroMes} onValueChange={setFiltroMes}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar mês" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os meses</SelectItem>
+                {getMesesDisponiveis().map(mes => (
+                  <SelectItem key={mes} value={mes}>
+                    {new Date(mes + '-01').toLocaleDateString('pt-BR', { 
+                      month: 'long', 
+                      year: 'numeric' 
+                    })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex-1">
+            <Label htmlFor="filtro-status">Filtrar por Status</Label>
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os status</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="aprovado">Aprovado</SelectItem>
+                <SelectItem value="rejeitado">Rejeitado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
@@ -299,7 +360,7 @@ export default function NotasAprovacao() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {notas.map((nota) => (
+            {notasFiltradas.map((nota) => (
               <TableRow key={nota.id}>
                 <TableCell className="font-medium">{nota.medicos.nome}</TableCell>
                 <TableCell>
@@ -407,6 +468,12 @@ export default function NotasAprovacao() {
             ))}
           </TableBody>
         </Table>
+
+        {notasFiltradas.length === 0 && notas.length > 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            Nenhuma nota encontrada com os filtros aplicados
+          </div>
+        )}
 
         {notas.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">

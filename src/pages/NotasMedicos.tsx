@@ -397,13 +397,20 @@ export default function NotasMedicos() {
                           <Trash2 className="h-4 w-4 mr-2" />
                           Remover e Enviar Nova Nota
                         </Button>
+                      ) : pagamento.nota_anexada.status === 'rejeitado' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removerNota(pagamento.id, pagamento.nota_anexada!.arquivo_url)}
+                          className="w-full"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Corrigir e Enviar Nova Nota
+                        </Button>
                       ) : (
                         <div className="text-center p-4 bg-muted/50 rounded-lg">
                           <p className="text-sm text-muted-foreground">
-                            {pagamento.nota_anexada.status === 'aprovado' 
-                              ? "✅ Nota aprovada! Aguarde o processamento do pagamento."
-                              : "❌ Nota rejeitada. Corrija e envie novamente."
-                            }
+                            ✅ Nota aprovada! Aguarde o processamento do pagamento.
                           </p>
                         </div>
                       )}

@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface WhatsAppRequest {
-  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada';
+  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'encaminhar_nota';
   numero?: string;
   nome?: string;
   valor?: string;
@@ -54,7 +54,10 @@ serve(async (req) => {
 
     switch (type) {
       case 'nota':
-        message = `Olá ${nome}, você possui uma nota fiscal pendente no valor de R$ ${valor} referente ao período ${competencia}. Para enviar acesse: https://hcc-med-pay-flow.lovable.app/notas-medicos - Digite seu CPF e anexe o PDF da nota fiscal.`;
+        message = `Olá ${nome}, você possui uma nota fiscal pendente no valor de R$ ${valor} referente ao período ${competencia}. Responda com "Encaminhar Nota" para receber o link de envio.`;
+        break;
+      case 'encaminhar_nota':
+        message = `📄 *Link para Envio de Nota Fiscal*\n\nOlá ${nome}!\n\nAcesse o link abaixo para enviar sua nota fiscal:\n\n🔗 https://hcc-med-pay-flow.lovable.app/notas-medicos\n\n• Digite seu CPF\n• Anexe o PDF da nota fiscal\n• Aguarde a aprovação\n\nDúvidas? Entre em contato conosco.`;
         break;
       case 'pagamento':
         message = `💰 *Pagamento Processado*\n\nOlá ${nome}!\n\nSeu pagamento foi processado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
