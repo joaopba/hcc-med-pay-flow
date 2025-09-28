@@ -43,9 +43,9 @@ npm run build
 echo "🌐 Configurando Nginx..."
 sudo cp ../migration-guide/05-setup-nginx.conf /etc/nginx/sites-available/$APP_NAME
 
-# Atualizar configuração com domínio/IP
-read -p "Digite seu domínio ou IP: " DOMAIN
-sudo sed -i "s/SEU_DOMINIO_OU_IP/$DOMAIN/g" /etc/nginx/sites-available/$APP_NAME
+# Configurar domínio
+DOMAIN="hcc.chatconquista.com"
+echo "🌐 Usando domínio: $DOMAIN"
 
 # Ativar site
 sudo ln -sf /etc/nginx/sites-available/$APP_NAME /etc/nginx/sites-enabled/
