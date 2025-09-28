@@ -63,6 +63,7 @@ export default function Pagamentos() {
   const [selectedPagamentos, setSelectedPagamentos] = useState<string[]>([]);
   const [mesesDisponiveis, setMesesDisponiveis] = useState<string[]>([]);
   const { toast } = useToast();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     medico_id: "",
@@ -142,6 +143,7 @@ export default function Pagamentos() {
       setMesesDisponiveis(mesesUnicos);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
+      setErrorMsg(error instanceof Error ? error.message : 'Falha ao carregar dados');
       toast({
         title: "Erro",
         description: "Falha ao carregar dados",
@@ -491,6 +493,17 @@ export default function Pagamentos() {
   return (
     <AppLayout>
       <div className="p-6">
+        {errorMsg && (
+          <div className="mb-4 p-4 border border-destructive/30 rounded-lg bg-destructive/5">
+            <p className="text-destructive font-medium">Erro ao carregar dados</p>
+            <p className="text-sm text-muted-foreground">{errorMsg}</p>
+            <div className="mt-2">
+              <Button variant="outline" size="sm" onClick={() => { setErrorMsg(null); setLoading(true); loadData(); }}>
+                Tentar novamente
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold">Pagamentos</h1>

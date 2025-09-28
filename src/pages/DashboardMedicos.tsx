@@ -173,14 +173,15 @@ export default function DashboardMedicos() {
 
     setLoading(true);
     try {
-      // Buscar médico pelo CPF
+      // Buscar médico pelo CPF (aceita com e sem pontuação)
       const cpfNumeros = cpf.replace(/\D/g, '');
+      const cpfFormatado = formatCPF(cpfNumeros);
       const { data: medicoData, error: medicoError } = await supabase
         .from("medicos")
         .select("*")
-        .eq("cpf", cpfNumeros)
+        .or(`cpf.eq.${cpfNumeros},cpf.eq.${cpfFormatado}`)
         .eq("ativo", true)
-        .single();
+        .maybeSingle();
 
       if (medicoError || !medicoData) {
         toast({
