@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
 import NotasAprovacao from "@/components/NotasAprovacao";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import {
   Dialog,
   DialogContent,
@@ -607,7 +608,9 @@ export default function Pagamentos() {
 
           {/* Seção de Aprovação de Notas */}
           <div className="mb-6">
-            <NotasAprovacao />
+            <ErrorBoundary pageName="Aprovação de Notas">
+              <NotasAprovacao />
+            </ErrorBoundary>
           </div>
 
           <Card className="mb-4">
