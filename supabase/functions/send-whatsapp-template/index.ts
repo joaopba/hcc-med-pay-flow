@@ -53,36 +53,87 @@ serve(async (req) => {
       phoneNumber = medico.numero_whatsapp;
     }
 
+    let payload: any;
+    let apiUrl = config.api_url;
+
     switch (type) {
       case 'nota':
-        message = `Olá ${nome}, você possui uma nota fiscal pendente no valor de R$ ${valor} referente ao período ${competencia}. Responda com "Encaminhar Nota" para receber o link de envio.`;
+        // Usar template estruturado para solicitação de nota
+        payload = {
+          number: phoneNumber,
+          isClosed: false,
+          templateData: {
+            messaging_product: "whatsapp",
+            to: phoneNumber,
+            type: "template",
+            template: {
+              name: "nota",
+              language: { code: "pt_BR" },
+              components: [
+                { 
+                  type: "body", 
+                  parameters: [
+                    { type: "text", text: nome }, // nome do médico
+                    { type: "text", text: valor }, // valor da solicitação
+                    { type: "text", text: competencia } // Competência de pagamento
+                  ]
+                }
+              ]
+            }
+          }
+        };
+        // Usar endpoint /template para templates
+        apiUrl = config.api_url + '/template';
         break;
+      
       case 'encaminhar_nota':
         message = `📄 *Link para Envio de Nota Fiscal*\n\nOlá ${nome}!\n\nAcesse o link abaixo para enviar sua nota fiscal:\n\n🔗 https://hcc-med-pay-flow.lovable.app/dashboard-medicos\n\n• Digite seu CPF\n• Anexe o PDF da nota fiscal\n• Aguarde a aprovação\n\nDúvidas? Entre em contato conosco.`;
+        payload = {
+          body: message,
+          number: phoneNumber,
+          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+          isClosed: false
+        };
         break;
+      
       case 'pagamento':
         message = `💰 *Pagamento Processado*\n\nOlá ${nome}!\n\nSeu pagamento foi processado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
+        payload = {
+          body: message,
+          number: phoneNumber,
+          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+          isClosed: false
+        };
         break;
+      
       case 'nota_aprovada':
         message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
+        payload = {
+          body: message,
+          number: phoneNumber,
+          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+          isClosed: false
+        };
         break;
+      
       case 'nota_rejeitada':
         message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal:\n\n🔗 ${linkPortal || 'https://hcc-med-pay-flow.lovable.app/dashboard-medicos'}\n\nPrecisa de ajuda? Entre em contato conosco.`;
+        payload = {
+          body: message,
+          number: phoneNumber,
+          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+          isClosed: false
+        };
         break;
+      
       default:
         throw new Error('Tipo de mensagem inválido');
     }
 
-    const payload = {
-      body: message,
-      number: phoneNumber,
-      externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-      isClosed: false
-    };
-
     console.log('Enviando mensagem WhatsApp:', payload);
+    console.log('URL da API:', apiUrl);
 
-    const response = await fetch(config.api_url, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${config.auth_token}`,

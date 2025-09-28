@@ -197,9 +197,15 @@ export default function DashboardMedicos() {
 
       const pagamentosPendentesProcessados = pagamentosPendentesData?.filter((p: any) => {
         const notasArray = Array.isArray(p.notas_medicos) ? p.notas_medicos : [];
+        
+        // Se não tem nenhuma nota, mostrar como pendente
         if (notasArray.length === 0) return true;
+        
+        // Se tem apenas notas rejeitadas, mostrar como pendente para reenvio
         const apenasRejeitadas = notasArray.every((nota: any) => nota.status === 'rejeitado');
         if (apenasRejeitadas) return true;
+        
+        // Se tem nota pendente ou aprovada, NÃO mostrar como pendente
         const temNotaValidaOuPendente = notasArray.some((nota: any) =>
           nota.status === 'pendente' || nota.status === 'aprovado'
         );
