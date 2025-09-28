@@ -13,6 +13,7 @@ import Relatorios from "./pages/Relatorios";
 import Usuarios from "./pages/Usuarios";
 import TesteWhatsApp from "./pages/TesteWhatsApp";
 import UserProfile from "./pages/UserProfile";
+import NotasMedicos from "./pages/NotasMedicos";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -67,6 +68,7 @@ const App = () => (
               <UserProfile />
             </ProtectedRoute>
           } />
+          <Route path="/notas-medicos" element={<NotasMedicos />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

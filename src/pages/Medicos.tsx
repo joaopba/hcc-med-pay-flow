@@ -30,6 +30,7 @@ interface Medico {
   nome: string;
   numero_whatsapp: string;
   especialidade: string;
+  cpf: string;
   ativo: boolean;
 }
 
@@ -46,6 +47,7 @@ export default function Medicos() {
     nome: "",
     numero_whatsapp: "",
     especialidade: "",
+    cpf: "",
   });
 
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function Medicos() {
 
       setShowDialog(false);
       setEditingMedico(null);
-      setFormData({ nome: "", numero_whatsapp: "", especialidade: "" });
+      setFormData({ nome: "", numero_whatsapp: "", especialidade: "", cpf: "" });
       loadMedicos();
     } catch (error) {
       console.error("Erro ao salvar médico:", error);
@@ -122,6 +124,7 @@ export default function Medicos() {
       nome: medico.nome,
       numero_whatsapp: medico.numero_whatsapp,
       especialidade: medico.especialidade || "",
+      cpf: medico.cpf || "",
     });
     setShowDialog(true);
   };
@@ -221,7 +224,7 @@ export default function Medicos() {
               <DialogTrigger asChild>
                 <Button onClick={() => {
                   setEditingMedico(null);
-                  setFormData({ nome: "", numero_whatsapp: "", especialidade: "" });
+                  setFormData({ nome: "", numero_whatsapp: "", especialidade: "", cpf: "" });
                 }} className="btn-gradient-primary gap-2">
                   <Plus className="h-4 w-4" />
                   Novo Médico
@@ -259,6 +262,16 @@ export default function Medicos() {
                     id="especialidade"
                     value={formData.especialidade}
                     onChange={(e) => setFormData({ ...formData, especialidade: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cpf">CPF</Label>
+                  <Input
+                    id="cpf"
+                    value={formData.cpf}
+                    onChange={(e) => setFormData({ ...formData, cpf: e.target.value.replace(/\D/g, '') })}
+                    placeholder="00000000000"
+                    maxLength={11}
                   />
                 </div>
                 <div className="flex justify-end space-x-2">

@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Send, Download, Calendar, CheckCircle, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, Eye, Trash2, Users, FileSpreadsheet, Send, Download, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
+import NotasAprovacao from "@/components/NotasAprovacao";
 import {
   Dialog,
   DialogContent,
@@ -476,7 +477,12 @@ export default function Pagamentos() {
           </div>
         </div>
 
-        <Card className="mb-4">
+          {/* Seção de Aprovação de Notas */}
+          <div className="mb-6">
+            <NotasAprovacao />
+          </div>
+
+          <Card className="mb-4">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center space-x-2">

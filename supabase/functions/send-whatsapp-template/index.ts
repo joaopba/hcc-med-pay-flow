@@ -6,13 +6,18 @@ const corsHeaders = {
 };
 
 interface WhatsAppRequest {
-  type: 'nota' | 'pagamento';
-  numero: string;
-  nome: string;
+  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada';
+  numero?: string;
+  nome?: string;
   valor?: string;
   competencia?: string;
   dataPagamento?: string;
   pagamentoId?: string;
+  medico?: {
+    nome: string;
+    numero_whatsapp: string;
+  };
+  motivo?: string;
 }
 
 serve(async (req) => {
@@ -21,111 +26,60 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Recebendo requisição WhatsApp...');
-    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId }: WhatsAppRequest = await req.json();
-    console.log('Dados recebidos:', { type, numero, nome, valor, competencia, dataPagamento, pagamentoId });
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo }: WhatsAppRequest = await req.json();
 
     // Buscar configurações da API
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    console.log('Env vars check:', { 
-      hasUrl: !!supabaseUrl, 
-      hasKey: !!supabaseKey 
-    });
-
-    const supabase = createClient(supabaseUrl ?? '', supabaseKey ?? '');
-
-    console.log('Buscando configurações...');
     const { data: config, error: configError } = await supabase
       .from('configuracoes')
       .select('api_url, auth_token')
       .single();
 
-    if (configError) {
-      console.error('Erro ao buscar configurações:', configError);
-      throw new Error(`Erro ao buscar configurações: ${configError.message}`);
-    }
-
-    if (!config) {
+    if (configError || !config) {
       throw new Error('Configurações não encontradas');
     }
 
-    let payload;
-    let templateName;
-    let logData = {
-      pagamento_id: pagamentoId,
-      tipo: type,
-      payload: {},
-      success: false,
-      response: {}
+    let message = '';
+    let phoneNumber = numero;
+
+    // Para tipos que usam o objeto médico
+    if (medico?.numero_whatsapp) {
+      phoneNumber = medico.numero_whatsapp;
+    }
+
+    switch (type) {
+      case 'nota':
+        const baseUrl = `${req.headers.get('origin') || 'https://nnytrkgsjajsecotasqv.supabase.co'}/notas-medicos`;
+        message = `🏥 *Solicitação de Nota Fiscal*\n\nOlá ${nome}!\n\nPrecisamos da sua nota fiscal referente ao pagamento de ${competencia} no valor de R$ ${valor}.\n\n📋 *Como enviar sua nota:*\n\n1. Acesse: ${baseUrl}\n2. Digite seu CPF\n3. Localize o pagamento e anexe o arquivo PDF\n\n⚠️ *Importante:* Apenas arquivos PDF são aceitos\n\nPrecisa de ajuda? Entre em contato conosco.`;
+        break;
+      case 'pagamento':
+        message = `💰 *Pagamento Processado*\n\nOlá ${nome}!\n\nSeu pagamento foi processado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
+        break;
+      case 'nota_aprovada':
+        message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
+        break;
+      case 'nota_rejeitada':
+        message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal.\n\nPrecisa de ajuda? Entre em contato conosco.`;
+        break;
+      default:
+        throw new Error('Tipo de mensagem inválido');
+    }
+
+    const payload = {
+      body: message,
+      number: phoneNumber,
+      externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+      isClosed: false
     };
 
-    if (type === 'nota') {
-      templateName = 'nota';
-      payload = {
-        number: numero,
-        isClosed: false,
-        templateData: {
-          messaging_product: "whatsapp",
-          to: numero,
-          type: "template",
-          template: {
-            name: "nota",
-            language: { code: "pt_BR" },
-            components: [
-              { type: "body", parameters: [
-                { type: "text", text: nome },
-                { type: "text", text: valor },
-                { type: "text", text: competencia }
-              ]}
-            ]
-          }
-        }
-      };
-    } else if (type === 'pagamento') {
-      templateName = 'pagamento';
-      payload = {
-        number: numero,
-        isClosed: false,
-        templateData: {
-          messaging_product: "whatsapp",
-          to: numero,
-          type: "template",
-          template: {
-            name: "pagamento",
-            language: { code: "pt_BR" },
-            components: [
-              { type: "body", parameters: [
-                { type: "text", text: nome },
-                { type: "text", text: dataPagamento }
-              ]}
-            ]
-          }
-        }
-      };
-    }
+    console.log('Enviando mensagem WhatsApp:', payload);
 
-    if (payload) {
-      logData.payload = payload;
-    }
-
-    console.log('Enviando mensagem WhatsApp:', {
-      template: templateName,
-      numero,
-      payload,
-      apiUrl: `${config.api_url}/template`
-    });
-
-    console.log('Config encontrada:', {
-      apiUrl: config.api_url,
-      hasToken: !!config.auth_token
-    });
-
-    // Enviar para a API do WhatsApp
-    console.log('Fazendo requisição para:', `${config.api_url}/template`);
-    const response = await fetch(`${config.api_url}/template`, {
+    const response = await fetch(config.api_url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${config.auth_token}`,
@@ -134,32 +88,30 @@ serve(async (req) => {
       body: JSON.stringify(payload),
     });
 
-    console.log('Response status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers));
-
     const responseData = await response.json();
-    console.log('Response data:', responseData);
-    logData.response = responseData;
+    console.log('Resposta da API WhatsApp:', responseData);
 
-    if (!response.ok) {
-      throw new Error(`Erro da API: ${response.status} - ${JSON.stringify(responseData)}`);
-    }
-
-    logData.success = true;
-
-    // Registrar log
+    // Log da mensagem se tiver pagamentoId
     if (pagamentoId) {
-      await supabase
-        .from('message_logs')
-        .insert([logData]);
+      try {
+        await supabase
+          .from('message_logs')
+          .insert([{
+            pagamento_id: pagamentoId,
+            tipo: `whatsapp_${type}`,
+            payload: payload,
+            success: response.ok,
+            response: responseData
+          }]);
+      } catch (logError) {
+        console.warn('Erro ao registrar log:', logError);
+      }
     }
-
-    console.log('Mensagem enviada com sucesso:', responseData);
 
     return new Response(JSON.stringify({
-      success: true,
+      success: response.ok,
       data: responseData,
-      message: 'Mensagem enviada com sucesso'
+      message: `Mensagem ${type} enviada com sucesso`
     }), {
       headers: { 
         'Content-Type': 'application/json',
@@ -167,12 +119,11 @@ serve(async (req) => {
       },
     });
 
-  } catch (error) {
-    console.error('Erro ao enviar mensagem WhatsApp:', error);
-    
+  } catch (error: any) {
+    console.error('Erro no envio da mensagem:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: (error as Error).message,
+      error: error.message
     }), {
       status: 500,
       headers: { 

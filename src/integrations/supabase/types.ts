@@ -44,9 +44,34 @@ export type Database = {
         }
         Relationships: []
       }
+      disparos_notas: {
+        Row: {
+          created_at: string
+          id: string
+          numero: string
+          pagamento_id: string | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          numero: string
+          pagamento_id?: string | null
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          numero?: string
+          pagamento_id?: string | null
+          tipo?: string
+        }
+        Relationships: []
+      }
       medicos: {
         Row: {
           ativo: boolean
+          cpf: string | null
           created_at: string
           especialidade: string | null
           id: string
@@ -56,6 +81,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          cpf?: string | null
           created_at?: string
           especialidade?: string | null
           id?: string
@@ -65,6 +91,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          cpf?: string | null
           created_at?: string
           especialidade?: string | null
           id?: string
@@ -107,6 +134,57 @@ export type Database = {
             foreignKeyName: "message_logs_pagamento_id_fkey"
             columns: ["pagamento_id"]
             isOneToOne: false
+            referencedRelation: "pagamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_medicos: {
+        Row: {
+          arquivo_url: string
+          created_at: string
+          id: string
+          medico_id: string
+          nome_arquivo: string
+          observacoes: string | null
+          pagamento_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          arquivo_url: string
+          created_at?: string
+          id?: string
+          medico_id: string
+          nome_arquivo: string
+          observacoes?: string | null
+          pagamento_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          arquivo_url?: string
+          created_at?: string
+          id?: string
+          medico_id?: string
+          nome_arquivo?: string
+          observacoes?: string | null
+          pagamento_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_medicos_medico_id_fkey"
+            columns: ["medico_id"]
+            isOneToOne: false
+            referencedRelation: "medicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_medicos_pagamento_id_fkey"
+            columns: ["pagamento_id"]
+            isOneToOne: true
             referencedRelation: "pagamentos"
             referencedColumns: ["id"]
           },

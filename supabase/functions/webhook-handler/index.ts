@@ -132,7 +132,9 @@ serve(async (req) => {
         }
 
         const messagePayload = {
-          body: "Por gentileza, encaminhe a nota fiscal em PDF para prosseguir com o pagamento. Aguardo o documento para finalizar o processo.",
+          body: "Por favor, acesse nosso portal para enviar sua nota fiscal: " + 
+                `${req.headers.get('origin') || 'https://nnytrkgsjajsecotasqv.supabase.co'}/notas-medicos\n\n` +
+                "Digite seu CPF para localizar seus pagamentos pendentes e anexe o arquivo PDF da nota fiscal.",
           number: from,
           externalKey: `nota_request_button_${Date.now()}`,
           isClosed: false
