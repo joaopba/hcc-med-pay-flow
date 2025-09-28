@@ -102,24 +102,48 @@ export default function NotasAprovacao() {
 
   const loadNotas = async () => {
     try {
-      const { data, error } = await supabase
+      // 1) Buscar notas sem joins
+      const { data: notasBase, error: notasError } = await supabase
         .from("notas_medicos")
-        .select(`
-          *,
-          medicos (
-            nome,
-            cpf
-          ),
-          pagamentos (
-            mes_competencia,
-            valor
-          )
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setNotas(data || []);
-      setNotasFiltradas(data || []);
+      if (notasError) throw notasError;
+
+      const medicoIds = Array.from(new Set((notasBase || []).map(n => n.medico_id)));
+      const pagamentoIds = Array.from(new Set((notasBase || []).map(n => n.pagamento_id)));
+
+      // 2) Buscar médicos e pagamentos necessários
+      const [medicosRes, pagamentosRes] = await Promise.all([
+        medicoIds.length
+          ? supabase.from("medicos").select("id, nome, cpf").in("id", medicoIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        pagamentoIds.length
+          ? supabase.from("pagamentos").select("id, mes_competencia, valor").in("id", pagamentoIds)
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      if (medicosRes.error) throw medicosRes.error;
+      if (pagamentosRes.error) throw pagamentosRes.error;
+
+      const medicosMap: Map<string, any> = new Map((medicosRes.data || []).map((m: any) => [m.id, m]));
+      const pagamentosMap: Map<string, any> = new Map((pagamentosRes.data || []).map((p: any) => [p.id, p]));
+
+      // 3) Enriquecer estrutura esperada pelo componente
+      const enriquecidas = (notasBase || []).map((n: any) => ({
+        ...n,
+        medicos: {
+          nome: medicosMap.get(n.medico_id)?.nome || '—',
+          cpf: medicosMap.get(n.medico_id)?.cpf || ''
+        },
+        pagamentos: {
+          mes_competencia: pagamentosMap.get(n.pagamento_id)?.mes_competencia || '',
+          valor: pagamentosMap.get(n.pagamento_id)?.valor || 0
+        }
+      }));
+
+      setNotas(enriquecidas as any);
+      setNotasFiltradas(enriquecidas as any);
     } catch (error) {
       console.error("Erro ao carregar notas:", error);
       toast({

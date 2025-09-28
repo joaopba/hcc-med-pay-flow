@@ -113,35 +113,29 @@ export default function Pagamentos() {
       setErrorMsg(null);
       setLoading(true);
       
-      // Carregar pagamentos com dados dos médicos
-      const { data: pagamentosData, error: pagamentosError } = await supabase
-        .from("pagamentos")
-        .select(`
-          *,
-          medicos (
-            id,
-            nome,
-            numero_whatsapp
-          )
-        `)
-        .order("mes_competencia", { ascending: false });
+      // Carregar pagamentos (sem join) e médicos ativos
+      const [{ data: pagamentosData, error: pagamentosError }, { data: medicosData, error: medicosError }] = await Promise.all([
+        supabase
+          .from("pagamentos")
+          .select("*")
+          .order("mes_competencia", { ascending: false }),
+        supabase
+          .from("medicos")
+          .select("id, nome, numero_whatsapp")
+          .eq("ativo", true)
+          .order("nome")
+      ]);
 
-      if (pagamentosError) {
-        throw pagamentosError;
-      }
+      if (pagamentosError) throw pagamentosError;
+      if (medicosError) throw medicosError;
 
-      // Carregar médicos ativos para o formulário
-      const { data: medicosData, error: medicosError } = await supabase
-        .from("medicos")
-        .select("id, nome, numero_whatsapp")
-        .eq("ativo", true)
-        .order("nome");
+      const medicosMap = new Map((medicosData || []).map(m => [m.id, m]));
+      const pagamentosComMedico = (pagamentosData || []).map((p: any) => ({
+        ...p,
+        medicos: medicosMap.get(p.medico_id) || null,
+      }));
 
-      if (medicosError) {
-        throw medicosError;
-      }
-
-      setPagamentos(pagamentosData || []);
+      setPagamentos(pagamentosComMedico);
       setMedicos(medicosData || []);
       
       // Extrair meses únicos dos pagamentos para o filtro
@@ -172,7 +166,7 @@ export default function Pagamentos() {
         .select("id")
         .eq("medico_id", formData.medico_id)
         .eq("mes_competencia", formData.mes_competencia)
-        .single();
+        .maybeSingle();
 
       if (existingPayment) {
         toast({
@@ -411,7 +405,7 @@ export default function Pagamentos() {
           .select("id")
           .eq("medico_id", medico.id)
           .eq("mes_competencia", mesCompetencia)
-          .single();
+          .maybeSingle();
 
         if (existingPayment) {
           duplicados.push(`${medico.nome} - ${mesCompetencia}`);
