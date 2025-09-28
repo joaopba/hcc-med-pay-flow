@@ -193,30 +193,37 @@ export default function DashboardMedicos() {
       const medicoData = result.medico;
       setMedico(medicoData);
 
+      // Consolidar notas por pagamento para decidir corretamente se ainda precisa enviar
+      const notasRaw = result.notas || [];
+      const notasPorPagamento = (notasRaw as any[]).reduce((acc: Record<string, { temPendente: boolean; temAprovado: boolean; temRejeitado: boolean }>, nota: any) => {
+        const pid = nota.pagamento_id || nota.pagamentos?.id;
+        if (!pid) return acc;
+        if (!acc[pid]) acc[pid] = { temPendente: false, temAprovado: false, temRejeitado: false };
+        if (nota.status === 'pendente') acc[pid].temPendente = true;
+        if (nota.status === 'aprovado') acc[pid].temAprovado = true;
+        if (nota.status === 'rejeitado') acc[pid].temRejeitado = true;
+        return acc;
+      }, {} as Record<string, { temPendente: boolean; temAprovado: boolean; temRejeitado: boolean }>)
+
       const pagamentosPendentesData = result.pagamentos || [];
 
       const pagamentosPendentesProcessados = pagamentosPendentesData?.filter((p: any) => {
-        const notasArray = Array.isArray(p.notas_medicos) ? p.notas_medicos : [];
-        
-        // Se não tem nenhuma nota, mostrar como pendente
-        if (notasArray.length === 0) return true;
-        
-        // Se tem apenas notas rejeitadas, mostrar como pendente para reenvio
-        const apenasRejeitadas = notasArray.every((nota: any) => nota.status === 'rejeitado');
-        if (apenasRejeitadas) return true;
-        
-        // Se tem nota pendente ou aprovada, NÃO mostrar como pendente
-        const temNotaValidaOuPendente = notasArray.some((nota: any) =>
-          nota.status === 'pendente' || nota.status === 'aprovado'
-        );
-        return !temNotaValidaOuPendente;
+        const s = notasPorPagamento[p.id];
+        // Sem nota: precisa enviar
+        if (!s) return true;
+        // Com nota pendente ou aprovada: NÃO precisa enviar
+        if (s.temAprovado || s.temPendente) return false;
+        // Apenas rejeitadas: precisa reenviar
+        if (s.temRejeitado && !s.temPendente && !s.temAprovado) return true;
+        // Qualquer outro caso: por segurança, considerar pendente
+        return true;
       }).map((p: any) => ({
         id: p.id,
         mes_competencia: p.mes_competencia,
         valor: p.valor,
         status: p.status,
-        temNotaRejeitada: Array.isArray(p.notas_medicos) ? p.notas_medicos.some((nota: any) => nota.status === 'rejeitado') : false,
-        temNotaPendente: Array.isArray(p.notas_medicos) ? p.notas_medicos.some((nota: any) => nota.status === 'pendente') : false
+        temNotaRejeitada: !!notasPorPagamento[p.id]?.temRejeitado,
+        temNotaPendente: !!notasPorPagamento[p.id]?.temPendente
       })) || [];
 
       setPagamentosPendentes(pagamentosPendentesProcessados);
