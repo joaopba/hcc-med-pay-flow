@@ -313,6 +313,50 @@ serve(async (req) => {
 
               console.log('Pagamento atualizado com sucesso');
 
+              // Enviar mensagem de confirmação para o médico
+              try {
+                const { data: config } = await supabase
+                  .from('configuracoes')
+                  .select('api_url, auth_token')
+                  .single();
+
+                if (config) {
+                  const confirmationPayload = {
+                    body: `✅ Nota fiscal recebida com sucesso!\n\nSeu documento foi processado e o pagamento está sendo preparado. Você será notificado assim que o pagamento estiver disponível.\n\nObrigado!`,
+                    number: from,
+                    externalKey: `nota_confirmacao_${pagamento.id}_${Date.now()}`,
+                    isClosed: false
+                  };
+
+                  console.log('Enviando mensagem de confirmação:', confirmationPayload);
+
+                  const confirmationResponse = await fetch(config.api_url, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${config.auth_token}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(confirmationPayload),
+                  });
+
+                  const confirmationResponseData = await confirmationResponse.json();
+                  console.log('Resposta da mensagem de confirmação:', confirmationResponseData);
+
+                  // Registrar log da mensagem de confirmação
+                  await supabase
+                    .from('message_logs')
+                    .insert([{
+                      pagamento_id: pagamento.id,
+                      tipo: 'confirmacao_nota',
+                      payload: confirmationPayload,
+                      success: confirmationResponse.ok,
+                      response: confirmationResponseData
+                    }]);
+                }
+              } catch (msgError) {
+                console.warn('Erro ao enviar mensagem de confirmação:', msgError);
+              }
+
               // Enviar notificação por email (opcional)
               try {
                 await supabase.functions.invoke('send-notification', {
