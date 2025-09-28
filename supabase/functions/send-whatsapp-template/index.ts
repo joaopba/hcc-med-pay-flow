@@ -147,11 +147,21 @@ serve(async (req) => {
 
     logData.success = true;
 
-    // Registrar log
+    // Registrar log e autorizar número para recebimento de notas
     if (pagamentoId) {
       await supabase
         .from('message_logs')
         .insert([logData]);
+
+      // Registrar número como autorizado para disparo de notas
+      const numeroLimpo = numero.replace(/\D/g, '');
+      await supabase
+        .from('disparos_notas')
+        .insert([{
+          numero: numeroLimpo,
+          pagamento_id: pagamentoId,
+          tipo: type
+        }]);
     }
 
     console.log('Mensagem enviada com sucesso:', responseData);

@@ -44,6 +44,30 @@ export type Database = {
         }
         Relationships: []
       }
+      disparos_notas: {
+        Row: {
+          created_at: string
+          id: string
+          numero: string
+          pagamento_id: string | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          numero: string
+          pagamento_id?: string | null
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          numero?: string
+          pagamento_id?: string | null
+          tipo?: string
+        }
+        Relationships: []
+      }
       medicos: {
         Row: {
           ativo: boolean

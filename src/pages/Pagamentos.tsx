@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import ExcelImport from "@/components/ExcelImport";
+import DatePaymentDialog from "@/components/DatePaymentDialog";
 
 interface Medico {
   id: string;
@@ -235,7 +236,8 @@ export default function Pagamentos() {
           type: 'pagamento',
           numero: pagamento.medicos.numero_whatsapp,
           nome: pagamento.medicos.nome,
-          dataPagamento: dataPagamento,
+          dataPagamento: new Date(dataPagamento).toLocaleDateString('pt-BR'),
+          pagamentoId: pagamento.id
         }
       });
 
@@ -573,19 +575,24 @@ export default function Pagamentos() {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        {pagamento.status === "nota_recebida" && (
+                         {pagamento.status === "nota_recebida" && (
                           <>
                             {pagamento.nota_pdf_url && (
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  const url = `https://nnytrkgsjajsecotasqv.supabase.co/storage/v1/object/public/${pagamento.nota_pdf_url}`;
+                                  window.open(url, '_blank');
+                                }}
+                              >
                                 <Download className="h-4 w-4" />
                               </Button>
                             )}
-                            <Button
-                              size="sm"
-                              onClick={() => handlePagamento(pagamento.id, new Date().toISOString().split('T')[0])}
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
+                            <DatePaymentDialog
+                              pagamentoId={pagamento.id}
+                              onConfirm={handlePagamento}
+                            />
                           </>
                         )}
                       </div>

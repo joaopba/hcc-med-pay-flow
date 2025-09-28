@@ -113,12 +113,33 @@ serve(async (req) => {
     
     // ===== FIM DO MODO DEBUG =====
 
-    // Verificar se é um clique no botão "Encaminhar Nota"
+    // Verificar se é um clique no botão "Encaminhar Nota" - somente para números rastreados
     if (webhookData.msg && webhookData.msg.type === 'button' && 
         webhookData.msg.button && webhookData.msg.button.payload === 'Encaminhar Nota') {
       
       const from = webhookData.ticket?.contact?.number || webhookData.msg.from;
+      const numeroLimpo = String(from || '').replace(/\D/g, '');
       console.log('Botão "Encaminhar Nota" clicado por:', from);
+      
+      // Verificar se este número está autorizado a receber mensagens relacionadas a notas
+      const { data: numeroPermitido } = await supabase
+        .from('disparos_notas')
+        .select('*')
+        .eq('numero', numeroLimpo)
+        .limit(1);
+
+      if (!numeroPermitido || numeroPermitido.length === 0) {
+        console.log('Número não autorizado para solicitação de nota:', numeroLimpo);
+        return new Response(JSON.stringify({
+          success: false,
+          message: 'Número não autorizado'
+        }), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders 
+          },
+        });
+      }
       
       try {
         // Buscar configurações da API
@@ -152,23 +173,27 @@ serve(async (req) => {
         const messageResponseData = await messageResponse.json();
         console.log('Resposta da mensagem de solicitação via botão:', messageResponseData);
 
-        // Registrar log da mensagem de solicitação (apenas se houver pagamento associado)
+        // Registrar log da mensagem de solicitação
         try {
-          const numeroLimpo = String(from || '').replace(/\D/g, '');
+          const variants = brPhoneVariants(numeroLimpo);
           const { data: pagamentosAssoc } = await supabase
             .from('pagamentos')
             .select(`id, status, medicos!inner(numero_whatsapp)`) 
             .in('status', ['pendente','solicitado'])
-            .ilike('medicos.numero_whatsapp', `%${numeroLimpo}%`)
             .order('created_at', { ascending: false })
-            .limit(1);
+            .limit(10);
 
-          const pagamentoId = pagamentosAssoc?.[0]?.id;
-          if (pagamentoId) {
+          // Encontrar pagamento por variação de número
+          const pagamento = pagamentosAssoc?.find((p: any) => {
+            const numeroMedico = p.medicos?.numero_whatsapp?.replace(/\D/g, '') || '';
+            return variants.some(v => numeroMedico.includes(v) || v.includes(numeroMedico));
+          });
+
+          if (pagamento) {
             await supabase
               .from('message_logs')
               .insert([{ 
-                pagamento_id: pagamentoId,
+                pagamento_id: pagamento.id,
                 tipo: 'solicitacao_nota',
                 payload: messagePayload,
                 success: messageResponse.ok,
@@ -196,15 +221,36 @@ serve(async (req) => {
       }
     }
 
-    // Verificar se é uma mensagem com arquivo PDF (formato atualizado)
+    // Verificar se é uma mensagem com arquivo PDF (formato atualizado) - somente de números autorizados
     if ((webhookData.msg && webhookData.msg.type === 'document') || 
         (webhookData.msg && webhookData.msg.mediaType === 'document')) {
       const { msg, ticket } = webhookData;
       const document = msg.document;
       const from = ticket?.contact?.number || msg.from;
       const wabaMediaId = msg.wabaMediaId || document?.id;
+      const numeroLimpo = String(from || '').replace(/\D/g, '');
       
       console.log('Detalhes do documento:', { document, wabaMediaId, from });
+
+      // Verificar se este número está autorizado a enviar notas
+      const { data: numeroPermitido } = await supabase
+        .from('disparos_notas')
+        .select('*')
+        .eq('numero', numeroLimpo)
+        .limit(1);
+
+      if (!numeroPermitido || numeroPermitido.length === 0) {
+        console.log('Número não autorizado para envio de nota:', numeroLimpo);
+        return new Response(JSON.stringify({
+          success: false,
+          message: 'Número não autorizado'
+        }), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders 
+          },
+        });
+      }
       
       // Verificar se temos as informações necessárias
       if (!wabaMediaId) {
@@ -345,20 +391,20 @@ serve(async (req) => {
               const uniqueName = `${pagamento.id}_${mediaId}_${Date.now()}_${baseName}`;
               const filePath = `${pagamento.id}/${uniqueName}`;
               
-              // Fazer upload para o Supabase Storage
-              const { data: uploadData, error: uploadError } = await supabase.storage
+              // Fazer upload para o Supabase Storage com tratamento de erro seguro
+              const uploadResult = await supabase.storage
                 .from('notas')
                 .upload(filePath, fileData, {
                   contentType: 'application/pdf',
                   cacheControl: '3600',
                 });
 
-              if (uploadError) {
-                console.error('Erro no upload:', uploadError);
-                throw uploadError;
+              if (uploadResult.error) {
+                console.error('Erro no upload:', uploadResult.error);
+                throw uploadResult.error;
               }
 
-              console.log('Arquivo enviado para storage:', uploadData);
+              console.log('Arquivo enviado para storage:', uploadResult.data);
 
               // Tentar extrair valor líquido do PDF usando OCR ou regex
               let valorLiquido = null;
@@ -393,7 +439,7 @@ serve(async (req) => {
 
               console.log('Pagamento atualizado com sucesso');
 
-              // Enviar mensagem de confirmação para o médico
+              // Enviar mensagem de confirmação para o médico (somente para números autorizados)
               try {
                 const { data: config } = await supabase
                   .from('configuracoes')
