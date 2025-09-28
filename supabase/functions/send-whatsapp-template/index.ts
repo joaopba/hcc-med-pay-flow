@@ -156,6 +156,52 @@ serve(async (req) => {
 
     console.log('Mensagem enviada com sucesso:', responseData);
 
+    // Se a resposta contém "Encaminhar Nota", enviar mensagem pedindo a nota
+    if (type === 'nota' && responseData && 
+        (JSON.stringify(responseData).toLowerCase().includes('encaminhar nota') || 
+         JSON.stringify(responseData).toLowerCase().includes('encaminhar_nota'))) {
+      
+      console.log('Detectada resposta "Encaminhar Nota", enviando mensagem de solicitação...');
+      
+      try {
+        const messagePayload = {
+          body: "Por gentileza, encaminhe a nota fiscal em PDF para prosseguir com o pagamento. Aguardo o documento para finalizar o processo.",
+          number: numero,
+          externalKey: `nota_request_${pagamentoId}_${Date.now()}`,
+          isClosed: false
+        };
+
+        console.log('Enviando mensagem de solicitação:', messagePayload);
+
+        const messageResponse = await fetch(config.api_url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${config.auth_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(messagePayload),
+        });
+
+        const messageResponseData = await messageResponse.json();
+        console.log('Resposta da mensagem de solicitação:', messageResponseData);
+
+        // Registrar log da mensagem de solicitação
+        await supabase
+          .from('message_logs')
+          .insert([{
+            pagamento_id: pagamentoId,
+            tipo: 'solicitacao_nota',
+            payload: messagePayload,
+            success: messageResponse.ok,
+            response: messageResponseData
+          }]);
+
+        console.log('Mensagem de solicitação enviada com sucesso');
+      } catch (messageError) {
+        console.error('Erro ao enviar mensagem de solicitação:', messageError);
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       data: responseData,

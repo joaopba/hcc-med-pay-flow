@@ -113,10 +113,11 @@ serve(async (req) => {
     
     // ===== FIM DO MODO DEBUG =====
 
-    // Verificar se é uma mensagem com arquivo PDF
-    if (webhookData.message && webhookData.message.type === 'document') {
-      const { message } = webhookData;
-      const { document, from } = message;
+    // Verificar se é uma mensagem com arquivo PDF (formato atualizado)
+    if (webhookData.msg && webhookData.msg.type === 'document') {
+      const { msg, ticket } = webhookData;
+      const { document } = msg;
+      const from = ticket?.contact?.number || msg.from;
       
       if (document && document.mime_type === 'application/pdf') {
         console.log('PDF recebido de:', from, 'Arquivo:', document.filename);
@@ -142,17 +143,38 @@ serve(async (req) => {
         if (pagamentos && pagamentos.length > 0) {
           const pagamento = pagamentos[0];
           
-          // Fazer download do arquivo PDF
+          // Fazer download do arquivo PDF usando o token do webhook
           try {
-            const fileResponse = await fetch(document.url || document.link, {
+            const wabaToken = ticket?.whatsapp?.bmToken;
+            console.log('Fazendo download do PDF com ID:', document.id, 'Token disponível:', !!wabaToken);
+            
+            // Primeiro, obter a URL real do arquivo
+            const mediaInfoUrl = `https://graph.facebook.com/v20.0/${document.id}`;
+            console.log('Buscando informações do arquivo:', mediaInfoUrl);
+            
+            const mediaInfoResponse = await fetch(mediaInfoUrl, {
               headers: {
-                'Authorization': `Bearer ${Deno.env.get('WHATSAPP_TOKEN') || ''}`,
+                'Authorization': `Bearer ${wabaToken}`,
+              }
+            });
+            
+            if (!mediaInfoResponse.ok) {
+              throw new Error(`Erro ao buscar informações do arquivo: ${mediaInfoResponse.status}`);
+            }
+            
+            const mediaInfo = await mediaInfoResponse.json();
+            console.log('Informações do arquivo obtidas:', mediaInfo);
+            
+            // Agora fazer o download do arquivo usando a URL obtida
+            const fileResponse = await fetch(mediaInfo.url, {
+              headers: {
+                'Authorization': `Bearer ${wabaToken}`,
               }
             });
             
             if (fileResponse.ok) {
               const fileData = await fileResponse.arrayBuffer();
-              const fileName = `nota_${pagamento.id}_${Date.now()}.pdf`;
+              const fileName = `${document.filename || `nota_${pagamento.id}_${document.id}_${Date.now()}.pdf`}`;
               
               // Fazer upload para o Supabase Storage
               const { data: uploadData, error: uploadError } = await supabase.storage
