@@ -39,28 +39,33 @@ serve(async (req) => {
       return new Response(JSON.stringify({ medico: null }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
-    // Pagamentos do médico com notas associadas - FILTRO RIGOROSO
+    // Pagamentos do médico com notas associadas - SEGURANÇA REFORÇADA
     const { data: pagamentos, error: pagamentosError } = await supabase
       .from('pagamentos')
       .select(`*, notas_medicos!left ( id, status, arquivo_url, created_at )`)
-      .eq('medico_id', medico.id) // APENAS do médico logado
+      .eq('medico_id', medico.id)
       .order('mes_competencia', { ascending: false });
 
     if (pagamentosError) throw pagamentosError;
 
-    // Notas do médico com dados de pagamentos - FILTRO RIGOROSO
+    // Notas do médico com dados de pagamentos - SEGURANÇA REFORÇADA
     const { data: notas, error: notasError } = await supabase
       .from('notas_medicos')
       .select(`*, pagamentos!inner ( valor, mes_competencia )`)
-      .eq('medico_id', medico.id) // APENAS do médico logado
+      .eq('medico_id', medico.id)
       .order('created_at', { ascending: false });
-
-    // Validação adicional: garantir que as notas pertencem ao médico
-    const notasFiltradas = notas?.filter(nota => nota.medico_id === medico.id) || [];
 
     if (notasError) throw notasError;
 
-    return new Response(JSON.stringify({ medico, pagamentos, notas: notasFiltradas }), {
+    // VALIDAÇÃO CRÍTICA: garantir que apenas dados do médico logado sejam retornados
+    const pagamentosFiltrados = pagamentos?.filter(p => p.medico_id === medico.id) || [];
+    const notasFiltradas = notas?.filter(nota => nota.medico_id === medico.id) || [];
+
+    return new Response(JSON.stringify({ 
+      medico, 
+      pagamentos: pagamentosFiltrados, 
+      notas: notasFiltradas 
+    }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   } catch (error: any) {

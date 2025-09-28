@@ -505,10 +505,12 @@ export default function DashboardMedicos() {
                           <Button
                             onClick={() => {
                               setSelectedPagamento(pagamento);
+                              setSelectedFile(null);
                               setShowUploadModal(true);
                             }}
                             size="sm"
                             variant={pagamento.temNotaRejeitada ? "destructive" : pagamento.temNotaPendente ? "secondary" : "default"}
+                            disabled={pagamento.temNotaPendente && !pagamento.temNotaRejeitada}
                           >
                             <Upload className="h-4 w-4 mr-2" />
                             {pagamento.temNotaRejeitada ? "Reenviar Nota" : 

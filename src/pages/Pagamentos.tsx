@@ -110,7 +110,8 @@ export default function Pagamentos() {
 
   const loadData = async () => {
     try {
-      setErrorMsg(null); // Limpar erro anterior
+      setErrorMsg(null);
+      setLoading(true);
       
       // Carregar pagamentos com dados dos médicos
       const { data: pagamentosData, error: pagamentosError } = await supabase
@@ -126,8 +127,7 @@ export default function Pagamentos() {
         .order("mes_competencia", { ascending: false });
 
       if (pagamentosError) {
-        console.error("Erro ao carregar pagamentos:", pagamentosError);
-        throw new Error(`Erro ao carregar pagamentos: ${pagamentosError.message}`);
+        throw pagamentosError;
       }
 
       // Carregar médicos ativos para o formulário
@@ -138,23 +138,22 @@ export default function Pagamentos() {
         .order("nome");
 
       if (medicosError) {
-        console.error("Erro ao carregar médicos:", medicosError);
-        throw new Error(`Erro ao carregar médicos: ${medicosError.message}`);
+        throw medicosError;
       }
 
       setPagamentos(pagamentosData || []);
       setMedicos(medicosData || []);
       
       // Extrair meses únicos dos pagamentos para o filtro
-      const mesesUnicos = [...new Set(pagamentosData?.map(p => p.mes_competencia) || [])]
-        .sort((a, b) => b.localeCompare(a)); // Ordenar do mais recente para o mais antigo
+      const mesesUnicos = [...new Set((pagamentosData || []).map(p => p.mes_competencia))]
+        .sort((a, b) => b.localeCompare(a));
       setMesesDisponiveis(mesesUnicos);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao carregar dados:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Falha ao carregar dados';
+      const errorMessage = error?.message || 'Erro ao carregar dados';
       setErrorMsg(errorMessage);
       toast({
-        title: "Erro",
+        title: "Erro ao carregar Pagamentos",
         description: errorMessage,
         variant: "destructive",
       });
@@ -474,18 +473,15 @@ export default function Pagamentos() {
     }).format(value);
   };
 
-  const filteredPagamentos = pagamentos.filter((pagamento) => {
-    try {
-      const medicoNome = pagamento.medicos?.nome?.toLowerCase?.() || "";
-      const matchesSearch = medicoNome.includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "todos" || pagamento.status === statusFilter;
-      const matchesMes = !mesFilter || pagamento.mes_competencia === mesFilter;
-      
-      return matchesSearch && matchesStatus && matchesMes;
-    } catch (error) {
-      console.error("Erro ao filtrar pagamento:", pagamento, error);
-      return false;
-    }
+  const filteredPagamentos = (pagamentos || []).filter((pagamento) => {
+    if (!pagamento || !pagamento.medicos) return false;
+    
+    const medicoNome = (pagamento.medicos.nome || "").toLowerCase();
+    const matchesSearch = medicoNome.includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "todos" || pagamento.status === statusFilter;
+    const matchesMes = !mesFilter || pagamento.mes_competencia === mesFilter;
+    
+    return matchesSearch && matchesStatus && matchesMes;
   });
 
   if (loading) {
