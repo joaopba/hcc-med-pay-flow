@@ -109,3 +109,22 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Garantir que dropdowns funcionem corretamente */
+[data-radix-select-content] {
+  background: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  z-index: 9999 !important;
+}
+
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+[data-radix-dialog-overlay] {
+  background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.radix-state-open {
+  z-index: 9999 !important;
+}
