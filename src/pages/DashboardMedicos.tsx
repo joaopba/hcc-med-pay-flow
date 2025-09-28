@@ -91,6 +91,8 @@ export default function DashboardMedicos() {
   const [uploading, setUploading] = useState(false);
   const [showRejectedAlert, setShowRejectedAlert] = useState(false);
   const [rejectedNotes, setRejectedNotes] = useState<any[]>([]);
+  const [showConfirmUpload, setShowConfirmUpload] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   const formatCPF = (value: string) => {
@@ -308,7 +310,7 @@ export default function DashboardMedicos() {
     rejeitado: '#ef4444'
   };
 
-  const handleFileUpload = async (pagamentoId: string, file: File) => {
+  const handleFileSelection = (file: File) => {
     if (!file.type.includes('pdf')) {
       toast({
         title: "Erro",
@@ -317,28 +319,36 @@ export default function DashboardMedicos() {
       });
       return;
     }
+    setSelectedFile(file);
+    setShowConfirmUpload(true);
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!selectedFile || !selectedPagamento) return;
 
     setUploading(true);
+    setShowConfirmUpload(false);
+    
     try {
       // Upload do arquivo
       const fileExt = 'pdf';
-      const fileName = `${pagamentoId}_${Date.now()}.${fileExt}`;
+      const fileName = `${selectedPagamento.id}_${Date.now()}.${fileExt}`;
       const filePath = `medicos/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('notas')
-        .upload(filePath, file);
+        .upload(filePath, selectedFile);
 
       if (uploadError) throw uploadError;
 
-      // Registrar na tabela notas_medicos
+      // Registrar na tabela notas_medicos - GARANTIR que é do médico correto
       const { error: insertError } = await supabase
         .from("notas_medicos")
         .insert({
-          medico_id: medico.id,
-          pagamento_id: pagamentoId,
+          medico_id: medico.id, // SEMPRE usar o médico logado
+          pagamento_id: selectedPagamento.id,
           arquivo_url: filePath,
-          nome_arquivo: file.name,
+          nome_arquivo: selectedFile.name,
           status: 'pendente'
         });
 
@@ -356,16 +366,17 @@ export default function DashboardMedicos() {
           nota_pdf_url: filePath,
           data_resposta: new Date().toISOString()
         })
-        .eq("id", pagamentoId);
+        .eq("id", selectedPagamento.id)
+        .eq("medico_id", medico.id); // GARANTIR que é do médico correto
 
       if (pagamentoUpdateError) {
         console.error('Erro ao atualizar pagamento:', pagamentoUpdateError);
-        // Mesmo com erro no pagamento, a nota foi salva, então continuamos
       }
 
       // Fechar modal e recarregar dados
       setShowUploadModal(false);
       setSelectedPagamento(null);
+      setSelectedFile(null);
       buscarDados();
 
       // Mostrar mensagem de sucesso mais específica
@@ -858,8 +869,8 @@ export default function DashboardMedicos() {
                   accept=".pdf"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file && selectedPagamento) {
-                      handleFileUpload(selectedPagamento.id, file);
+                    if (file) {
+                      handleFileSelection(file);
                     }
                   }}
                   disabled={uploading}
@@ -889,6 +900,57 @@ export default function DashboardMedicos() {
                   </div>
                 </div>
               )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de confirmação de upload */}
+        <Dialog open={showConfirmUpload} onOpenChange={setShowConfirmUpload}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-primary" />
+                Confirmar Envio
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <h4 className="font-medium mb-2">Arquivo selecionado:</h4>
+                <p className="text-sm text-muted-foreground">{selectedFile?.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tamanho: {selectedFile ? (selectedFile.size / 1024 / 1024).toFixed(2) : 0} MB
+                </p>
+              </div>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Confirme antes de enviar:</strong>
+                </p>
+                <ul className="text-xs text-blue-700 mt-1 space-y-1">
+                  <li>• O arquivo está correto e completo?</li>
+                  <li>• Os dados conferem com o pagamento?</li>
+                  <li>• O PDF não possui problemas de visualização?</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowConfirmUpload(false);
+                    setSelectedFile(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={handleConfirmUpload}
+                  disabled={uploading}
+                >
+                  {uploading ? "Enviando..." : "Confirmar e Enviar"}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

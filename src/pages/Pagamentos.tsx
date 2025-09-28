@@ -110,6 +110,8 @@ export default function Pagamentos() {
 
   const loadData = async () => {
     try {
+      setErrorMsg(null); // Limpar erro anterior
+      
       // Carregar pagamentos com dados dos médicos
       const { data: pagamentosData, error: pagamentosError } = await supabase
         .from("pagamentos")
@@ -123,7 +125,10 @@ export default function Pagamentos() {
         `)
         .order("mes_competencia", { ascending: false });
 
-      if (pagamentosError) throw pagamentosError;
+      if (pagamentosError) {
+        console.error("Erro ao carregar pagamentos:", pagamentosError);
+        throw new Error(`Erro ao carregar pagamentos: ${pagamentosError.message}`);
+      }
 
       // Carregar médicos ativos para o formulário
       const { data: medicosData, error: medicosError } = await supabase
@@ -132,7 +137,10 @@ export default function Pagamentos() {
         .eq("ativo", true)
         .order("nome");
 
-      if (medicosError) throw medicosError;
+      if (medicosError) {
+        console.error("Erro ao carregar médicos:", medicosError);
+        throw new Error(`Erro ao carregar médicos: ${medicosError.message}`);
+      }
 
       setPagamentos(pagamentosData || []);
       setMedicos(medicosData || []);
@@ -143,10 +151,11 @@ export default function Pagamentos() {
       setMesesDisponiveis(mesesUnicos);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
-      setErrorMsg(error instanceof Error ? error.message : 'Falha ao carregar dados');
+      const errorMessage = error instanceof Error ? error.message : 'Falha ao carregar dados';
+      setErrorMsg(errorMessage);
       toast({
         title: "Erro",
-        description: "Falha ao carregar dados",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -466,12 +475,17 @@ export default function Pagamentos() {
   };
 
   const filteredPagamentos = pagamentos.filter((pagamento) => {
-    const medicoNome = pagamento.medicos?.nome?.toLowerCase?.() || "";
-    const matchesSearch = medicoNome.includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "todos" || pagamento.status === statusFilter;
-    const matchesMes = !mesFilter || pagamento.mes_competencia === mesFilter;
-    
-    return matchesSearch && matchesStatus && matchesMes;
+    try {
+      const medicoNome = pagamento.medicos?.nome?.toLowerCase?.() || "";
+      const matchesSearch = medicoNome.includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "todos" || pagamento.status === statusFilter;
+      const matchesMes = !mesFilter || pagamento.mes_competencia === mesFilter;
+      
+      return matchesSearch && matchesStatus && matchesMes;
+    } catch (error) {
+      console.error("Erro ao filtrar pagamento:", pagamento, error);
+      return false;
+    }
   });
 
   if (loading) {
