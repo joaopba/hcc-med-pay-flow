@@ -7,7 +7,8 @@ import {
   FileText, 
   MessageCircle,
   Activity,
-  Building2
+  Building2,
+  User
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -203,6 +204,16 @@ export default function AppSidebar() {
               </div>
             </div>
           )}
+          
+          <Button
+            variant="ghost"
+            onClick={() => window.location.href = '/perfil'}
+            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+            title={collapsed ? "Meu Perfil" : undefined}
+          >
+            <User className="h-4 w-4 flex-shrink-0" />
+            {!collapsed && <span className="ml-2">Meu Perfil</span>}
+          </Button>
           
           <Button
             variant="ghost"

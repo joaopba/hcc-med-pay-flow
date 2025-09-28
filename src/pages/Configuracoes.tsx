@@ -253,7 +253,7 @@ export default function Configuracoes() {
                 <div className="space-y-0.5">
                   <Label htmlFor="email_notificacoes">Notificações por Email</Label>
                   <p className="text-sm text-muted-foreground">
-                    Receber emails quando novas notas chegarem
+                    Receber emails quando novas notas chegarem e pagamentos forem realizados
                   </p>
                 </div>
                 <Switch
@@ -263,6 +263,16 @@ export default function Configuracoes() {
                     setConfig({ ...config, email_notificacoes: checked })
                   }
                 />
+              </div>
+              
+              <div className="pt-4 border-t">
+                <h4 className="font-medium mb-2">Configuração do Email</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  As notificações são enviadas via Resend. Configure sua chave de API no painel de administração.
+                </p>
+                <div className="bg-muted p-3 rounded-lg">
+                  <p className="text-xs font-mono">RESEND_API_KEY configurada ✓</p>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -104,13 +104,28 @@ serve(async (req) => {
       pagamentoId
     });
 
-    // Aqui você pode integrar com um serviço de email como Resend, SendGrid, etc.
-    // Para simplificar, vamos apenas logar a notificação
-    console.log('EMAIL NOTIFICATION:', {
-      to: 'admin@hcchospital.com.br', // Configure o email do admin
-      subject,
-      html: message
-    });
+    // Enviar email via edge function send-email-notification
+    try {
+      const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+        },
+        body: JSON.stringify({
+          type,
+          pagamentoId,
+          fileName,
+          valorLiquido
+        })
+      });
+
+      const emailResult = await emailResponse.json();
+      console.log('Email enviado:', emailResult);
+    } catch (emailError) {
+      console.error('Erro ao enviar email:', emailError);
+      // Não falhar a função se o email falhar
+    }
 
     return new Response(JSON.stringify({
       success: true,

@@ -229,3 +229,35 @@
 .animate-fade-in-up {
   animation: fade-in-up 0.4s ease-out;
 }
+
+/* Component overrides to prevent white screens */
+.dropdown-overlay,
+.dialog-overlay {
+  z-index: 9998 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.dropdown-content,
+.dialog-content {
+  z-index: 9999 !important;
+  background: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+/* Additional Select and Dialog fixes */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+[data-state="open"][data-radix-select-content] {
+  background: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+[data-state="open"][data-radix-dialog-content] {
+  background: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
