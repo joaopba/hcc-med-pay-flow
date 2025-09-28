@@ -250,18 +250,50 @@ serve(async (req) => {
 
         let pagamento: any = (pagamentos && pagamentos.length > 0) ? pagamentos[0] : null;
 
-        // Fallback: associar pelo log de solicitação (message_logs) caso o número do WhatsApp não bata com o cadastro
+        // Se não encontrou pelo join, tentar localizar o médico por variações do número (com/sem o 9)
+        if (!pagamento) {
+          const variants = brPhoneVariants(numeroLimpo);
+          let medicoId: string | null = null;
+          for (const v of variants) {
+            const { data: medicoMatch } = await supabase
+              .from('medicos')
+              .select('id')
+              .ilike('numero_whatsapp', `%${v}%`)
+              .limit(1);
+            if (medicoMatch && medicoMatch.length > 0) {
+              medicoId = medicoMatch[0].id as string;
+              break;
+            }
+          }
+          if (medicoId) {
+            const { data: payByMedico } = await supabase
+              .from('pagamentos')
+              .select('id, valor, status, created_at')
+              .in('status', ['pendente','solicitado'])
+              .eq('medico_id', medicoId)
+              .order('created_at', { ascending: false })
+              .limit(1);
+            if (payByMedico && payByMedico.length > 0) {
+              pagamento = payByMedico[0];
+            }
+          }
+        }
+
+        // Fallback final: associar pelo log de solicitação (message_logs)
         if (!pagamento) {
           try {
-            const { data: logAssoc } = await supabase
+            const variants = brPhoneVariants(numeroLimpo);
+            const { data: logs } = await supabase
               .from('message_logs')
               .select('pagamento_id, payload, created_at')
               .eq('tipo', 'solicitacao_nota')
-              .ilike('payload->>number', `%${numeroLimpo}%`)
               .order('created_at', { ascending: false })
-              .limit(1);
-
-            const pagamentoId = logAssoc?.[0]?.pagamento_id;
+              .limit(20);
+            const found = (logs || []).find((l: any) => {
+              const n = String(l?.payload?.number || '');
+              return variants.some(v => n.includes(v));
+            });
+            const pagamentoId = found?.pagamento_id;
             if (pagamentoId) {
               const { data: pagamentoById } = await supabase
                 .from('pagamentos')
@@ -467,6 +499,24 @@ serve(async (req) => {
     });
   }
 });
+
+// Função auxiliar para normalizar e gerar variações de números BR (com/sem o 9)
+function brPhoneVariants(num: string): string[] {
+  const digits = (num || '').replace(/\D/g, '');
+  const set = new Set<string>();
+  if (!digits) return [];
+  set.add(digits);
+  // Inserir 9 após DDI+DDD (ex: 55 77 -> índice 4)
+  if (digits.startsWith('55')) {
+    if (digits.length === 12) { // provavelmente sem o 9
+      set.add(digits.slice(0, 4) + '9' + digits.slice(4));
+    }
+    if (digits.length === 13 && digits[4] === '9') { // com 9, gerar sem 9
+      set.add(digits.slice(0, 4) + digits.slice(5));
+    }
+  }
+  return Array.from(set);
+}
 
 // Função auxiliar para extrair texto do PDF (simulação)
 async function extractTextFromPDF(pdfData: ArrayBuffer): Promise<string> {
