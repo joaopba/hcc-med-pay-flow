@@ -21,6 +21,7 @@ serve(async (req) => {
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
 
+    // Buscar todos os dados necessários
     let query = supabase
       .from('pagamentos')
       .select(`
@@ -29,11 +30,15 @@ serve(async (req) => {
         valor,
         valor_liquido,
         status,
+        data_solicitacao,
+        data_resposta,
         data_pagamento,
+        observacoes,
         created_at,
         medicos(
           nome,
           cpf,
+          numero_whatsapp,
           especialidade
         )
       `)
@@ -51,42 +56,80 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    // Processar e formatar dados para o relatório
-    const relatorioData = (pagamentos || []).map((pagamento: any) => {
-      const medico = Array.isArray(pagamento.medicos) ? pagamento.medicos[0] : pagamento.medicos;
-      return {
-        id: pagamento.id,
-        medico_nome: medico?.nome || 'N/A',
-        medico_cpf: medico?.cpf || 'N/A',
-        especialidade: medico?.especialidade || 'N/A',
-        mes_competencia: pagamento.mes_competencia,
-        valor_bruto: pagamento.valor,
-        valor_liquido: pagamento.valor_liquido || pagamento.valor,
-        status: pagamento.status,
-        data_pagamento: pagamento.data_pagamento,
-        data_criacao: pagamento.created_at
-      };
-    });
+    // Organizar dados nas três categorias solicitadas
+    const solicitacao_de_dados = (pagamentos || [])
+      .filter(p => p.data_solicitacao)
+      .map((pagamento: any) => {
+        const medico = Array.isArray(pagamento.medicos) ? pagamento.medicos[0] : pagamento.medicos;
+        return {
+          id: pagamento.id,
+          medico_nome: medico?.nome || 'N/A',
+          medico_cpf: medico?.cpf || 'N/A',
+          numero_whatsapp: medico?.numero_whatsapp || 'N/A',
+          especialidade: medico?.especialidade || 'N/A',
+          mes_competencia: pagamento.mes_competencia,
+          valor: pagamento.valor,
+          data_solicitacao: pagamento.data_solicitacao,
+          status: pagamento.status
+        };
+      });
 
-    // Calcular totais
-    const totalBruto = relatorioData.reduce((sum, item) => sum + (item.valor_bruto || 0), 0);
-    const totalLiquido = relatorioData.reduce((sum, item) => sum + (item.valor_liquido || 0), 0);
-    const totalPagamentos = relatorioData.length;
-    const pagamentosPagos = relatorioData.filter(item => item.status === 'pago').length;
+    const dados_resposta = (pagamentos || [])
+      .filter(p => p.data_resposta)
+      .map((pagamento: any) => {
+        const medico = Array.isArray(pagamento.medicos) ? pagamento.medicos[0] : pagamento.medicos;
+        return {
+          id: pagamento.id,
+          medico_nome: medico?.nome || 'N/A',
+          medico_cpf: medico?.cpf || 'N/A',
+          mes_competencia: pagamento.mes_competencia,
+          valor: pagamento.valor,
+          data_resposta: pagamento.data_resposta,
+          status: pagamento.status,
+          observacoes: pagamento.observacoes || ''
+        };
+      });
+
+    const pagamento_de_dados = (pagamentos || [])
+      .filter(p => p.data_pagamento)
+      .map((pagamento: any) => {
+        const medico = Array.isArray(pagamento.medicos) ? pagamento.medicos[0] : pagamento.medicos;
+        return {
+          id: pagamento.id,
+          medico_nome: medico?.nome || 'N/A',
+          medico_cpf: medico?.cpf || 'N/A',
+          especialidade: medico?.especialidade || 'N/A',
+          mes_competencia: pagamento.mes_competencia,
+          valor_bruto: pagamento.valor,
+          valor_liquido: pagamento.valor_liquido || pagamento.valor,
+          data_pagamento: pagamento.data_pagamento,
+          status: pagamento.status
+        };
+      });
+
+    // Estatísticas gerais
+    const totalPagamentos = pagamentos?.length || 0;
+    const valorTotal = pagamentos?.reduce((sum: number, p: any) => sum + (p.valor || 0), 0) || 0;
+    const pagamentosPagos = pagamentos?.filter((p: any) => p.status === 'pago').length || 0;
+    const valorPago = pagamentos?.filter((p: any) => p.status === 'pago').reduce((sum: number, p: any) => sum + (p.valor || 0), 0) || 0;
 
     return new Response(JSON.stringify({
       success: true,
-      data: relatorioData,
-      summary: {
+      solicitacao_de_dados,
+      dados_resposta,
+      pagamento_de_dados,
+      estatisticas: {
         total_pagamentos: totalPagamentos,
         pagamentos_pagos: pagamentosPagos,
-        valor_total_bruto: totalBruto,
-        valor_total_liquido: totalLiquido,
+        pendentes: totalPagamentos - pagamentosPagos,
+        valor_total_bruto: valorTotal,
+        valor_total_pago: valorPago,
         periodo: {
           inicio: startDate || 'início',
           fim: endDate || 'fim'
         }
-      }
+      },
+      data_geracao: new Date().toISOString()
     }), {
       headers: { 
         'Content-Type': 'application/json',
