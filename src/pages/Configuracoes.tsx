@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Copy, TestTube } from "lucide-react";
+import { Save, Copy, TestTube, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -22,6 +22,7 @@ export default function Configuracoes() {
   const [config, setConfig] = useState<Configuracao | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const { toast } = useToast();
 
   const webhookUrl = `${window.location.origin}/api/webhook`;
@@ -140,6 +141,31 @@ export default function Configuracoes() {
     }
   };
 
+  const testEmail = async () => {
+    setSendingTestEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('test-email', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email de teste enviado!",
+        description: "Verifique sua caixa de entrada em suporte@chatconquista.com",
+      });
+    } catch (error: any) {
+      console.error("Erro ao enviar email de teste:", error);
+      toast({
+        title: "Erro ao enviar email",
+        description: error.message || "Falha ao enviar email de teste",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTestEmail(false);
+    }
+  };
+
   if (loading || !config) {
     return (
       <AppLayout>
@@ -204,6 +230,30 @@ export default function Configuracoes() {
                 <TestTube className="h-4 w-4 mr-2" />
                 Testar Conexão
               </Button>
+              
+              <Button 
+                onClick={async () => {
+                  try {
+                    const { data, error } = await supabase.functions.invoke('test-webhook');
+                    if (error) throw error;
+                    toast({
+                      title: "Teste do Webhook",
+                      description: "Webhook testado com sucesso! Verifique os logs.",
+                    });
+                  } catch (error: any) {
+                    toast({
+                      title: "Erro no teste",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                variant="outline" 
+                className="w-full"
+              >
+                <TestTube className="h-4 w-4 mr-2" />
+                Testar Webhook
+              </Button>
             </CardContent>
           </Card>
 
@@ -267,11 +317,35 @@ export default function Configuracoes() {
               
               <div className="pt-4 border-t">
                 <h4 className="font-medium mb-2">Configuração do Email</h4>
-                <p className="text-sm text-muted-foreground mb-3">
-                  As notificações são enviadas via Resend. Configure sua chave de API no painel de administração.
-                </p>
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="text-xs font-mono">RESEND_API_KEY configurada ✓</p>
+                <div className="space-y-4 mb-4">
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <h5 className="font-medium text-sm mb-2">Configuração SMTP Atual:</h5>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p><strong>Servidor:</strong> smtp.hostinger.com</p>
+                      <p><strong>Porta:</strong> 465 (SSL)</p>
+                      <p><strong>Usuário:</strong> suporte@chatconquista.com</p>
+                      <p><strong>Status:</strong> Configurado ✅</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    O sistema está configurado para usar seu servidor SMTP da Hostinger.
+                    As notificações serão enviadas do endereço suporte@chatconquista.com.
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  <Button 
+                    onClick={testEmail}
+                    disabled={sendingTestEmail}
+                    size="lg"
+                    className="w-full"
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    {sendingTestEmail ? "Enviando Email de Teste..." : "📧 Testar Envio de Email"}
+                  </Button>
+                  
+                  <p className="text-xs text-muted-foreground text-center">
+                    Clique para enviar um email de teste usando o servidor SMTP configurado
+                  </p>
                 </div>
               </div>
             </CardContent>

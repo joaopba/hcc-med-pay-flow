@@ -1,12 +1,23 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-// Using fetch instead of Resend package to avoid import issues
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Configurar cliente SMTP
+const client = new SMTPClient({
+  connection: {
+    hostname: Deno.env.get("SMTP_HOST") || "smtp.hostinger.com",
+    port: parseInt(Deno.env.get("SMTP_PORT") || "465"),
+    tls: true,
+    auth: {
+      username: Deno.env.get("SMTP_USER") || "suporte@chatconquista.com",
+      password: Deno.env.get("SMTP_PASSWORD") || "",
+    },
+  },
+});
 
 interface EmailNotificationRequest {
   type: 'nova_nota' | 'pagamento_realizado';
@@ -173,29 +184,22 @@ serve(async (req) => {
     console.log('Enviando email para:', destinatario);
     console.log('Assunto:', subject);
 
-    // Send email using Resend API directly
-    const emailResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'HCC Hospital <onboarding@resend.dev>',
-        to: [destinatario],
-        subject: subject,
-        html: html,
-      }),
+    // Enviar email via SMTP
+    await client.send({
+      from: "HCC Hospital <suporte@chatconquista.com>",
+      to: destinatario,
+      subject: subject,
+      content: "Versão texto do email",
+      html: html,
     });
 
-    const emailResult = await emailResponse.json();
-    console.log('Email enviado com sucesso:', emailResult);
+    console.log('Email enviado com sucesso via SMTP');
 
     return new Response(JSON.stringify({
       success: true,
-      message: 'Notificação enviada por email',
+      message: 'Notificação enviada por email via SMTP',
       type,
-      emailId: emailResult.id
+      smtpDelivered: true
     }), {
       headers: { 
         'Content-Type': 'application/json',
