@@ -370,6 +370,7 @@ export default function Pagamentos() {
           numero: pagamento.medicos.numero_whatsapp,
           nome: pagamento.medicos.nome,
           dataPagamento: new Date(paymentDate).toLocaleDateString('pt-BR'),
+          pagamentoId: selectedPaymentId
         }
       });
 

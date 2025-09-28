@@ -388,6 +388,65 @@ export default function Configuracoes() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Como usar a API de Relatórios</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Use esta API para alimentar o Google Sheets via Apps Script.
+              </p>
+
+              <div>
+                <Label>Endpoint</Label>
+                <Input
+                  readOnly
+                  value={"https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/get-relatorio-data"}
+                  className="font-mono text-xs"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Parâmetros opcionais: startDate, endDate (formato ISO). Exemplo:
+                </p>
+                <Input
+                  readOnly
+                  value={"...?startDate=2024-01-01&endDate=2024-12-31"}
+                  className="font-mono text-xs mt-1"
+                />
+              </div>
+
+              <div className="p-3 bg-muted/50 rounded">
+                <p className="text-xs font-medium mb-2">Resposta (JSON):</p>
+                <pre className="text-xs overflow-auto"><code>{`{
+  "success": true,
+  "solicitacao_de_dados": [ { id, medico_nome, medico_cpf, mes_competencia, valor, data_solicitacao, status } ],
+  "dados_resposta": [ { id, medico_nome, medico_cpf, mes_competencia, valor, data_resposta, status, observacoes } ],
+  "pagamento_de_dados": [ { id, medico_nome, medico_cpf, mes_competencia, valor_bruto, valor_liquido, data_pagamento, status } ],
+  "estatisticas": { total_pagamentos, pagamentos_pagos, pendentes, valor_total_bruto, valor_total_pago },
+  "data_geracao": "ISO"
+}`}</code></pre>
+              </div>
+
+              <div className="p-3 bg-muted/50 rounded">
+                <p className="text-xs font-medium mb-2">Exemplo (Apps Script):</p>
+                <pre className="text-xs overflow-auto"><code>{`function importarDados() {
+  const url = 'https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/get-relatorio-data?startDate=2024-01-01&endDate=2024-12-31';
+  const res = UrlFetchApp.fetch(url, { method: 'get', headers: { 'apikey': '${supabase.auth.getSession ? 'SUA_ANON_KEY' : 'SUA_ANON_KEY'}' }});
+  const json = JSON.parse(res.getContentText());
+  const aba = SpreadsheetApp.getActive().getSheetByName('Relatorio') || SpreadsheetApp.getActive().insertSheet('Relatorio');
+  aba.clearContents();
+  aba.getRange(1,1,1,7).setValues([[
+    'ID','Médico','CPF','Competência','Valor','Data','Status'
+  ]]);
+  const linhas = json.pagamento_de_dados.map(i => [i.id, i.medico_nome, i.medico_cpf, i.mes_competencia, i.valor_liquido, i.data_pagamento, i.status]);
+  if (linhas.length) aba.getRange(2,1,linhas.length,7).setValues(linhas);
+}`}</code></pre>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Dica: use gatilhos do Apps Script para atualizar automaticamente.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppLayout>

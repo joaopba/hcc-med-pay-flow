@@ -208,7 +208,8 @@ export default function NotasAprovacao() {
             numero_whatsapp: medicoData?.numero_whatsapp
           },
           competencia: nota.pagamentos.mes_competencia,
-          valor: nota.pagamentos.valor
+          valor: nota.pagamentos.valor,
+          pagamentoId: nota.pagamento_id
         }
       });
 
@@ -284,7 +285,8 @@ export default function NotasAprovacao() {
           },
           competencia: nota.pagamentos.mes_competencia,
           motivo: observacoes,
-          linkPortal: 'https://hcc-med-pay-flow.lovable.app/dashboard-medicos'
+          linkPortal: 'https://hcc-med-pay-flow.lovable.app/dashboard-medicos',
+          pagamentoId: nota.pagamento_id
         }
       });
 

@@ -56,6 +56,32 @@ serve(async (req) => {
     let payload: any;
     let apiUrl = config.api_url;
 
+    // Idempotência: evitar mensagens duplicadas em curto intervalo
+    if (pagamentoId) {
+      const since = new Date(Date.now() - 20000).toISOString(); // 20s
+      const { data: recent, error: recentError } = await supabase
+        .from('message_logs')
+        .select('id, created_at')
+        .eq('pagamento_id', pagamentoId)
+        .eq('tipo', `whatsapp_${type}`)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!recentError && recent && recent.length > 0) {
+        return new Response(JSON.stringify({
+          success: true,
+          data: { skipped: true },
+          message: 'Mensagem já enviada recentemente (idempotência)'
+        }), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders 
+          },
+        });
+      }
+    }
+
     switch (type) {
       case 'nota':
         // Usar template estruturado para solicitação de nota
