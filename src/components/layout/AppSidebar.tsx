@@ -11,6 +11,7 @@ import {
   User
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -48,6 +49,13 @@ const navigation = [
     badge: "3"
   },
   { 
+    name: "Usuários", 
+    href: "/usuarios", 
+    icon: User,
+    description: "Gerenciar usuários",
+    adminOnly: true
+  },
+  { 
     name: "Relatórios", 
     href: "/relatorios", 
     icon: FileText,
@@ -74,6 +82,30 @@ export default function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
   const collapsed = state === "collapsed";
+  const [userRole, setUserRole] = useState<string>('usuario');
+
+  useEffect(() => {
+    checkUserRole();
+  }, []);
+
+  const checkUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao verificar role do usuário:', error);
+    }
+  };
   
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -115,7 +147,9 @@ export default function AppSidebar() {
             </p>
           )}
           <SidebarMenu className="space-y-1">
-            {navigation.map((item) => (
+            {navigation
+              .filter(item => !item.adminOnly || userRole === 'gestor')
+              .map((item) => (
               <SidebarMenuItem key={item.name}>
                 <SidebarMenuButton asChild>
                   <NavLink

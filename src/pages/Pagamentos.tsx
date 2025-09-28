@@ -473,9 +473,10 @@ export default function Pagamentos() {
                   </TableHead>
                   <TableHead>Médico</TableHead>
                   <TableHead>Competência</TableHead>
-                  <TableHead>Valor</TableHead>
+                  <TableHead>Valor Bruto</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Valor Líquido</TableHead>
+                  <TableHead>Data Pagamento</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -505,6 +506,12 @@ export default function Pagamentos() {
                     </TableCell>
                     <TableCell>
                       {pagamento.valor_liquido ? formatCurrency(pagamento.valor_liquido) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {pagamento.data_pagamento ? 
+                        new Date(pagamento.data_pagamento).toLocaleDateString('pt-BR') : 
+                        '-'
+                      }
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">

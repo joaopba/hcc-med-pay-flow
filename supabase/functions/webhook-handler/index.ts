@@ -30,17 +30,21 @@ serve(async (req) => {
 
         // Buscar pagamento pendente para este número
         const numeroLimpo = from.replace(/\D/g, '');
+        console.log('Número limpo extraído:', numeroLimpo);
         
         const { data: pagamentos } = await supabase
           .from('pagamentos')
           .select(`
             id, 
             valor,
-            medicos!inner(numero_whatsapp)
+            status,
+            medicos!inner(numero_whatsapp, nome)
           `)
           .eq('status', 'solicitado')
-          .like('medicos.numero_whatsapp', `%${numeroLimpo}%`)
+          .ilike('medicos.numero_whatsapp', `%${numeroLimpo}%`)
           .limit(1);
+        
+        console.log('Pagamentos encontrados:', pagamentos);
 
         if (pagamentos && pagamentos.length > 0) {
           const pagamento = pagamentos[0];

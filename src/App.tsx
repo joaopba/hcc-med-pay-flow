@@ -10,6 +10,7 @@ import Medicos from "./pages/Medicos";
 import Pagamentos from "./pages/Pagamentos";
 import Configuracoes from "./pages/Configuracoes";
 import Relatorios from "./pages/Relatorios";
+import Usuarios from "./pages/Usuarios";
 import TesteWhatsApp from "./pages/TesteWhatsApp";
 import UserProfile from "./pages/UserProfile";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -54,6 +55,11 @@ const App = () => (
           <Route path="/teste-whatsapp" element={
             <ProtectedRoute>
               <TesteWhatsApp />
+            </ProtectedRoute>
+          } />
+          <Route path="/usuarios" element={
+            <ProtectedRoute>
+              <Usuarios />
             </ProtectedRoute>
           } />
           <Route path="/perfil" element={
