@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Send, Download, Calendar, CheckCircle } from "lucide-react";
+import { Plus, Search, Send, Download, Calendar, CheckCircle, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import ExcelImport from "@/components/ExcelImport";
 
 interface Medico {
   id: string;
@@ -56,6 +57,7 @@ export default function Pagamentos() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [mesFilter, setMesFilter] = useState("");
   const [showDialog, setShowDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedPagamentos, setSelectedPagamentos] = useState<string[]>([]);
   const { toast } = useToast();
 
@@ -254,6 +256,53 @@ export default function Pagamentos() {
     }
   };
 
+  const handleExcelImport = async (data: any[]) => {
+    try {
+      const pagamentosData = [];
+      
+      for (const row of data) {
+        // Buscar médico pelo nome
+        const medicoNome = row.medico || row.Medico || row.nome_medico;
+        const medico = medicos.find(m => m.nome.toLowerCase().includes(medicoNome?.toLowerCase()));
+        
+        if (!medico) {
+          throw new Error(`Médico não encontrado: ${medicoNome}`);
+        }
+
+        pagamentosData.push({
+          medico_id: medico.id,
+          mes_competencia: row.mes_competencia || row.competencia || row.Competencia,
+          valor: parseFloat(row.valor || row.Valor || "0")
+        });
+      }
+
+      const { error } = await supabase
+        .from("pagamentos")
+        .insert(pagamentosData);
+
+      if (error) throw error;
+
+      setShowImportDialog(false);
+      await loadData();
+    } catch (error) {
+      console.error("Erro ao importar pagamentos:", error);
+      throw error;
+    }
+  };
+
+  const getTemplateData = () => [
+    {
+      medico: "Dr. João Silva",
+      mes_competencia: "2024-01",
+      valor: 5000.00
+    },
+    {
+      medico: "Dra. Maria Santos", 
+      mes_competencia: "2024-01",
+      valor: 7500.50
+    }
+  ];
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -287,6 +336,27 @@ export default function Pagamentos() {
                 Solicitar Notas ({selectedPagamentos.length})
               </Button>
             )}
+
+            <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Importar Excel
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Importar Pagamentos via Excel</DialogTitle>
+                </DialogHeader>
+                <ExcelImport
+                  onImport={handleExcelImport}
+                  templateData={getTemplateData()}
+                  templateFilename="modelo-pagamentos.xlsx"
+                  expectedColumns={["medico", "mes_competencia", "valor"]}
+                  title="Importação de Pagamentos"
+                />
+              </DialogContent>
+            </Dialog>
             
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
               <DialogTrigger asChild>

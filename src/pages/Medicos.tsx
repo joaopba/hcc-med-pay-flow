@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import ExcelImport from "@/components/ExcelImport";
 
 interface Medico {
   id: string;
@@ -37,6 +38,7 @@ export default function Medicos() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDialog, setShowDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [editingMedico, setEditingMedico] = useState<Medico | null>(null);
   const { toast } = useToast();
 
@@ -149,6 +151,41 @@ export default function Medicos() {
     }
   };
 
+  const handleExcelImport = async (data: any[]) => {
+    try {
+      const medicosData = data.map(row => ({
+        nome: row.nome || row.Nome,
+        numero_whatsapp: row.numero_whatsapp || row.WhatsApp || row.whatsapp,
+        especialidade: row.especialidade || row.Especialidade || ""
+      }));
+
+      const { error } = await supabase
+        .from("medicos")
+        .insert(medicosData);
+
+      if (error) throw error;
+
+      setShowImportDialog(false);
+      await loadMedicos();
+    } catch (error) {
+      console.error("Erro ao importar médicos:", error);
+      throw error;
+    }
+  };
+
+  const getTemplateData = () => [
+    {
+      nome: "Dr. João Silva",
+      numero_whatsapp: "5511999999999",
+      especialidade: "Cardiologia"
+    },
+    {
+      nome: "Dra. Maria Santos",
+      numero_whatsapp: "5511888888888", 
+      especialidade: "Pediatria"
+    }
+  ];
+
   const filteredMedicos = medicos.filter((medico) =>
     medico.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     medico.especialidade?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -165,16 +202,38 @@ export default function Medicos() {
             </p>
           </div>
           
-          <Dialog open={showDialog} onOpenChange={setShowDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={() => {
-                setEditingMedico(null);
-                setFormData({ nome: "", numero_whatsapp: "", especialidade: "" });
-              }}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Médico
-              </Button>
-            </DialogTrigger>
+          <div className="flex space-x-2">
+            <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Importar Excel
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Importar Médicos via Excel</DialogTitle>
+                </DialogHeader>
+                <ExcelImport
+                  onImport={handleExcelImport}
+                  templateData={getTemplateData()}
+                  templateFilename="modelo-medicos.xlsx"
+                  expectedColumns={["nome", "numero_whatsapp"]}
+                  title="Importação de Médicos"
+                />
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showDialog} onOpenChange={setShowDialog}>
+              <DialogTrigger asChild>
+                <Button onClick={() => {
+                  setEditingMedico(null);
+                  setFormData({ nome: "", numero_whatsapp: "", especialidade: "" });
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Médico
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
@@ -220,6 +279,7 @@ export default function Medicos() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <Card>
