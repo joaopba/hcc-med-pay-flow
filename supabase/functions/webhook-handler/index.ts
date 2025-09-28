@@ -184,13 +184,31 @@ serve(async (req) => {
       const { msg, ticket } = webhookData;
       const document = msg.document;
       const from = ticket?.contact?.number || msg.from;
-      const wabaMediaId = msg.wabaMediaId;
+      const wabaMediaId = msg.wabaMediaId || document?.id;
       
       console.log('Detalhes do documento:', { document, wabaMediaId, from });
       
+      // Verificar se temos as informações necessárias
+      if (!wabaMediaId) {
+        console.log('wabaMediaId não encontrado no documento');
+        return new Response(JSON.stringify({ status: 'success', message: 'wabaMediaId não encontrado' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+
+      // Determinar o nome do arquivo
+      let filename = 'documento.pdf';
+      if (document?.filename) {
+        filename = document.filename;
+      } else if (msg.body) {
+        // Se não tem document.filename, usar o body da mensagem que pode conter o nome
+        filename = msg.body;
+      }
+
       if ((document && document.mime_type === 'application/pdf') || 
           (msg.mediaType === 'document' && wabaMediaId)) {
-        console.log('PDF recebido de:', from, 'Arquivo:', document.filename);
+        console.log('PDF recebido de:', from, 'Arquivo:', filename);
 
         // Buscar pagamento pendente para este número
         const numeroLimpo = from.replace(/\D/g, '');
@@ -219,7 +237,7 @@ serve(async (req) => {
             console.log('Fazendo download do PDF com ID:', document.id, 'Token disponível:', !!wabaToken);
             
             // Primeiro, obter a URL real do arquivo usando o wabaMediaId
-            const mediaId = document?.id || wabaMediaId;
+            const mediaId = wabaMediaId;
             const mediaInfoUrl = `https://graph.facebook.com/v20.0/${mediaId}`;
             console.log('Buscando informações do arquivo:', mediaInfoUrl, 'Media ID:', mediaId);
             
@@ -245,7 +263,7 @@ serve(async (req) => {
             
             if (fileResponse.ok) {
               const fileData = await fileResponse.arrayBuffer();
-              const fileName = `${document?.filename || `nota_${pagamento.id}_${mediaId}_${Date.now()}.pdf`}`;
+              const fileName = filename.endsWith('.pdf') ? filename : `${filename.replace(/\.[^/.]+$/, '')}.pdf`;
               
               // Fazer upload para o Supabase Storage
               const { data: uploadData, error: uploadError } = await supabase.storage
