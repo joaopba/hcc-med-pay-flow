@@ -113,13 +113,83 @@ serve(async (req) => {
     
     // ===== FIM DO MODO DEBUG =====
 
-    // Verificar se é uma mensagem com arquivo PDF (formato atualizado)
-    if (webhookData.msg && webhookData.msg.type === 'document') {
-      const { msg, ticket } = webhookData;
-      const { document } = msg;
-      const from = ticket?.contact?.number || msg.from;
+    // Verificar se é um clique no botão "Encaminhar Nota"
+    if (webhookData.msg && webhookData.msg.type === 'button' && 
+        webhookData.msg.button && webhookData.msg.button.payload === 'Encaminhar Nota') {
       
-      if (document && document.mime_type === 'application/pdf') {
+      const from = webhookData.ticket?.contact?.number || webhookData.msg.from;
+      console.log('Botão "Encaminhar Nota" clicado por:', from);
+      
+      try {
+        // Buscar configurações da API
+        const { data: config, error: configError } = await supabase
+          .from('configuracoes')
+          .select('api_url, auth_token')
+          .single();
+
+        if (configError || !config) {
+          throw new Error('Configurações não encontradas');
+        }
+
+        const messagePayload = {
+          body: "Por gentileza, encaminhe a nota fiscal em PDF para prosseguir com o pagamento. Aguardo o documento para finalizar o processo.",
+          number: from,
+          externalKey: `nota_request_button_${Date.now()}`,
+          isClosed: false
+        };
+
+        console.log('Enviando mensagem de solicitação via botão:', messagePayload);
+
+        const messageResponse = await fetch(config.api_url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${config.auth_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(messagePayload),
+        });
+
+        const messageResponseData = await messageResponse.json();
+        console.log('Resposta da mensagem de solicitação via botão:', messageResponseData);
+
+        // Registrar log da mensagem de solicitação
+        await supabase
+          .from('message_logs')
+          .insert([{
+            pagamento_id: null,
+            tipo: 'solicitacao_nota',
+            payload: messagePayload,
+            success: messageResponse.ok,
+            response: messageResponseData
+          }]);
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Mensagem de solicitação enviada via botão'
+        }), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders 
+          },
+        });
+
+      } catch (error) {
+        console.error('Erro ao enviar mensagem via botão:', error);
+      }
+    }
+
+    // Verificar se é uma mensagem com arquivo PDF (formato atualizado)
+    if ((webhookData.msg && webhookData.msg.type === 'document') || 
+        (webhookData.msg && webhookData.msg.mediaType === 'document')) {
+      const { msg, ticket } = webhookData;
+      const document = msg.document;
+      const from = ticket?.contact?.number || msg.from;
+      const wabaMediaId = msg.wabaMediaId;
+      
+      console.log('Detalhes do documento:', { document, wabaMediaId, from });
+      
+      if ((document && document.mime_type === 'application/pdf') || 
+          (msg.mediaType === 'document' && wabaMediaId)) {
         console.log('PDF recebido de:', from, 'Arquivo:', document.filename);
 
         // Buscar pagamento pendente para este número
@@ -148,9 +218,10 @@ serve(async (req) => {
             const wabaToken = ticket?.whatsapp?.bmToken;
             console.log('Fazendo download do PDF com ID:', document.id, 'Token disponível:', !!wabaToken);
             
-            // Primeiro, obter a URL real do arquivo
-            const mediaInfoUrl = `https://graph.facebook.com/v20.0/${document.id}`;
-            console.log('Buscando informações do arquivo:', mediaInfoUrl);
+            // Primeiro, obter a URL real do arquivo usando o wabaMediaId
+            const mediaId = document?.id || wabaMediaId;
+            const mediaInfoUrl = `https://graph.facebook.com/v20.0/${mediaId}`;
+            console.log('Buscando informações do arquivo:', mediaInfoUrl, 'Media ID:', mediaId);
             
             const mediaInfoResponse = await fetch(mediaInfoUrl, {
               headers: {
@@ -174,7 +245,7 @@ serve(async (req) => {
             
             if (fileResponse.ok) {
               const fileData = await fileResponse.arrayBuffer();
-              const fileName = `${document.filename || `nota_${pagamento.id}_${document.id}_${Date.now()}.pdf`}`;
+              const fileName = `${document?.filename || `nota_${pagamento.id}_${mediaId}_${Date.now()}.pdf`}`;
               
               // Fazer upload para o Supabase Storage
               const { data: uploadData, error: uploadError } = await supabase.storage
