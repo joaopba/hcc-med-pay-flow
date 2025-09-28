@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface WhatsAppRequest {
-  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'encaminhar_nota';
+  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'encaminhar_nota' | 'nota_recebida';
   numero?: string;
   nome?: string;
   valor?: string;
@@ -124,6 +124,16 @@ serve(async (req) => {
       
       case 'pagamento':
         message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
+        payload = {
+          body: message,
+          number: phoneNumber,
+          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+          isClosed: false
+        };
+        break;
+      
+      case 'nota_recebida':
+        message = `✅ *Nota Fiscal Recebida*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi recebida com sucesso.\n\n📋 Status: Em análise\n⏱️ Prazo: Até 24h úteis\n\nVocê será notificado assim que a análise for concluída.\n\nObrigado!`;
         payload = {
           body: message,
           number: phoneNumber,

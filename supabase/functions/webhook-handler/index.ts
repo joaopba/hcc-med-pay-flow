@@ -527,51 +527,54 @@ serve(async (req) => {
                 throw updateError;
               }
 
-              console.log('Pagamento atualizado com sucesso');
+              // Inserir nota na tabela notas_medicos
+              const { data: insertData, error: insertError } = await supabase
+                .from('notas_medicos')
+                .insert([{
+                  medico_id: pagamento.medico_id,
+                  pagamento_id: pagamento.id,
+                  arquivo_url: filePath,
+                  nome_arquivo: filename,
+                  status: 'pendente'
+                }])
+                .select('*, pagamentos!inner(mes_competencia)')
+                .single();
 
-              // Enviar mensagem de confirmação para o médico
-              try {
-                const { data: config } = await supabase
-                  .from('configuracoes')
-                  .select('api_url, auth_token')
-                  .single();
-
-                if (config) {
-                  const confirmationPayload = {
-                    body: `✅ Nota fiscal recebida com sucesso!\n\nSeu documento foi processado e o pagamento está sendo preparado. Você será notificado assim que o pagamento estiver disponível.\n\nObrigado!`,
-                    number: from,
-                    externalKey: `nota_confirmacao_${pagamento.id}_${Date.now()}`,
-                    isClosed: false
-                  };
-
-                  console.log('Enviando mensagem de confirmação:', confirmationPayload);
-
-                  const confirmationResponse = await fetch(config.api_url, {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Bearer ${config.auth_token}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(confirmationPayload),
-                  });
-
-                  const confirmationResponseData = await confirmationResponse.json();
-                  console.log('Resposta da mensagem de confirmação:', confirmationResponseData);
-
-                  // Registrar log da mensagem de confirmação
-                  await supabase
-                    .from('message_logs')
-                    .insert([{
-                      pagamento_id: pagamento.id,
-                      tipo: 'confirmacao_nota',
-                      payload: confirmationPayload,
-                      success: confirmationResponse.ok,
-                      response: confirmationResponseData
-                    }]);
-                }
-              } catch (msgError) {
-                console.warn('Erro ao enviar mensagem de confirmação:', msgError);
+              if (insertError) {
+                console.error('Erro ao inserir nota:', insertError);
+                throw insertError;
               }
+
+              console.log('Nota inserida com sucesso:', insertData);
+
+              // Buscar dados do médico para enviar notificação
+              const { data: medicoData } = await supabase
+                .from('medicos')
+                .select('nome, numero_whatsapp')
+                .eq('id', pagamento.medico_id)
+                .single();
+
+              // Enviar notificação via WhatsApp Template
+              if (medicoData) {
+                try {
+                  await supabase.functions.invoke('send-whatsapp-template', {
+                    body: {
+                      type: 'nota_recebida',
+                      medico: {
+                        nome: medicoData.nome,
+                        numero_whatsapp: medicoData.numero_whatsapp
+                      },
+                      competencia: insertData.pagamentos.mes_competencia,
+                      pagamentoId: pagamento.id
+                    }
+                  });
+                  console.log('Notificação de nota recebida enviada via WhatsApp');
+                } catch (whatsappError) {
+                  console.warn('Erro ao enviar notificação via WhatsApp:', whatsappError);
+                }
+              }
+
+              console.log('Pagamento atualizado com sucesso');
 
               // Enviar notificação por email (opcional)
               try {

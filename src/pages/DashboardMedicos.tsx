@@ -354,20 +354,40 @@ export default function DashboardMedicos() {
       if (uploadError) throw uploadError;
 
       // Registrar na tabela notas_medicos - GARANTIR que é do médico correto
-      const { error: insertError } = await supabase
+      const { data: notaData, error: insertError } = await supabase
         .from("notas_medicos")
         .insert({
-          medico_id: medico.id, // SEMPRE usar o médico logado
+          medico_id: medico.id,
           pagamento_id: selectedPagamento.id,
           arquivo_url: filePath,
           nome_arquivo: selectedFile.name,
           status: 'pendente'
-        });
+        })
+        .select('*, pagamentos!inner(mes_competencia)')
+        .single();
 
       if (insertError) {
         // Se der erro, remover o arquivo do storage
         await supabase.storage.from('notas').remove([filePath]);
         throw insertError;
+      }
+
+      // Enviar notificação via WhatsApp Template
+      try {
+        await supabase.functions.invoke('send-whatsapp-template', {
+          body: {
+            type: 'nota_recebida',
+            medico: {
+              nome: medico.nome,
+              numero_whatsapp: medico.numero_whatsapp
+            },
+            competencia: notaData.pagamentos.mes_competencia,
+            pagamentoId: selectedPagamento.id
+          }
+        });
+        console.log('Notificação de nota recebida enviada via WhatsApp');
+      } catch (whatsappError) {
+        console.warn('Erro ao enviar notificação via WhatsApp:', whatsappError);
       }
 
       // Atualizar o pagamento com a URL da nota
