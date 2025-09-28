@@ -56,7 +56,7 @@ npm run build
 
 # Configurar Nginx
 echo "🌐 Configurando Nginx..."
-sudo cp ./05-setup-nginx.conf /etc/nginx/sites-available/$APP_NAME
+sudo cp ~/migration-guide/05-setup-nginx.conf /etc/nginx/sites-available/$APP_NAME
 
 # Configurar domínio
 DOMAIN="hcc.chatconquista.com"
