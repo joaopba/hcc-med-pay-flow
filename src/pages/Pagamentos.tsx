@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import ExcelImport from "@/components/ExcelImport";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Medico {
   id: string;
@@ -427,6 +428,22 @@ export default function Pagamentos() {
     
     return matchesSearch && matchesStatus && matchesMes;
   });
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="p-6 space-y-4">
+          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-24 w-full" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Skeleton className="h-40" />
+            <Skeleton className="h-40" />
+            <Skeleton className="h-40" />
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

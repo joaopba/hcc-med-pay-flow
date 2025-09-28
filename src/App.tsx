@@ -69,7 +69,7 @@ const App = () => (
               <UserProfile />
             </ProtectedRoute>
           } />
-            <Route path="/notas-medicos" element={<NotasMedicos />} />
+            <Route path="/notas-medicos" element={<Navigate to="/dashboard-medicos" replace />} />
             <Route path="/dashboard-medicos" element={<DashboardMedicos />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

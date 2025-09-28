@@ -241,12 +241,14 @@ export default function AppSidebar() {
           
           <Button
             variant="ghost"
-            onClick={() => window.location.href = '/perfil'}
+            asChild
             className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
             title={collapsed ? "Meu Perfil" : undefined}
           >
-            <User className="h-4 w-4 flex-shrink-0" />
-            {!collapsed && <span className="ml-2">Meu Perfil</span>}
+            <NavLink to="/perfil">
+              <User className="h-4 w-4 flex-shrink-0" />
+              {!collapsed && <span className="ml-2">Meu Perfil</span>}
+            </NavLink>
           </Button>
           
           <Button
