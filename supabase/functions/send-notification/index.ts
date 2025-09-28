@@ -34,7 +34,7 @@ serve(async (req) => {
         valor,
         mes_competencia,
         valor_liquido,
-        medicos (
+        medicos!inner (
           nome,
           especialidade
         )
@@ -71,7 +71,7 @@ serve(async (req) => {
       subject = '📋 Nova Nota Fiscal Recebida - HCC Hospital';
       message = `
         <h2>Nova Nota Fiscal Recebida</h2>
-        <p><strong>Médico:</strong> ${pagamento.medicos?.nome}</p>
+        <p><strong>Médico:</strong> ${(pagamento.medicos as any)?.nome}</p>
         <p><strong>Competência:</strong> ${pagamento.mes_competencia}</p>
         <p><strong>Valor Bruto:</strong> R$ ${pagamento.valor.toFixed(2)}</p>
         ${valorLiquido ? `<p><strong>Valor Líquido:</strong> R$ ${valorLiquido.toFixed(2)}</p>` : ''}
@@ -90,7 +90,7 @@ serve(async (req) => {
       subject = '💰 Pagamento Realizado - HCC Hospital';
       message = `
         <h2>Pagamento Realizado</h2>
-        <p><strong>Médico:</strong> ${pagamento.medicos?.nome}</p>
+        <p><strong>Médico:</strong> ${(pagamento.medicos as any)?.nome}</p>
         <p><strong>Competência:</strong> ${pagamento.mes_competencia}</p>
         <p><strong>Valor Pago:</strong> R$ ${(pagamento.valor_liquido || pagamento.valor).toFixed(2)}</p>
         
