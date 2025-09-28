@@ -59,7 +59,7 @@ export default function Pagamentos() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
-  const [mesFilter, setMesFilter] = useState("");
+  const [mesFilter, setMesFilter] = useState("todos");
   const [showDialog, setShowDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedPagamentos, setSelectedPagamentos] = useState<string[]>([]);
@@ -475,7 +475,7 @@ export default function Pagamentos() {
     const medicoNome = (pagamento.medicos.nome || "").toLowerCase();
     const matchesSearch = medicoNome.includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "todos" || pagamento.status === statusFilter;
-    const matchesMes = !mesFilter || pagamento.mes_competencia === mesFilter;
+    const matchesMes = mesFilter === "todos" || pagamento.mes_competencia === mesFilter;
     
     return matchesSearch && matchesStatus && matchesMes;
   });
@@ -647,7 +647,7 @@ export default function Pagamentos() {
                   <SelectValue placeholder="Filtrar por mês" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os meses</SelectItem>
+                  <SelectItem value="todos">Todos os meses</SelectItem>
                   {mesesDisponiveis.map((mes) => (
                     <SelectItem key={mes} value={mes}>
                       {new Date(mes + '-01').toLocaleDateString('pt-BR', { 
@@ -661,8 +661,8 @@ export default function Pagamentos() {
 
               <Input
                 type="month"
-                value={mesFilter}
-                onChange={(e) => setMesFilter(e.target.value)}
+                value={mesFilter === 'todos' ? '' : mesFilter}
+                onChange={(e) => setMesFilter(e.target.value || 'todos')}
                 className="w-48"
               />
             </div>
