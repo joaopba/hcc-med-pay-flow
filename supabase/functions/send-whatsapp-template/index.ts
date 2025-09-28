@@ -54,8 +54,7 @@ serve(async (req) => {
 
     switch (type) {
       case 'nota':
-        const baseUrl = `${req.headers.get('origin') || 'https://nnytrkgsjajsecotasqv.supabase.co'}/notas-medicos`;
-        message = `🏥 *Solicitação de Nota Fiscal*\n\nOlá ${nome}!\n\nPrecisamos da sua nota fiscal referente ao pagamento de ${competencia} no valor de R$ ${valor}.\n\n📋 *Como enviar sua nota:*\n\n1. Acesse: ${baseUrl}\n2. Digite seu CPF\n3. Localize o pagamento e anexe o arquivo PDF\n\n⚠️ *Importante:* Apenas arquivos PDF são aceitos\n\nPrecisa de ajuda? Entre em contato conosco.`;
+        message = `Olá ${nome}, você possui uma nota fiscal pendente no valor de R$ ${valor} referente ao período ${competencia}. Para enviar acesse: https://hcc-med-pay-flow.lovable.app/notas-medicos - Digite seu CPF e anexe o PDF da nota fiscal.`;
         break;
       case 'pagamento':
         message = `💰 *Pagamento Processado*\n\nOlá ${nome}!\n\nSeu pagamento foi processado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;

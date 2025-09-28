@@ -7,14 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { FileUp, Upload, Check, X, Clock, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface Pagamento {
   id: string;
@@ -237,29 +229,47 @@ export default function NotasMedicos() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-4">
+            <FileUp className="h-12 w-12 text-primary" />
+          </div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Portal do Médico
+          </h1>
+          <p className="text-muted-foreground">
+            Envie suas notas fiscais de forma fácil e segura
+          </p>
+        </div>
+
         <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileUp className="h-6 w-6" />
-              Portal do Médico - Envio de Notas Fiscais
-            </CardTitle>
+          <CardHeader className="text-center pb-4">
+            <CardTitle className="text-xl">Acesso por CPF</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Digite seu CPF para acessar seus pagamentos pendentes
+            </p>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4 items-end">
-              <div className="flex-1">
-                <Label htmlFor="cpf">CPF</Label>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="cpf" className="text-sm font-medium">CPF</Label>
                 <Input
                   id="cpf"
                   placeholder="000.000.000-00"
                   value={cpf}
                   onChange={handleCPFChange}
                   maxLength={14}
+                  className="text-lg text-center"
                 />
               </div>
-              <Button onClick={buscarPagamentos} disabled={loading}>
-                {loading ? "Buscando..." : "Buscar Pagamentos"}
+              <Button 
+                onClick={buscarPagamentos} 
+                disabled={loading}
+                className="w-full"
+                size="lg"
+              >
+                {loading ? "Buscando..." : "Acessar Meus Pagamentos"}
               </Button>
             </div>
           </CardContent>
@@ -267,111 +277,151 @@ export default function NotasMedicos() {
 
         {medico && (
           <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Olá, {medico.nome}!</CardTitle>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl text-primary">
+                Olá, {medico.nome}!
+              </CardTitle>
               <p className="text-muted-foreground">
-                Aqui estão seus pagamentos pendentes de documentação:
+                {pagamentos.length > 0 
+                  ? `Você possui ${pagamentos.length} pagamento(s) pendente(s) de documentação`
+                  : "Parabéns! Não há pagamentos pendentes de documentação"
+                }
               </p>
             </CardHeader>
           </Card>
         )}
 
         {pagamentos.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Pagamentos Pendentes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Competência</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Nota Fiscal</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagamentos.map((pagamento) => (
-                    <TableRow key={pagamento.id}>
-                      <TableCell>
+          <div className="space-y-4">
+            {pagamentos.map((pagamento) => (
+              <Card key={pagamento.id} className="border-l-4 border-l-primary">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg">
                         {new Date(pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
                           month: 'long', 
                           year: 'numeric' 
                         })}
-                      </TableCell>
-                      <TableCell>{formatCurrency(pagamento.valor)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{pagamento.status}</Badge>
-                      </TableCell>
-                      <TableCell>
+                      </CardTitle>
+                      <p className="text-2xl font-bold text-primary mt-1">
+                        {formatCurrency(pagamento.valor)}
+                      </p>
+                    </div>
+                    <Badge variant="outline">{pagamento.status}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">
+                        Status da Nota Fiscal
+                      </Label>
+                      <div className="mt-2">
                         {pagamento.nota_anexada ? (
                           <div className="space-y-2">
                             {getStatusBadge(pagamento.nota_anexada.status)}
                             <p className="text-sm text-muted-foreground">
-                              {pagamento.nota_anexada.nome_arquivo}
+                              📄 {pagamento.nota_anexada.nome_arquivo}
                             </p>
                             {pagamento.nota_anexada.observacoes && (
-                              <p className="text-sm text-red-600">
-                                {pagamento.nota_anexada.observacoes}
-                              </p>
+                              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                                <p className="text-sm font-medium text-destructive mb-1">
+                                  Observações:
+                                </p>
+                                <p className="text-sm text-destructive">
+                                  {pagamento.nota_anexada.observacoes}
+                                </p>
+                              </div>
                             )}
                           </div>
                         ) : (
-                          <Badge variant="secondary">Pendente envio</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {!pagamento.nota_anexada ? (
                           <div>
-                            <Input
-                              type="file"
-                              accept=".pdf"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  handleFileUpload(pagamento.id, file);
-                                }
-                              }}
-                              disabled={uploading === pagamento.id}
-                              className="hidden"
-                              id={`file-${pagamento.id}`}
-                            />
-                            <Label htmlFor={`file-${pagamento.id}`} className="cursor-pointer">
-                              <Button asChild disabled={uploading === pagamento.id}>
-                                <span>
-                                  <Upload className="h-4 w-4 mr-2" />
-                                  {uploading === pagamento.id ? "Enviando..." : "Enviar PDF"}
-                                </span>
-                              </Button>
-                            </Label>
+                            <Badge variant="secondary" className="mb-3">
+                              ⏳ Aguardando envio da nota fiscal
+                            </Badge>
                           </div>
-                        ) : pagamento.nota_anexada.status === 'pendente' ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removerNota(pagamento.id, pagamento.nota_anexada!.arquivo_url)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Remover
-                          </Button>
-                        ) : null}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t">
+                      {!pagamento.nota_anexada ? (
+                        <div className="space-y-3">
+                          <Input
+                            type="file"
+                            accept=".pdf"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleFileUpload(pagamento.id, file);
+                              }
+                            }}
+                            disabled={uploading === pagamento.id}
+                            className="hidden"
+                            id={`file-${pagamento.id}`}
+                          />
+                          <Label htmlFor={`file-${pagamento.id}`} className="cursor-pointer">
+                            <Button 
+                              asChild 
+                              disabled={uploading === pagamento.id}
+                              size="lg"
+                              className="w-full"
+                            >
+                              <span>
+                                <Upload className="h-5 w-5 mr-2" />
+                                {uploading === pagamento.id ? "Enviando..." : "📄 Enviar Nota Fiscal (PDF)"}
+                              </span>
+                            </Button>
+                          </Label>
+                          <p className="text-xs text-muted-foreground text-center">
+                            ⚠️ Apenas arquivos PDF são aceitos
+                          </p>
+                        </div>
+                      ) : pagamento.nota_anexada.status === 'pendente' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removerNota(pagamento.id, pagamento.nota_anexada!.arquivo_url)}
+                          className="w-full"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Remover e Enviar Nova Nota
+                        </Button>
+                      ) : (
+                        <div className="text-center p-4 bg-muted/50 rounded-lg">
+                          <p className="text-sm text-muted-foreground">
+                            {pagamento.nota_anexada.status === 'aprovado' 
+                              ? "✅ Nota aprovada! Aguarde o processamento do pagamento."
+                              : "❌ Nota rejeitada. Corrija e envie novamente."
+                            }
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
 
         {medico && pagamentos.length === 0 && (
           <Card>
-            <CardContent className="text-center py-8">
-              <p className="text-muted-foreground">
-                Nenhum pagamento pendente de documentação encontrado.
-              </p>
+            <CardContent className="text-center py-12">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <Check className="h-8 w-8 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    Tudo em dia! 🎉
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Não há pagamentos pendentes de documentação no momento.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}

@@ -116,11 +116,21 @@ export default function NotasAprovacao() {
 
       if (pagamentoError) throw pagamentoError;
 
+      // Buscar dados completos do médico
+      const { data: medicoData } = await supabase
+        .from("medicos")
+        .select("*")
+        .eq("id", nota.medico_id)
+        .single();
+
       // Enviar notificação via WhatsApp
       await supabase.functions.invoke('send-whatsapp-template', {
         body: {
           type: 'nota_aprovada',
-          medico: nota.medicos,
+          medico: {
+            nome: nota.medicos.nome,
+            numero_whatsapp: medicoData?.numero_whatsapp
+          },
           competencia: nota.pagamentos.mes_competencia,
           valor: nota.pagamentos.valor
         }
@@ -171,11 +181,21 @@ export default function NotasAprovacao() {
 
       if (updateError) throw updateError;
 
+      // Buscar dados completos do médico
+      const { data: medicoData } = await supabase
+        .from("medicos")
+        .select("*")
+        .eq("id", nota.medico_id)
+        .single();
+
       // Enviar notificação via WhatsApp
       await supabase.functions.invoke('send-whatsapp-template', {
         body: {
           type: 'nota_rejeitada',
-          medico: nota.medicos,
+          medico: {
+            nome: nota.medicos.nome,
+            numero_whatsapp: medicoData?.numero_whatsapp
+          },
           competencia: nota.pagamentos.mes_competencia,
           motivo: observacoes
         }
