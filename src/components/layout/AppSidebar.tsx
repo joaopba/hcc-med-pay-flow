@@ -128,7 +128,7 @@ export default function AppSidebar() {
           {!collapsed && (
             <div className="min-w-0">
               <h2 className="font-poppins font-semibold text-sidebar-foreground text-sm truncate">
-                HCC Medical
+                HCC HOSPITAL
               </h2>
               <p className="text-xs text-sidebar-foreground/70 truncate">
                 Sistema de Pagamentos

@@ -4,13 +4,84 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
+import { useNavigate } from "react-router-dom";
 
 interface AppHeaderProps {
   title?: string;
   subtitle?: string;
 }
 
+interface NotasPendentes {
+  id: string;
+  medicos: {
+    nome: string;
+  };
+  valor: number;
+  mes_competencia: string;
+}
+
 export default function AppHeader({ title, subtitle }: AppHeaderProps) {
+  const [userName, setUserName] = useState("Usuário");
+  const [notasPendentes, setNotasPendentes] = useState<NotasPendentes[]>([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    loadUserName();
+    loadNotasPendentes();
+  }, []);
+
+  const loadUserName = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile) {
+          setUserName(profile.name);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar nome do usuário:', error);
+    }
+  };
+
+  const loadNotasPendentes = async () => {
+    try {
+      const { data } = await supabase
+        .from('pagamentos')
+        .select(`
+          id,
+          valor,
+          mes_competencia,
+          medicos!inner (
+            nome
+          )
+        `)
+        .in('status', ['nota_recebida'])
+        .limit(5);
+
+      if (data) {
+        setNotasPendentes(data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar notas pendentes:', error);
+    }
+  };
+
+  const handleNotificationClick = () => {
+    navigate('/pagamentos');
+  };
   return (
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
       <div className="flex items-center justify-between h-full px-6">
@@ -55,19 +126,56 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
           </Button>
 
           {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative hover:bg-muted"
-          >
-            <Bell className="h-4 w-4" />
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
-            >
-              3
-            </Badge>
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative hover:bg-muted"
+              >
+                <Bell className="h-4 w-4" />
+                {notasPendentes.length > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
+                  >
+                    {notasPendentes.length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Notas Pendentes de Aprovação</h4>
+                {notasPendentes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma nota pendente</p>
+                ) : (
+                  <div className="space-y-2">
+                    {notasPendentes.map((nota) => (
+                      <div 
+                        key={nota.id}
+                        className="p-2 rounded-md bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                        onClick={handleNotificationClick}
+                      >
+                        <p className="text-sm font-medium">{nota.medicos.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          R$ {nota.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} - {nota.mes_competencia}
+                        </p>
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-2"
+                      onClick={handleNotificationClick}
+                    >
+                      Ver todas as notas
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* User Profile */}
           <div className="flex items-center gap-2 pl-2">
@@ -77,8 +185,8 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
               </AvatarFallback>
             </Avatar>
             <div className="hidden md:block text-sm">
-              <p className="font-medium text-foreground">Administrador</p>
-              <p className="text-xs text-muted-foreground">HCC Hospital</p>
+              <p className="font-medium text-foreground">{userName}</p>
+              <p className="text-xs text-muted-foreground">HCC HOSPITAL</p>
             </div>
           </div>
         </div>

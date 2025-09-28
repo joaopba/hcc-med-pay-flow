@@ -60,6 +60,7 @@ export default function Pagamentos() {
   const [showDialog, setShowDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedPagamentos, setSelectedPagamentos] = useState<string[]>([]);
+  const [mesesDisponiveis, setMesesDisponiveis] = useState<string[]>([]);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -100,6 +101,11 @@ export default function Pagamentos() {
 
       setPagamentos(pagamentosData || []);
       setMedicos(medicosData || []);
+      
+      // Extrair meses únicos dos pagamentos para o filtro
+      const mesesUnicos = [...new Set(pagamentosData?.map(p => p.mes_competencia) || [])]
+        .sort((a, b) => b.localeCompare(a)); // Ordenar do mais recente para o mais antigo
+      setMesesDisponiveis(mesesUnicos);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast({
@@ -180,6 +186,15 @@ export default function Pagamentos() {
         variant: "destructive",
       });
       return;
+    }
+
+    // Prevenir duplo clique
+    const button = document.querySelector('[data-solicitar-notas]') as HTMLButtonElement;
+    if (button) {
+      button.disabled = true;
+      setTimeout(() => {
+        button.disabled = false;
+      }, 3000);
     }
 
     try {
@@ -390,7 +405,7 @@ export default function Pagamentos() {
           
           <div className="flex space-x-2">
             {selectedPagamentos.length > 0 && (
-              <Button onClick={handleSolicitarNotas}>
+              <Button onClick={handleSolicitarNotas} data-solicitar-notas>
                 <Send className="h-4 w-4 mr-2" />
                 Solicitar Notas ({selectedPagamentos.length})
               </Button>
@@ -505,6 +520,23 @@ export default function Pagamentos() {
                   <SelectItem value="solicitado">Solicitado</SelectItem>
                   <SelectItem value="nota_recebida">Nota Recebida</SelectItem>
                   <SelectItem value="pago">Pago</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={mesFilter} onValueChange={setMesFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filtrar por mês" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos os meses</SelectItem>
+                  {mesesDisponiveis.map((mes) => (
+                    <SelectItem key={mes} value={mes}>
+                      {new Date(mes + '-01').toLocaleDateString('pt-BR', { 
+                        year: 'numeric', 
+                        month: 'long' 
+                      })}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 

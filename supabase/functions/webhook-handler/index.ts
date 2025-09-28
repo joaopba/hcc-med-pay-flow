@@ -198,6 +198,126 @@ serve(async (req) => {
       }
     }
 
+    // Verificar se é uma mensagem com texto "Encaminhar Nota"
+    if (webhookData.msg && webhookData.msg.text && 
+        webhookData.msg.text.body && 
+        webhookData.msg.text.body.toLowerCase().includes('encaminhar nota')) {
+      
+      const from = webhookData.ticket?.contact?.number || webhookData.msg.from;
+      console.log('Mensagem "Encaminhar Nota" recebida de:', from);
+      
+      try {
+        // Buscar médico por número de WhatsApp
+        const numeroLimpo = from.replace(/\D/g, '');
+        console.log('Número limpo para busca:', numeroLimpo);
+        
+        const { data: medicos, error: medicoError } = await supabase
+          .from('medicos')
+          .select('id, nome, numero_whatsapp')
+          .ilike('numero_whatsapp', `%${numeroLimpo}%`)
+          .limit(1);
+
+        if (medicoError || !medicos || medicos.length === 0) {
+          console.log('Médico não encontrado para número:', numeroLimpo);
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Médico não encontrado'
+          }), {
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders 
+            },
+          });
+        }
+
+        const medico = medicos[0];
+        
+        // Buscar pagamento pendente do médico
+        const { data: pagamentos, error: pagamentoError } = await supabase
+          .from('pagamentos')
+          .select('id, valor, mes_competencia')
+          .eq('medico_id', medico.id)
+          .in('status', ['pendente', 'solicitado'])
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (pagamentoError || !pagamentos || pagamentos.length === 0) {
+          console.log('Nenhum pagamento pendente encontrado para médico:', medico.id);
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Nenhum pagamento pendente'
+          }), {
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders 
+            },
+          });
+        }
+
+        const pagamento = pagamentos[0];
+
+        // Buscar configurações da API
+        const { data: config, error: configError } = await supabase
+          .from('configuracoes')
+          .select('api_url, auth_token')
+          .single();
+
+        if (configError || !config) {
+          throw new Error('Configurações não encontradas');
+        }
+
+        // Enviar mensagem com o link do portal
+        const linkPayload = {
+          body: `📄 *Link para Envio de Nota Fiscal*\n\nOlá ${medico.nome}!\n\nAcesse o link abaixo para enviar sua nota fiscal:\n\n🔗 https://hcc-med-pay-flow.lovable.app/dashboard-medicos\n\n• Digite seu CPF\n• Anexe o PDF da nota fiscal\n• Aguarde a aprovação\n\nDúvidas? Entre em contato conosco.`,
+          number: from,
+          externalKey: `encaminhar_nota_${Date.now()}`,
+          isClosed: false
+        };
+
+        console.log('Enviando link do portal:', linkPayload);
+
+        const linkResponse = await fetch(config.api_url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${config.auth_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(linkPayload),
+        });
+
+        const linkResponseData = await linkResponse.json();
+        console.log('Resposta do envio do link:', linkResponseData);
+
+        // Registrar log da mensagem
+        try {
+          await supabase
+            .from('message_logs')
+            .insert([{
+              pagamento_id: pagamento.id,
+              tipo: 'encaminhar_nota_link',
+              payload: linkPayload,
+              success: linkResponse.ok,
+              response: linkResponseData
+            }]);
+        } catch (logError) {
+          console.warn('Erro ao registrar log:', logError);
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Link de encaminhamento enviado'
+        }), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders 
+          },
+        });
+
+      } catch (error) {
+        console.error('Erro ao enviar link de encaminhamento:', error);
+      }
+    }
+
     // Verificar se é uma mensagem com arquivo PDF (formato atualizado)
     if ((webhookData.msg && webhookData.msg.type === 'document') || 
         (webhookData.msg && webhookData.msg.mediaType === 'document')) {
@@ -455,15 +575,17 @@ serve(async (req) => {
 
               return new Response(JSON.stringify({
                 success: true,
-                message: 'Nota processada com sucesso',
-                pagamentoId: pagamento.id,
-                valorLiquido
+                message: 'Nota fiscal processada com sucesso',
+                pagamentoId: pagamento.id
               }), {
                 headers: { 
                   'Content-Type': 'application/json',
                   ...corsHeaders 
                 },
               });
+
+            } else {
+              console.error('Erro no download do arquivo:', fileResponse.status);
             }
           } catch (downloadError) {
             console.error('Erro ao fazer download do PDF:', downloadError);
@@ -520,33 +642,14 @@ function brPhoneVariants(num: string): string[] {
   return Array.from(set);
 }
 
-// Função auxiliar para extrair texto do PDF (simulação)
-async function extractTextFromPDF(pdfData: ArrayBuffer): Promise<string> {
-  // Implementação básica - em produção usar uma biblioteca de OCR
-  const text = new TextDecoder().decode(pdfData);
-  return text;
+// Funções auxiliares para extração de texto (placeholder)
+async function extractTextFromPDF(fileData: ArrayBuffer): Promise<string> {
+  // Implementar extração de texto real usando uma biblioteca como pdf-parse
+  return '';
 }
 
-// Função auxiliar para extrair valor líquido
 function extractLiquidValue(text: string): number | null {
-  // Regex para encontrar valores monetários
-  const regexes = [
-    /valor\s*líquido[:\s]*r\$?\s*([\d.,]+)/i,
-    /líquido[:\s]*r\$?\s*([\d.,]+)/i,
-    /total\s*líquido[:\s]*r\$?\s*([\d.,]+)/i,
-    /valor\s*final[:\s]*r\$?\s*([\d.,]+)/i,
-  ];
-
-  for (const regex of regexes) {
-    const match = text.match(regex);
-    if (match) {
-      const valorStr = match[1].replace(/[^\d,]/g, '').replace(',', '.');
-      const valor = parseFloat(valorStr);
-      if (!isNaN(valor)) {
-        return valor;
-      }
-    }
-  }
-
-  return null;
+  // Implementar regex para extrair valor líquido do texto
+  const matches = text.match(/valor\s*l[ií]quido[\s:]*r?\$?\s*(\d+[.,]?\d*)/i);
+  return matches ? parseFloat(matches[1].replace(',', '.')) : null;
 }

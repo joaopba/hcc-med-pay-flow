@@ -30,10 +30,12 @@ import {
   BarChart3,
   Upload,
   AlertTriangle,
-  X
+  X,
+  Building2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import logo from "@/assets/logo.png";
 
 interface MedicoStats {
   totalNotas: number;
@@ -348,12 +350,17 @@ export default function DashboardMedicos() {
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-4">
-              <BarChart3 className="h-12 w-12 text-primary" />
+            <div className="flex items-center justify-center mb-6">
+              <div className="w-20 h-20 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
+                <Building2 className="h-10 w-10 text-white" />
+              </div>
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              Dashboard do Médico
+              HCC HOSPITAL
             </h1>
+            <h2 className="text-2xl font-semibold text-primary mb-2">
+              Dashboard do Médico
+            </h2>
             <p className="text-muted-foreground">
               Visualize suas estatísticas, notas fiscais e valores
             </p>
@@ -401,13 +408,26 @@ export default function DashboardMedicos() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">
-                Dashboard - {medico.nome}
-              </h1>
-              <p className="text-muted-foreground">
-                Visão geral das suas notas fiscais e pagamentos
-              </p>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-sm">
+                <Building2 className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h1 className="text-2xl font-bold text-foreground">
+                    HCC HOSPITAL
+                  </h1>
+                  <Badge variant="outline" className="text-xs">
+                    Portal Médico
+                  </Badge>
+                </div>
+                <h2 className="text-xl font-semibold text-primary">
+                  {medico.nome}
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Dashboard personalizado - Notas fiscais e pagamentos
+                </p>
+              </div>
             </div>
             <Button variant="outline" onClick={() => setMedico(null)}>
               Sair
@@ -415,7 +435,32 @@ export default function DashboardMedicos() {
           </div>
         </div>
 
-        {/* Cards de estatísticas */}
+        {/* Alerta para notas pendentes */}
+        {pagamentosPendentes.length > 0 && (
+          <Alert className="mb-6 border-orange-200 bg-orange-50">
+            <AlertTriangle className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="text-orange-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <strong>Atenção!</strong> Você possui {pagamentosPendentes.length} pagamento(s) pendente(s) 
+                  que precisam de nota fiscal para liberação.
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="ml-4 border-orange-300 text-orange-700 hover:bg-orange-100"
+                  onClick={() => {
+                    setSelectedPagamento(pagamentosPendentes[0]);
+                    setShowUploadModal(true);
+                  }}
+                >
+                  <Upload className="h-3 w-3 mr-1" />
+                  Enviar Nota
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
