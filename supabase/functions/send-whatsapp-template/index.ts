@@ -181,6 +181,9 @@ serve(async (req) => {
     const responseData = await response.json();
     console.log('Resposta da API WhatsApp:', responseData);
 
+    // Considerar como sucesso mesmo com erro de duplicação de contato
+    const isSuccess = response.ok || (responseData?.message?.includes?.('SequelizeUniqueConstraintError') && responseData?.message?.includes?.('number must be unique'));
+
     // Log da mensagem se tiver pagamentoId
     if (pagamentoId) {
       try {
@@ -190,7 +193,7 @@ serve(async (req) => {
             pagamento_id: pagamentoId,
             tipo: `whatsapp_${type}`,
             payload: payload,
-            success: response.ok,
+            success: isSuccess,
             response: responseData
           }]);
       } catch (logError) {
@@ -199,9 +202,9 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      success: response.ok,
+      success: isSuccess,
       data: responseData,
-      message: `Mensagem ${type} enviada com sucesso`
+      message: isSuccess ? `Mensagem ${type} enviada com sucesso` : `Erro no envio: ${responseData?.message || 'Erro desconhecido'}`
     }), {
       headers: { 
         'Content-Type': 'application/json',
