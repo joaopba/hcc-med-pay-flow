@@ -36,14 +36,13 @@ serve(async (req) => {
     const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal }: WhatsAppRequest = await req.json();
 
     let phoneNumber = numero;
+    
     // Para tipos que usam o objeto médico
     if (medico?.numero_whatsapp) {
       phoneNumber = medico.numero_whatsapp;
     }
 
     // TRAVA DE CONCORRÊNCIA: Tentar adquirir lock para evitar envios simultâneos
-    const lockKey = `${phoneNumber}_${type}`;
-    
     try {
       // Primeiro, remover locks expirados (older than 30 seconds)
       await supabase
