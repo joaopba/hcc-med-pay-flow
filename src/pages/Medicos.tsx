@@ -192,21 +192,14 @@ export default function Medicos() {
   );
 
   return (
-    <AppLayout>
-      <div className="p-6">
+    <AppLayout title="Médicos" subtitle="Gerenciar cadastro de médicos do hospital">
+      <div className="p-6 animate-fade-in-up">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Médicos</h1>
-            <p className="text-muted-foreground">
-              Gerenciar cadastro de médicos do hospital
-            </p>
-          </div>
-          
           <div className="flex space-x-2">
             <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
               <DialogTrigger asChild>
-                <Button variant="outline">
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                <Button variant="outline" className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
                   Importar Excel
                 </Button>
               </DialogTrigger>
@@ -229,8 +222,8 @@ export default function Medicos() {
                 <Button onClick={() => {
                   setEditingMedico(null);
                   setFormData({ nome: "", numero_whatsapp: "", especialidade: "" });
-                }}>
-                  <Plus className="h-4 w-4 mr-2" />
+                }} className="btn-gradient-primary gap-2">
+                  <Plus className="h-4 w-4" />
                   Novo Médico
                 </Button>
               </DialogTrigger>
@@ -282,61 +275,60 @@ export default function Medicos() {
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
+        <div className="card-professional table-professional">
+          <div className="table-header-professional p-4">
             <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4" />
+              <Search className="h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar médicos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
+                className="max-w-sm bg-transparent border-0 focus:ring-0"
               />
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>WhatsApp</TableHead>
-                  <TableHead>Especialidade</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-poppins font-semibold">Nome</TableHead>
+                  <TableHead className="font-poppins font-semibold">WhatsApp</TableHead>
+                  <TableHead className="font-poppins font-semibold">Especialidade</TableHead>
+                  <TableHead className="font-poppins font-semibold">Status</TableHead>
+                  <TableHead className="font-poppins font-semibold">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredMedicos.map((medico) => (
-                  <TableRow key={medico.id}>
+                  <TableRow key={medico.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="font-medium">{medico.nome}</TableCell>
-                    <TableCell>{medico.numero_whatsapp}</TableCell>
-                    <TableCell>{medico.especialidade || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{medico.numero_whatsapp}</TableCell>
+                    <TableCell className="text-muted-foreground">{medico.especialidade || "-"}</TableCell>
                     <TableCell>
                       <Badge 
                         variant={medico.ativo ? "default" : "secondary"}
-                        className="cursor-pointer"
+                        className="cursor-pointer transition-all hover:scale-105"
                         onClick={() => toggleStatus(medico)}
                       >
                         {medico.ativo ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(medico)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(medico)}
+                        className="hover:bg-primary hover:text-primary-foreground transition-colors"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );

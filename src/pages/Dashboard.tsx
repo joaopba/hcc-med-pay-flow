@@ -94,122 +94,127 @@ export default function Dashboard() {
   };
 
   return (
-    <AppLayout>
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Visão geral do sistema de pagamentos médicos
-          </p>
-        </div>
-
-        {/* Alerta de notas pendentes */}
+    <AppLayout title="Dashboard" subtitle="Visão geral do sistema de pagamentos médicos">
+      <div className="p-6 animate-fade-in-up">
+        {/* Alerta de novas notas */}
         {stats.notasParaPagamento > 0 && (
-          <Card className="mb-6 border-warning bg-warning/5">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
+          <div className="card-professional mb-6 border-warning bg-warning/5 animate-slide-in-right">
+            <div className="flex items-center gap-3 p-4">
+              <div className="p-2 bg-warning/20 rounded-lg">
                 <Bell className="h-5 w-5 text-warning" />
-                <span className="font-medium">
+              </div>
+              <div className="flex-1">
+                <span className="font-poppins font-semibold text-warning-foreground">
                   Atenção: {stats.notasParaPagamento} nota(s) aguardando pagamento
                 </span>
-                <Button size="sm" variant="outline">
-                  Ver detalhes
-                </Button>
               </div>
-            </CardContent>
-          </Card>
+              <Button size="sm" variant="outline" className="hover:bg-warning hover:text-warning-foreground">
+                Ver detalhes
+              </Button>
+            </div>
+          </div>
         )}
 
+        {/* Cards de estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Médicos</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalMedicos}</div>
-              <p className="text-xs text-muted-foreground">Médicos ativos</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-warning">
-                {stats.pagamentosPendentes}
+          <div className="card-professional-hover bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+            <div className="flex items-center justify-between p-6">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total de Médicos</p>
+                <p className="text-3xl font-poppins font-bold text-primary">{stats.totalMedicos}</p>
+                <p className="text-sm text-muted-foreground">médicos ativos</p>
               </div>
-              <p className="text-xs text-muted-foreground">Solicitações pendentes</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Notas Recebidas</CardTitle>
-              <FileCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-accent">
-                {stats.notasRecebidas}
+              <div className="p-3 bg-primary/10 rounded-xl">
+                <Users className="h-6 w-6 text-primary" />
               </div>
-              <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.valorTotal)}</div>
-              <p className="text-xs text-muted-foreground">Mês atual</p>
-            </CardContent>
-          </Card>
+          <div className="card-professional-hover bg-gradient-to-br from-warning/5 to-warning/10 border-warning/20">
+            <div className="flex items-center justify-between p-6">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Pendentes</p>
+                <p className="text-3xl font-poppins font-bold text-warning">{stats.pagamentosPendentes}</p>
+                <p className="text-sm text-muted-foreground">solicitações pendentes</p>
+              </div>
+              <div className="p-3 bg-warning/10 rounded-xl">
+                <CreditCard className="h-6 w-6 text-warning" />
+              </div>
+            </div>
+          </div>
+
+          <div className="card-professional-hover bg-gradient-to-br from-accent/5 to-accent/10 border-accent/20">
+            <div className="flex items-center justify-between p-6">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Notas Recebidas</p>
+                <p className="text-3xl font-poppins font-bold text-accent">{stats.notasRecebidas}</p>
+                <p className="text-sm text-muted-foreground">aguardando pagamento</p>
+              </div>
+              <div className="p-3 bg-accent/10 rounded-xl">
+                <FileCheck className="h-6 w-6 text-accent" />
+              </div>
+            </div>
+          </div>
+
+          <div className="card-professional-hover bg-gradient-to-br from-foreground/5 to-foreground/10 border-foreground/20">
+            <div className="flex items-center justify-between p-6">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Valor Total</p>
+                <p className="text-2xl font-poppins font-bold text-foreground">{formatCurrency(stats.valorTotal)}</p>
+                <p className="text-sm text-muted-foreground">mês atual</p>
+              </div>
+              <div className="p-3 bg-foreground/10 rounded-xl">
+                <DollarSign className="h-6 w-6 text-foreground" />
+              </div>
+            </div>
+          </div>
         </div>
 
+        {/* Cards de resumo e ações */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumo por Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span>Pendentes de solicitação</span>
-                <Badge variant="secondary">{stats.pagamentosPendentes}</Badge>
+          <div className="card-professional">
+            <div className="p-6">
+              <h3 className="text-lg font-poppins font-semibold mb-6">Resumo por Status</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                  <span className="font-medium">Pendentes de solicitação</span>
+                  <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">
+                    {stats.pagamentosPendentes}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                  <span className="font-medium">Notas recebidas</span>
+                  <Badge variant="default" className="bg-accent/10 text-accent border-accent/20">
+                    {stats.notasRecebidas}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                  <span className="font-medium">Processados hoje</span>
+                  <Badge variant="outline" className="bg-success/10 text-success border-success/20">0</Badge>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span>Notas recebidas</span>
-                <Badge variant="default">{stats.notasRecebidas}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Processados</span>
-                <Badge variant="outline">0</Badge>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Ações Rápidas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full justify-start">
-                <Users className="h-4 w-4 mr-2" />
-                Gerenciar Médicos
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Ver Pagamentos
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <FileCheck className="h-4 w-4 mr-2" />
-                Processar Notas
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="card-professional">
+            <div className="p-6">
+              <h3 className="text-lg font-poppins font-semibold mb-6">Ações Rápidas</h3>
+              <div className="space-y-3">
+                <Button className="w-full justify-start btn-gradient-primary h-12">
+                  <Users className="h-5 w-5 mr-3" />
+                  <span className="font-medium">Gerenciar Médicos</span>
+                </Button>
+                <Button className="w-full justify-start h-12" variant="outline">
+                  <CreditCard className="h-5 w-5 mr-3" />
+                  <span className="font-medium">Ver Pagamentos</span>
+                </Button>
+                <Button className="w-full justify-start btn-gradient-accent h-12">
+                  <FileCheck className="h-5 w-5 mr-3" />
+                  <span className="font-medium">Processar Notas</span>
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </AppLayout>
