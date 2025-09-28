@@ -43,8 +43,75 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const webhookData = await req.json();
-    console.log('Webhook recebido:', JSON.stringify(webhookData, null, 2));
+    // ===== MODO DEBUG: CAPTURAR TODOS OS DADOS DO WEBHOOK =====
+    
+    // 1. Capturar headers
+    const headers: Record<string, string> = {};
+    for (const [key, value] of req.headers.entries()) {
+      headers[key] = value;
+    }
+    
+    // 2. Capturar URL e query params
+    const url = new URL(req.url);
+    const queryParams: Record<string, string> = {};
+    for (const [key, value] of url.searchParams.entries()) {
+      queryParams[key] = value;
+    }
+    
+    // 3. Capturar body
+    let webhookData;
+    let rawBody = '';
+    
+    try {
+      const text = await req.text();
+      rawBody = text;
+      
+      // Tentar parsear como JSON
+      try {
+        webhookData = JSON.parse(text);
+      } catch {
+        // Se não for JSON válido, manter como string
+        webhookData = text;
+      }
+    } catch {
+      webhookData = 'Erro ao ler body';
+    }
+
+    // 4. Log completo de TUDO
+    console.log('='.repeat(80));
+    console.log('🔍 WEBHOOK DEBUG - CAPTURA COMPLETA');
+    console.log('='.repeat(80));
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('🌐 Método:', req.method);
+    console.log('📍 URL completa:', req.url);
+    console.log('📝 Path:', url.pathname);
+    console.log('🔗 Query Params:', JSON.stringify(queryParams, null, 2));
+    console.log('📋 Headers:', JSON.stringify(headers, null, 2));
+    console.log('📦 Raw Body:', rawBody);
+    console.log('🎯 Parsed Body:', JSON.stringify(webhookData, null, 2));
+    console.log('📏 Content-Length:', headers['content-length'] || 'não informado');
+    console.log('📄 Content-Type:', headers['content-type'] || 'não informado');
+    console.log('🔒 User-Agent:', headers['user-agent'] || 'não informado');
+    console.log('='.repeat(80));
+    
+    // 5. Salvar no banco para análise posterior
+    try {
+      await supabase.from('webhook_debug_logs').insert({
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        url: req.url,
+        headers: headers,
+        query_params: queryParams,
+        raw_body: rawBody,
+        parsed_body: webhookData,
+        user_agent: headers['user-agent'] || null,
+        content_type: headers['content-type'] || null
+      });
+    } catch (dbError) {
+      console.log('⚠️ Erro ao salvar no banco (normal se a tabela não existir):', dbError);
+    }
+    
+    // ===== FIM DO MODO DEBUG =====
 
     // Verificar se é uma mensagem com arquivo PDF
     if (webhookData.message && webhookData.message.type === 'document') {
