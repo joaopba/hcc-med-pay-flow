@@ -233,27 +233,29 @@ export default function Pagamentos() {
     try {
       for (const pagamentoId of selectedPagamentos) {
         const pagamento = pagamentos.find(p => p.id === pagamentoId);
-        if (pagamento) {
-          await supabase.functions.invoke('send-whatsapp-template', {
-            body: {
-              type: 'nota',
-              numero: pagamento.medicos.numero_whatsapp,
-              nome: pagamento.medicos.nome,
-              valor: pagamento.valor.toString(),
-              competencia: pagamento.mes_competencia,
-              pagamentoId: pagamento.id
-            }
-          });
-
-          // Atualizar status
-          await supabase
-            .from("pagamentos")
-            .update({ 
-              status: "solicitado",
-              data_solicitacao: new Date().toISOString()
-            })
-            .eq("id", pagamento.id);
+        if (!pagamento?.medicos) {
+          console.warn('Pagamento sem médico vinculado:', pagamentoId);
+          continue;
         }
+        await supabase.functions.invoke('send-whatsapp-template', {
+          body: {
+            type: 'nota',
+            numero: pagamento.medicos.numero_whatsapp,
+            nome: pagamento.medicos.nome,
+            valor: pagamento.valor.toString(),
+            competencia: pagamento.mes_competencia,
+            pagamentoId: pagamento.id
+          }
+        });
+
+        // Atualizar status
+        await supabase
+          .from("pagamentos")
+          .update({ 
+            status: "solicitado",
+            data_solicitacao: new Date().toISOString()
+          })
+          .eq("id", pagamento.id);
       }
 
       toast({
@@ -418,7 +420,8 @@ export default function Pagamentos() {
   };
 
   const filteredPagamentos = pagamentos.filter((pagamento) => {
-    const matchesSearch = pagamento.medicos.nome.toLowerCase().includes(searchTerm.toLowerCase());
+    const medicoNome = pagamento.medicos?.nome?.toLowerCase?.() || "";
+    const matchesSearch = medicoNome.includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "todos" || pagamento.status === statusFilter;
     const matchesMes = !mesFilter || pagamento.mes_competencia === mesFilter;
     
@@ -625,7 +628,7 @@ export default function Pagamentos() {
                         disabled={pagamento.status !== "pendente"}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{pagamento.medicos.nome}</TableCell>
+                    <TableCell className="font-medium">{pagamento.medicos?.nome || '—'}</TableCell>
                     <TableCell>{pagamento.mes_competencia}</TableCell>
                     <TableCell>{formatCurrency(pagamento.valor)}</TableCell>
                     <TableCell>
