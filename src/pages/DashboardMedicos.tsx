@@ -88,6 +88,8 @@ export default function DashboardMedicos() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedPagamento, setSelectedPagamento] = useState<PagamentoPendente | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showRejectedAlert, setShowRejectedAlert] = useState(false);
+  const [rejectedNotes, setRejectedNotes] = useState<any[]>([]);
   const { toast } = useToast();
 
   const formatCPF = (value: string) => {
@@ -253,11 +255,18 @@ export default function DashboardMedicos() {
 
       setNotas(notasProcessadas);
 
+      // Verificar se há notas rejeitadas para mostrar popup
+      const notasRejeitadas = notasProcessadas.filter(n => n.status === 'rejeitado');
+      if (notasRejeitadas.length > 0) {
+        setRejectedNotes(notasRejeitadas);
+        setShowRejectedAlert(true);
+      }
+
       // Calcular estatísticas
       const totalNotas = notasProcessadas.length;
       const notasAprovadas = notasProcessadas.filter(n => n.status === 'aprovado').length;
       const notasPendentes = notasProcessadas.filter(n => n.status === 'pendente').length;
-      const notasRejeitadas = notasProcessadas.filter(n => n.status === 'rejeitado').length;
+      const rejeitadasCount = notasProcessadas.filter(n => n.status === 'rejeitado').length;
       
       const valorTotal = notasProcessadas.reduce((sum, nota) => sum + nota.pagamento.valor, 0);
       const valorAprovado = notasProcessadas
@@ -271,7 +280,7 @@ export default function DashboardMedicos() {
         totalNotas,
         notasAprovadas,
         notasPendentes,
-        notasRejeitadas,
+        notasRejeitadas: rejeitadasCount,
         valorTotal,
         valorAprovado,
         valorPendente
@@ -500,6 +509,62 @@ export default function DashboardMedicos() {
             </Button>
           </div>
         </div>
+
+        {/* Dialog para notas rejeitadas */}
+        <Dialog open={showRejectedAlert} onOpenChange={setShowRejectedAlert}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Notas Fiscais Rejeitadas
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {rejectedNotes.map((nota, index) => (
+                <Alert key={index} variant="destructive" className="border-destructive/50">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="mt-2">
+                    <div className="space-y-2">
+                      <p className="font-semibold">
+                        Nota Rejeitada - {nota.pagamento?.mes_competencia}
+                      </p>
+                      <p><strong>Valor:</strong> {formatCurrency(nota.pagamento?.valor || 0)}</p>
+                      <p><strong>Motivo da rejeição:</strong></p>
+                      <p className="bg-destructive/10 p-2 rounded text-sm">
+                        {nota.observacoes || "Não especificado"}
+                      </p>
+                      <p className="text-sm font-medium">
+                        ⚠️ Por favor, corrija os problemas apontados e envie uma nova nota fiscal.
+                      </p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ))}
+              
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowRejectedAlert(false)}
+                >
+                  Fechar
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowRejectedAlert(false);
+                    const pagamentoRejeitado = pagamentosPendentes.find(p => p.temNotaRejeitada);
+                    if (pagamentoRejeitado) {
+                      setSelectedPagamento(pagamentoRejeitado);
+                      setShowUploadModal(true);
+                    }
+                  }}
+                >
+                  Corrigir Agora
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Alerta para notas pendentes */}
         {pagamentosPendentes.length > 0 && (

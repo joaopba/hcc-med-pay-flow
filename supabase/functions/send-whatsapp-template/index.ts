@@ -18,6 +18,7 @@ interface WhatsAppRequest {
     numero_whatsapp: string;
   };
   motivo?: string;
+  linkPortal?: string;
 }
 
 serve(async (req) => {
@@ -32,7 +33,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo }: WhatsAppRequest = await req.json();
+    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal }: WhatsAppRequest = await req.json();
 
     // Buscar configurações da API
     const { data: config, error: configError } = await supabase
@@ -66,7 +67,7 @@ serve(async (req) => {
         message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
         break;
       case 'nota_rejeitada':
-        message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal.\n\nPrecisa de ajuda? Entre em contato conosco.`;
+        message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal:\n\n🔗 ${linkPortal || 'https://hcc-med-pay-flow.lovable.app/dashboard-medicos'}\n\nPrecisa de ajuda? Entre em contato conosco.`;
         break;
       default:
         throw new Error('Tipo de mensagem inválido');
