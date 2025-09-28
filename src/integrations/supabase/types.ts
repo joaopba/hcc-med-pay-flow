@@ -248,7 +248,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_manager: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       payment_status: "pendente" | "solicitado" | "nota_recebida" | "pago"
