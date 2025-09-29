@@ -19,7 +19,6 @@ interface WhatsAppRequest {
   };
   motivo?: string;
   linkPortal?: string;
-  notificationKey?: string;
 }
 
 serve(async (req) => {
@@ -34,9 +33,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, notificationKey }: WhatsAppRequest = await req.json();
-
-    console.log(`[${new Date().toISOString()}] Recebida requisição:`, { type, phoneNumber: numero || medico?.numero_whatsapp, pagamentoId, notificationKey });
+    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal }: WhatsAppRequest = await req.json();
 
     let phoneNumber = numero;
     
@@ -48,11 +45,10 @@ serve(async (req) => {
     // TRAVA DE CONCORRÊNCIA: Tentar adquirir lock para evitar envios simultâneos
     try {
       // Primeiro, remover locks expirados (older than 30 seconds)
-      const cleanupResult = await supabase
+      await supabase
         .from('message_locks')
         .delete()
         .lt('expires_at', new Date().toISOString());
-      console.log(`[${new Date().toISOString()}] Locks expirados removidos:`, cleanupResult);
 
       // Tentar criar o lock
       const { error: lockError } = await supabase
@@ -65,7 +61,6 @@ serve(async (req) => {
 
       if (lockError && lockError.code === '23505') {
         // Lock já existe, mensagem está sendo enviada por outro processo
-        console.log(`[${new Date().toISOString()}] Lock ativo detectado para:`, { phoneNumber, type });
         return new Response(JSON.stringify({
           success: true,
           data: { skipped: true },
@@ -77,13 +72,11 @@ serve(async (req) => {
           },
         });
       } else if (lockError) {
-        console.error(`[${new Date().toISOString()}] Erro ao criar lock:`, lockError);
+        console.error('Erro ao criar lock:', lockError);
         // Continuar mesmo com erro no lock (fallback)
-      } else {
-        console.log(`[${new Date().toISOString()}] Lock criado com sucesso para:`, { phoneNumber, type });
       }
     } catch (lockError) {
-      console.error(`[${new Date().toISOString()}] Erro no sistema de lock:`, lockError);
+      console.error('Erro no sistema de lock:', lockError);
       // Continuar mesmo com erro no lock (fallback)
     }
 
@@ -212,14 +205,8 @@ serve(async (req) => {
         throw new Error('Tipo de mensagem inválido');
     }
 
-    console.log(`[${new Date().toISOString()}] Enviando mensagem WhatsApp:`, {
-      type,
-      phoneNumber,
-      pagamentoId,
-      notificationKey,
-      payloadSize: JSON.stringify(payload).length
-    });
-    console.log(`[${new Date().toISOString()}] URL da API:`, apiUrl);
+    console.log('Enviando mensagem WhatsApp:', payload);
+    console.log('URL da API:', apiUrl);
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -231,14 +218,7 @@ serve(async (req) => {
     });
 
     const responseData = await response.json();
-    console.log(`[${new Date().toISOString()}] Resposta da API WhatsApp:`, {
-      status: response.status,
-      ok: response.ok,
-      data: responseData,
-      phoneNumber,
-      type,
-      pagamentoId
-    });
+    console.log('Resposta da API WhatsApp:', responseData);
 
     // Considerar como sucesso mesmo com erro de duplicação de contato
     const isSuccess = response.ok || (responseData?.message?.includes?.('SequelizeUniqueConstraintError') && responseData?.message?.includes?.('number must be unique'));
@@ -262,14 +242,13 @@ serve(async (req) => {
 
     // LIBERAR LOCK após o envio
     try {
-      const unlockResult = await supabase
+      await supabase
         .from('message_locks')
         .delete()
         .eq('numero', phoneNumber)
         .eq('tipo', type);
-      console.log(`[${new Date().toISOString()}] Lock liberado:`, { phoneNumber, type, unlockResult });
     } catch (unlockError) {
-      console.warn(`[${new Date().toISOString()}] Erro ao liberar lock:`, unlockError);
+      console.warn('Erro ao liberar lock:', unlockError);
     }
 
     return new Response(JSON.stringify({
@@ -284,7 +263,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error(`[${new Date().toISOString()}] Erro no envio da mensagem:`, error);
+    console.error('Erro no envio da mensagem:', error);
     
     // LIBERAR LOCK em caso de erro
     try {
@@ -302,14 +281,13 @@ serve(async (req) => {
         phoneNumber = medico.numero_whatsapp;
       }
       
-      const unlockResult = await supabase
+      await supabase
         .from('message_locks')
         .delete()
         .eq('numero', phoneNumber)
         .eq('tipo', type);
-      console.log(`[${new Date().toISOString()}] Lock liberado no catch:`, { phoneNumber, type, unlockResult });
     } catch (unlockError) {
-      console.warn(`[${new Date().toISOString()}] Erro ao liberar lock no catch:`, unlockError);
+      console.warn('Erro ao liberar lock no catch:', unlockError);
     }
     
     return new Response(JSON.stringify({

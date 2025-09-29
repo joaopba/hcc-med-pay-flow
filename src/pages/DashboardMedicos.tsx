@@ -336,10 +336,8 @@ export default function DashboardMedicos() {
   };
 
   const handleConfirmUpload = async () => {
-    if (!selectedFile || !selectedPagamento || uploading) return;
+    if (!selectedFile || !selectedPagamento) return;
 
-    // Prevenir duplo clique
-    if (uploading) return;
     setUploading(true);
     setShowConfirmUpload(false);
     
@@ -374,10 +372,9 @@ export default function DashboardMedicos() {
         throw insertError;
       }
 
-      // Enviar notificação via WhatsApp Template com debounce
-      const notificationKey = `whatsapp_${selectedPagamento.id}_${Date.now()}`;
+      // Enviar notificação via WhatsApp Template
       try {
-        console.log('Enviando notificação WhatsApp para:', medico.nome, medico.numero_whatsapp, 'Key:', notificationKey);
+        console.log('Enviando notificação WhatsApp para:', medico.nome, medico.numero_whatsapp);
         const whatsappResponse = await supabase.functions.invoke('send-whatsapp-template', {
           body: {
             type: 'nota_recebida',
@@ -386,8 +383,7 @@ export default function DashboardMedicos() {
               numero_whatsapp: medico.numero_whatsapp
             },
             competencia: notaData.pagamentos.mes_competencia,
-            pagamentoId: selectedPagamento.id,
-            notificationKey: notificationKey
+            pagamentoId: selectedPagamento.id
           }
         });
         console.log('Resposta da notificação WhatsApp:', whatsappResponse);
