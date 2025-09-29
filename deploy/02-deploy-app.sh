@@ -4,13 +4,7 @@ echo "🚀 Fazendo deploy da aplicação HCC Med Pay Flow..."
 
 # Definir variáveis
 APP_DIR="/var/www/hcc-med-pay-flow"
-DOMAIN="$1"
-
-if [ -z "$DOMAIN" ]; then
-    echo "❌ Erro: Forneça o domínio como parâmetro"
-    echo "📝 Uso: ./02-deploy-app.sh seu-dominio.com"
-    exit 1
-fi
+DOMAIN="hcc.chatconquista.com"
 
 # Copiar arquivos da aplicação
 echo "📁 Copiando arquivos da aplicação..."

@@ -46,8 +46,8 @@ https://seu-dominio.com
 
 **Redirect URLs:**
 ```
-https://seu-dominio.com/**
-https://seu-dominio.com/auth/callback
+https://hcc.chatconquista.com/**
+https://hcc.chatconquista.com/auth/callback
 ```
 
 ### 6. Testar o Webhook

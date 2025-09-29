@@ -2,13 +2,7 @@
 
 echo "📊 Configurando monitoramento e logs..."
 
-DOMAIN="$1"
-
-if [ -z "$DOMAIN" ]; then
-    echo "❌ Erro: Forneça o domínio como parâmetro"
-    echo "📝 Uso: ./04-setup-monitoring.sh seu-dominio.com"
-    exit 1
-fi
+DOMAIN="hcc.chatconquista.com"
 
 # Configurar logrotate para nginx
 echo "📝 Configurando rotação de logs..."

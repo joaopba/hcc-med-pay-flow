@@ -2,13 +2,7 @@
 
 echo "🔒 Configurando SSL com Let's Encrypt..."
 
-DOMAIN="$1"
-
-if [ -z "$DOMAIN" ]; then
-    echo "❌ Erro: Forneça o domínio como parâmetro"
-    echo "📝 Uso: ./03-setup-ssl.sh seu-dominio.com"
-    exit 1
-fi
+DOMAIN="hcc.chatconquista.com"
 
 # Verificar se o domínio está apontando para o servidor
 echo "🔍 Verificando DNS do domínio $DOMAIN..."

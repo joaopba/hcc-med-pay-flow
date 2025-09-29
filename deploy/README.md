@@ -14,12 +14,12 @@ Este guia fornece scripts automatizados para deploy da aplicação HCC Med Pay F
 
 1. Faça upload desta pasta `deploy` para sua VPS:
 ```bash
-scp -r deploy/ root@seu-ip:/root/
+scp -r deploy/ root@72.60.157.200:/root/
 ```
 
 2. Conecte-se à VPS:
 ```bash
-ssh root@seu-ip
+ssh root@72.60.157.200
 ```
 
 3. Navegue para a pasta:
@@ -46,9 +46,8 @@ chmod +x *.sh
 
 #### Passo 2: Deploy da aplicação
 ```bash
-./02-deploy-app.sh seu-dominio.com
+./02-deploy-app.sh
 ```
-**Substitua `seu-dominio.com` pelo seu domínio real**
 
 **O que faz:**
 - Copia e instala a aplicação
@@ -58,7 +57,7 @@ chmod +x *.sh
 
 #### Passo 3: Configurar SSL
 ```bash
-./03-setup-ssl.sh seu-dominio.com
+./03-setup-ssl.sh
 ```
 **O que faz:**
 - Instala certificado SSL gratuito
@@ -67,7 +66,7 @@ chmod +x *.sh
 
 #### Passo 4: Configurar monitoramento (opcional)
 ```bash
-./04-setup-monitoring.sh seu-dominio.com
+./04-setup-monitoring.sh
 ```
 **O que faz:**
 - Configura logs e rotação
@@ -78,14 +77,14 @@ chmod +x *.sh
 ## 🌐 URLs e Portas
 
 Após o deploy, sua aplicação estará disponível em:
-- **HTTP:** http://seu-dominio.com (redireciona para HTTPS)
-- **HTTPS:** https://seu-dominio.com
+- **HTTP:** http://hcc.chatconquista.com (redireciona para HTTPS)
+- **HTTPS:** https://hcc.chatconquista.com
 
 ## 🔍 Verificação
 
 ### Testar a aplicação
 ```bash
-curl -I https://seu-dominio.com
+curl -I https://hcc.chatconquista.com
 ```
 
 ### Ver status completo
@@ -144,11 +143,11 @@ A aplicação está configurada para usar o Supabase com:
 ### Aplicação não carrega
 1. Verificar se o Nginx está rodando: `sudo systemctl status nginx`
 2. Verificar logs: `sudo tail -f /var/log/nginx/error.log`
-3. Verificar DNS: `dig seu-dominio.com`
+3. Verificar DNS: `dig hcc.chatconquista.com`
 
 ### SSL não funciona
 1. Verificar se o domínio aponta para o servidor
-2. Tentar novamente: `sudo certbot --nginx -d seu-dominio.com`
+2. Tentar novamente: `sudo certbot --nginx -d hcc.chatconquista.com`
 3. Verificar firewall: `sudo ufw status`
 
 ### Erro 502/503
