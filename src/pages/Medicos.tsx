@@ -175,8 +175,7 @@ export default function Medicos() {
       const medicosData = data.map(row => ({
         nome: row.nome || row.Nome,
         numero_whatsapp: row.numero_whatsapp || row.WhatsApp || row.whatsapp,
-        especialidade: row.especialidade || row.Especialidade || "",
-        cpf: row.cpf || row.CPF || ""
+        especialidade: row.especialidade || row.Especialidade || ""
       }));
 
       const { error } = await supabase
@@ -197,14 +196,12 @@ export default function Medicos() {
     {
       nome: "Dr. João Silva",
       numero_whatsapp: "5511999999999",
-      especialidade: "Cardiologia",
-      cpf: "12345678901"
+      especialidade: "Cardiologia"
     },
     {
       nome: "Dra. Maria Santos",
       numero_whatsapp: "5511888888888", 
-      especialidade: "Pediatria",
-      cpf: "98765432100"
+      especialidade: "Pediatria"
     }
   ];
 
@@ -233,7 +230,7 @@ export default function Medicos() {
                   onImport={handleExcelImport}
                   templateData={getTemplateData()}
                   templateFilename="modelo-medicos.xlsx"
-                  expectedColumns={["nome", "numero_whatsapp", "cpf"]}
+                  expectedColumns={["nome", "numero_whatsapp"]}
                   title="Importação de Médicos"
                 />
               </DialogContent>
@@ -324,7 +321,6 @@ export default function Medicos() {
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-poppins font-semibold">Nome</TableHead>
-                  <TableHead className="font-poppins font-semibold">CPF</TableHead>
                   <TableHead className="font-poppins font-semibold">WhatsApp</TableHead>
                   <TableHead className="font-poppins font-semibold">Especialidade</TableHead>
                   <TableHead className="font-poppins font-semibold">Status</TableHead>
@@ -335,7 +331,6 @@ export default function Medicos() {
                 {filteredMedicos.map((medico) => (
                   <TableRow key={medico.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="font-medium">{medico.nome}</TableCell>
-                    <TableCell className="text-muted-foreground">{medico.cpf || "-"}</TableCell>
                     <TableCell className="text-muted-foreground">{medico.numero_whatsapp}</TableCell>
                     <TableCell className="text-muted-foreground">{medico.especialidade || "-"}</TableCell>
                     <TableCell>
