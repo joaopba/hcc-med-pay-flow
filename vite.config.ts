@@ -15,4 +15,28 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Otimizações para VPS Ubuntu
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false, // Desabilitar sourcemaps em produção para reduzir tamanho
+    minify: 'terser', // Minificação agressiva
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remover console.logs em produção
+        drop_debugger: true,
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separar vendor chunks para melhor cache
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000, // Aumentar limite para chunks grandes
+  },
 }));
