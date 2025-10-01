@@ -26,32 +26,73 @@ export default function AprovarNota() {
     }
 
     try {
-      // Chamar edge function via URL completa
-      const response = await fetch(
-        `https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/processar-aprovacao?nota=${notaId}&action=aprovar&token=${token}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Falha ao processar aprovação');
-      }
-
-      // Buscar nome do médico
-      const { data: nota } = await supabase
+      // Buscar nota completa
+      const { data: nota, error: notaError } = await supabase
         .from('notas_medicos')
-        .select('pagamentos(medicos(nome))')
+        .select(`
+          id,
+          created_at,
+          status,
+          pagamento_id,
+          pagamentos(
+            mes_competencia,
+            medicos(nome, numero_whatsapp)
+          )
+        `)
         .eq('id', notaId)
         .single();
 
-      if (nota?.pagamentos?.medicos?.nome) {
-        setMedicoNome(nota.pagamentos.medicos.nome);
+      if (notaError || !nota) {
+        throw new Error('Nota não encontrada');
       }
 
+      // Validar token
+      const expectedToken = btoa(`${notaId}-${nota.created_at}`).substring(0, 20);
+      if (token !== expectedToken) {
+        throw new Error('Token inválido ou expirado');
+      }
+
+      // Verificar se já foi processada
+      if (nota.status !== 'pendente') {
+        setError(`Esta nota já foi ${nota.status === 'aprovado' ? 'aprovada' : 'rejeitada'} anteriormente`);
+        setLoading(false);
+        return;
+      }
+
+      // Aprovar nota
+      const { error: updateNotaError } = await supabase
+        .from('notas_medicos')
+        .update({ status: 'aprovado' })
+        .eq('id', notaId);
+
+      if (updateNotaError) throw updateNotaError;
+
+      // Atualizar pagamento para pago
+      const { error: updatePagamentoError } = await supabase
+        .from('pagamentos')
+        .update({ status: 'pago' })
+        .eq('id', nota.pagamento_id);
+
+      if (updatePagamentoError) throw updatePagamentoError;
+
+      // Enviar notificação WhatsApp
+      try {
+        await supabase.functions.invoke('send-whatsapp-template', {
+          body: {
+            type: 'nota_aprovada',
+            medico: {
+              nome: nota.pagamentos.medicos.nome,
+              numero_whatsapp: nota.pagamentos.medicos.numero_whatsapp
+            },
+            competencia: nota.pagamentos.mes_competencia,
+            pagamentoId: nota.pagamento_id
+          }
+        });
+      } catch (whatsappError) {
+        console.warn('Erro ao enviar WhatsApp:', whatsappError);
+      }
+
+      setMedicoNome(nota.pagamentos.medicos.nome);
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Erro ao processar aprovação");

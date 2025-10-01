@@ -37,9 +37,11 @@ export default function RejeitarNota() {
           id,
           nome_arquivo,
           status,
+          created_at,
+          pagamento_id,
           pagamentos(
             mes_competencia,
-            medicos(nome)
+            medicos(nome, numero_whatsapp)
           )
         `)
         .eq('id', notaId)
@@ -78,19 +80,51 @@ export default function RejeitarNota() {
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('motivo', motivo);
+      // Validar token
+      const expectedToken = btoa(`${notaId}-${notaInfo.created_at}`).substring(0, 20);
+      if (token !== expectedToken) {
+        throw new Error('Token inválido ou expirado');
+      }
 
-      const response = await fetch(
-        `https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/processar-aprovacao?nota=${notaId}&action=rejeitar&token=${token}`,
-        {
-          method: 'POST',
-          body: formData
-        }
-      );
+      // Rejeitar nota
+      const { error: updateNotaError } = await supabase
+        .from('notas_medicos')
+        .update({ 
+          status: 'rejeitado',
+          observacoes: motivo
+        })
+        .eq('id', notaId);
 
-      if (!response.ok) {
-        throw new Error('Falha ao processar rejeição');
+      if (updateNotaError) throw updateNotaError;
+
+      // Atualizar pagamento
+      const { error: updatePagamentoError } = await supabase
+        .from('pagamentos')
+        .update({ 
+          status: 'pendente',
+          observacoes: motivo
+        })
+        .eq('id', notaInfo.pagamento_id);
+
+      if (updatePagamentoError) throw updatePagamentoError;
+
+      // Enviar notificação WhatsApp
+      try {
+        await supabase.functions.invoke('send-whatsapp-template', {
+          body: {
+            type: 'nota_rejeitada',
+            medico: {
+              nome: notaInfo.pagamentos.medicos.nome,
+              numero_whatsapp: notaInfo.pagamentos.medicos.numero_whatsapp
+            },
+            competencia: notaInfo.pagamentos.mes_competencia,
+            motivo: motivo,
+            linkPortal: 'https://hcc.chatconquista.com/dashboard-medicos',
+            pagamentoId: notaInfo.pagamento_id
+          }
+        });
+      } catch (whatsappError) {
+        console.warn('Erro ao enviar WhatsApp:', whatsappError);
       }
 
       setSuccess(true);
