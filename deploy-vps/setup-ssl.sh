@@ -129,10 +129,6 @@ server {
         
     # Limite de upload
     client_max_body_size 10M;
-    
-    # Rate limiting
-    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
-    limit_req zone=api burst=20 nodelay;
 }
 EOF
 
