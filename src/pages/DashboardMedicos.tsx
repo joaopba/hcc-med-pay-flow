@@ -398,8 +398,16 @@ export default function DashboardMedicos() {
       }
 
       // Enviar notificação por e-mail
+      console.log('=== INICIANDO ENVIO DE EMAIL ===');
+      console.log('Dados para email:', {
+        type: 'nova_nota',
+        pagamentoId: selectedPagamento.id,
+        notaId: notaData.id,
+        fileName: selectedFile.name,
+        pdfPath: filePath
+      });
+      
       try {
-        console.log('Enviando notificação por e-mail...');
         const emailResponse = await supabase.functions.invoke('send-email-notification', {
           body: {
             type: 'nova_nota',
@@ -409,15 +417,16 @@ export default function DashboardMedicos() {
             pdfPath: filePath
           }
         });
-        console.log('Resposta da notificação por e-mail:', emailResponse);
+        
+        console.log('=== RESPOSTA DO EMAIL ===', emailResponse);
         
         if (emailResponse.error) {
-          console.error('Erro na notificação por e-mail:', emailResponse.error);
+          console.error('ERRO ao enviar email:', emailResponse.error);
         } else {
-          console.log('Notificação enviada por e-mail com sucesso');
+          console.log('✅ Email enviado com sucesso!');
         }
       } catch (emailError) {
-        console.error('Erro ao enviar notificação por e-mail:', emailError);
+        console.error('❌ EXCEÇÃO ao enviar email:', emailError);
       }
 
       // Atualizar o pagamento com a URL da nota
