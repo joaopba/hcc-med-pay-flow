@@ -56,6 +56,19 @@ serve(async (req) => {
 
     if (error) throw error;
 
+    // Buscar datas de envio das mensagens de pagamento
+    const { data: messageLogs } = await supabase
+      .from('message_logs')
+      .select('pagamento_id, created_at, tipo')
+      .eq('tipo', 'pagamento')
+      .in('pagamento_id', (pagamentos || []).map((p: any) => p.id));
+
+    // Criar um mapa de pagamento_id -> data_envio_mensagem
+    const mensagemPagamentoMap = new Map();
+    (messageLogs || []).forEach((log: any) => {
+      mensagemPagamentoMap.set(log.pagamento_id, log.created_at);
+    });
+
     // Organizar dados nas três categorias solicitadas
     const solicitacao_de_dados = (pagamentos || [])
       .filter(p => p.data_solicitacao)
@@ -103,6 +116,7 @@ serve(async (req) => {
           valor_bruto: pagamento.valor,
           valor_liquido: pagamento.valor_liquido || pagamento.valor,
           data_pagamento: pagamento.data_pagamento,
+          data_envio_mensagem: mensagemPagamentoMap.get(pagamento.id) || null,
           status: pagamento.status
         };
       });
