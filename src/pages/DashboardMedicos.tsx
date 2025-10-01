@@ -363,7 +363,7 @@ export default function DashboardMedicos() {
           nome_arquivo: selectedFile.name,
           status: 'pendente'
         })
-        .select('*, pagamentos!inner(mes_competencia)')
+        .select('id')
         .single();
 
       if (insertError) {
@@ -371,6 +371,15 @@ export default function DashboardMedicos() {
         await supabase.storage.from('notas').remove([filePath]);
         throw insertError;
       }
+
+      // Buscar competência separadamente
+      const { data: pagamentoData } = await supabase
+        .from('pagamentos')
+        .select('mes_competencia')
+        .eq('id', selectedPagamento.id)
+        .single();
+
+      const competencia = pagamentoData?.mes_competencia || selectedPagamento.mes_competencia;
 
       // Enviar notificação via WhatsApp Template
       try {
@@ -382,7 +391,7 @@ export default function DashboardMedicos() {
               nome: medico.nome,
               numero_whatsapp: medico.numero_whatsapp
             },
-            competencia: notaData.pagamentos.mes_competencia,
+            competencia: competencia,
             pagamentoId: selectedPagamento.id
           }
         });
