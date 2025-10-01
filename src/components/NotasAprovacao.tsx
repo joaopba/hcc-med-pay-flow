@@ -285,7 +285,7 @@ export default function NotasAprovacao() {
           },
           competencia: nota.pagamentos.mes_competencia,
           motivo: observacoes,
-          linkPortal: 'https://hcc-med-pay-flow.lovable.app/dashboard-medicos',
+          linkPortal: 'https://hcc.chatconquista.com/dashboard-medicos',
           pagamentoId: nota.pagamento_id
         }
       });

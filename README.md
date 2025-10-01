@@ -1,22 +1,17 @@
-# Welcome to your Lovable project
+# HCC Med Pay Flow
 
-## Project info
+Sistema de gestão de pagamentos médicos com integração WhatsApp e portal para médicos.
 
-**URL**: https://lovable.dev/projects/e30c406a-da79-4b25-8563-5b3ad22ac543
+## Descrição
 
-## How can I edit this code?
+Sistema completo para gerenciamento de notas fiscais e pagamentos de médicos, com notificações automáticas via WhatsApp e email, portal de acesso para médicos e dashboard administrativo.
 
-There are several ways of editing your application.
+## Tecnologias
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/e30c406a-da79-4b25-8563-5b3ad22ac543) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- React + TypeScript + Vite
+- Supabase (Backend, Auth, Storage)
+- Tailwind CSS
+- Edge Functions
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
@@ -60,14 +55,15 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
+## Deploy
 
-Simply open [Lovable](https://lovable.dev/projects/e30c406a-da79-4b25-8563-5b3ad22ac543) and click on Share -> Publish.
+Execute os scripts na pasta `deploy-vps/` para fazer deploy em VPS Ubuntu:
 
-## Can I connect a custom domain to my Lovable project?
+```bash
+./deploy-vps/install.sh
+./deploy-vps/validate-deployment.sh
+```
 
-Yes, you can!
+## Domínio
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **Produção**: https://hcc.chatconquista.com
