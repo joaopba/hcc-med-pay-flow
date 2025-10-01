@@ -63,7 +63,7 @@ server {
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
-    gzip_proxied expired no-cache no-store private must-revalidate max-age=0;
+    gzip_proxied expired no-cache no-store private auth any;
     gzip_types
         text/plain
         text/css
