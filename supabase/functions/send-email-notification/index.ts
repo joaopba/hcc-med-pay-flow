@@ -109,6 +109,18 @@ serve(async (req) => {
     }
 
     if (type === 'nova_nota') {
+      // Buscar dados da nota para gerar token de aprovação
+      const { data: nota } = await supabase
+        .from('notas_medicos')
+        .select('id, created_at')
+        .eq('id', notaId)
+        .single();
+
+      // Gerar token simples baseado no ID e timestamp
+      const token = btoa(`${notaId}_${nota?.created_at}`).replace(/=/g, '');
+      const approveUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/processar-aprovacao?notaId=${notaId}&action=aprovar&token=${token}`;
+      const rejectUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/processar-aprovacao?notaId=${notaId}&action=rejeitar&token=${token}`;
+
       subject = '📋 Nova Nota Fiscal Recebida - HCC Hospital';
       html = `
         <!DOCTYPE html>
@@ -121,7 +133,11 @@ serve(async (req) => {
             .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0; }
             .content { background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; }
             .info-card { background: white; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #667eea; }
-            .button { background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 15px 0; }
+            .button { color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 10px 5px; font-weight: bold; }
+            .button-approve { background: #10b981; }
+            .button-reject { background: #ef4444; }
+            .button-view { background: #667eea; }
+            .actions { text-align: center; margin: 20px 0; }
             .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
           </style>
         </head>
@@ -142,11 +158,24 @@ serve(async (req) => {
                 <p><strong>Arquivo:</strong> ${fileName || 'nota.pdf'}</p>
               </div>
               
-              <p>A nota fiscal foi recebida e está disponível no sistema para download e processamento de pagamento.</p>
+              <p style="text-align: center; font-size: 16px; margin: 20px 0;">
+                <strong>A nota fiscal foi recebida e aguarda sua análise.</strong>
+              </p>
               
-              <a href="${Deno.env.get('SUPABASE_URL')}" class="button">
-                🔗 Acessar Sistema
-              </a>
+              <div class="actions">
+                <a href="${approveUrl}" class="button button-approve">
+                  ✅ Aprovar Nota
+                </a>
+                <a href="${rejectUrl}" class="button button-reject">
+                  ❌ Rejeitar Nota
+                </a>
+              </div>
+
+              <div style="text-align: center; margin-top: 20px;">
+                <a href="https://hcc.chatconquista.com" class="button button-view">
+                  🔗 Ver no Sistema
+                </a>
+              </div>
             </div>
             <div class="footer">
               <p>Sistema de Gestão de Pagamentos - HCC Hospital</p>
