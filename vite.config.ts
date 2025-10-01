@@ -20,13 +20,7 @@ export default defineConfig(({ mode }) => ({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false, // Desabilitar sourcemaps em produção para reduzir tamanho
-    minify: 'terser', // Minificação agressiva
-    terserOptions: {
-      compress: {
-        drop_console: true, // Remover console.logs em produção
-        drop_debugger: true,
-      },
-    },
+    minify: 'esbuild', // Minificação com esbuild (mais rápido e já incluído)
     rollupOptions: {
       output: {
         manualChunks: {
