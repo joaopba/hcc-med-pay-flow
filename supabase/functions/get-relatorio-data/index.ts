@@ -44,12 +44,12 @@ serve(async (req) => {
       `)
       .order('created_at', { ascending: false });
 
-    // Filtros de data se fornecidos
+    // Filtros por mês de competência se fornecidos
     if (startDate) {
-      query = query.gte('created_at', startDate);
+      query = query.gte('mes_competencia', startDate);
     }
     if (endDate) {
-      query = query.lte('created_at', endDate);
+      query = query.lte('mes_competencia', endDate);
     }
 
     const { data: pagamentos, error } = await query;
