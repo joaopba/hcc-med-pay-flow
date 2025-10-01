@@ -397,6 +397,29 @@ export default function DashboardMedicos() {
         console.error('Erro ao enviar notificação via WhatsApp:', whatsappError);
       }
 
+      // Enviar notificação por e-mail
+      try {
+        console.log('Enviando notificação por e-mail...');
+        const emailResponse = await supabase.functions.invoke('send-email-notification', {
+          body: {
+            type: 'nova_nota',
+            pagamentoId: selectedPagamento.id,
+            notaId: notaData.id,
+            fileName: selectedFile.name,
+            pdfPath: filePath
+          }
+        });
+        console.log('Resposta da notificação por e-mail:', emailResponse);
+        
+        if (emailResponse.error) {
+          console.error('Erro na notificação por e-mail:', emailResponse.error);
+        } else {
+          console.log('Notificação enviada por e-mail com sucesso');
+        }
+      } catch (emailError) {
+        console.error('Erro ao enviar notificação por e-mail:', emailError);
+      }
+
       // Atualizar o pagamento com a URL da nota
       const { error: pagamentoUpdateError } = await supabase
         .from("pagamentos")
