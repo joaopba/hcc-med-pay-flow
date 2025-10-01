@@ -21,6 +21,10 @@ serve(async (req) => {
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
 
+    // Extrair apenas ano-mês (YYYY-MM) dos filtros para comparar com mes_competencia
+    const startMonth = startDate ? startDate.substring(0, 7) : null;
+    const endMonth = endDate ? endDate.substring(0, 7) : null;
+
     // Buscar todos os dados necessários
     let query = supabase
       .from('pagamentos')
@@ -45,11 +49,11 @@ serve(async (req) => {
       .order('created_at', { ascending: false });
 
     // Filtros por mês de competência se fornecidos
-    if (startDate) {
-      query = query.gte('mes_competencia', startDate);
+    if (startMonth) {
+      query = query.gte('mes_competencia', startMonth);
     }
-    if (endDate) {
-      query = query.lte('mes_competencia', endDate);
+    if (endMonth) {
+      query = query.lte('mes_competencia', endMonth);
     }
 
     const { data: pagamentos, error } = await query;
