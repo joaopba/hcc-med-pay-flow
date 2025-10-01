@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.get-medico-dados]
 verify_jwt = false
+
+[functions.processar-aprovacao]
+verify_jwt = false

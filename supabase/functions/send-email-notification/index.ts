@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,9 +23,11 @@ const client = new SMTPClient({
 interface EmailNotificationRequest {
   type: 'nova_nota' | 'pagamento_realizado';
   pagamentoId: string;
+  notaId?: string;
   fileName?: string;
   valorLiquido?: number;
   emailDestino?: string;
+  pdfPath?: string;
 }
 
 serve(async (req) => {
@@ -33,11 +36,10 @@ serve(async (req) => {
   }
 
   try {
-    const { type, pagamentoId, fileName, valorLiquido, emailDestino }: EmailNotificationRequest = await req.json();
+    const { type, pagamentoId, notaId, fileName, valorLiquido, emailDestino, pdfPath }: EmailNotificationRequest = await req.json();
 
-    console.log('Recebendo solicitação de email:', { type, pagamentoId });
+    console.log('Recebendo solicitação de email:', { type, pagamentoId, notaId, pdfPath });
 
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -184,6 +186,31 @@ serve(async (req) => {
     console.log('Enviando email para:', destinatario);
     console.log('Assunto:', subject);
 
+    // Preparar anexo se houver PDF
+    const attachments: any[] = [];
+    if (pdfPath && type === 'nova_nota') {
+      try {
+        console.log('Baixando PDF para anexar:', pdfPath);
+        const { data: pdfData } = await supabase.storage
+          .from('notas')
+          .download(pdfPath);
+        
+        if (pdfData) {
+          const arrayBuffer = await pdfData.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          
+          attachments.push({
+            filename: fileName || 'nota.pdf',
+            content: uint8Array,
+            contentType: 'application/pdf',
+          });
+          console.log('PDF anexado com sucesso');
+        }
+      } catch (pdfError) {
+        console.warn('Erro ao anexar PDF:', pdfError);
+      }
+    }
+
     // Enviar email via SMTP
     await client.send({
       from: "HCC Hospital <suporte@chatconquista.com>",
@@ -191,9 +218,10 @@ serve(async (req) => {
       subject: subject,
       content: "Versão texto do email",
       html: html,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
 
-    console.log('Email enviado com sucesso via SMTP');
+    console.log('Email enviado com sucesso via SMTP', attachments.length > 0 ? 'com anexo' : '');
 
     return new Response(JSON.stringify({
       success: true,

@@ -576,18 +576,21 @@ serve(async (req) => {
 
               console.log('Pagamento atualizado com sucesso');
 
-              // Enviar notificação por email (opcional)
+              // Enviar notificação por email com PDF anexado e botões de ação
               try {
-                await supabase.functions.invoke('send-notification', {
+                await supabase.functions.invoke('send-email-notification', {
                   body: {
                     type: 'nova_nota',
                     pagamentoId: pagamento.id,
-                    filePath,
-                    valorLiquido
+                    notaId: insertData.id,
+                    fileName: filename,
+                    valorLiquido: valorLiquido,
+                    pdfPath: filePath
                   }
                 });
+                console.log('Email de notificação enviado com PDF anexado e botões de ação');
               } catch (emailError) {
-                console.warn('Erro ao enviar notificação:', emailError);
+                console.warn('Erro ao enviar notificação por email:', emailError);
               }
 
               return new Response(JSON.stringify({
