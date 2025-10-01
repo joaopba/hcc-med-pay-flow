@@ -118,6 +118,9 @@ chmod +x install.sh
 ## 📊 COMANDOS ÚTEIS PÓS-DEPLOY
 
 ```bash
+# 🧪 VALIDAÇÃO COMPLETA AUTOMATIZADA (19 TESTES)
+./validate-deployment.sh
+
 # Ver status completo do sistema
 ./status.sh
 
@@ -135,7 +138,49 @@ chmod +x install.sh
 
 # Executar testes do sistema
 ./test-system.sh
+
+# Verificar requisitos antes do deploy
+./check-requirements.sh
+
+# Otimizar performance da VPS
+./optimize-vps.sh
 ```
+
+### 🎯 Script de Validação (`validate-deployment.sh`)
+
+Testa **19 pontos críticos automaticamente**:
+
+**Infraestrutura (4 testes)**
+- DNS configurado corretamente
+- HTTP respondendo (porta 80)
+- HTTPS respondendo (porta 443)
+- Certificado SSL válido
+
+**Frontend (4 testes)**
+- Página principal carregando
+- Assets estáticos disponíveis
+- Rota /auth funcionando
+- Portal dos médicos (/dashboard-medicos)
+
+**Backend Supabase (6 testes)**
+- Conexão Supabase ativa
+- Edge Function: webhook-handler
+- Edge Function: send-whatsapp-template
+- Edge Function: send-email-notification
+- Edge Function: get-medico-dados
+- REST API Supabase
+
+**Servidor VPS (5 testes)**
+- Nginx rodando
+- Arquivos da aplicação presentes
+- Permissões corretas
+- Espaço em disco OK
+- Memória RAM OK
+
+**Resultado:** 
+- ✅ 100% = Deploy perfeito
+- ⚠️ 80-99% = Funcionando com avisos
+- ❌ <80% = Problemas críticos
 
 ## ⚙️ CONFIGURAÇÃO DO WEBHOOK NO SUPABASE
 

@@ -54,6 +54,26 @@ Após instalação:
 ./restart.sh
 ```
 
+## 🧪 Validação e Testes
+
+```bash
+# Validação completa pós-deploy (19 testes automatizados)
+./validate-deployment.sh
+
+# Verificar requisitos antes do deploy
+./check-requirements.sh
+
+# Testar sistema completo
+./test-system.sh
+```
+
+O `validate-deployment.sh` testa:
+- ✅ DNS e SSL
+- ✅ Frontend (rotas, assets)
+- ✅ Backend (4 edge functions)
+- ✅ Supabase REST API
+- ✅ Servidor (Nginx, disco, RAM)
+
 ## 🆘 Resolução de Problemas
 
 ### Erro de permissão

@@ -118,48 +118,15 @@ log "⚙️ Configurando PM2..."
 pm2 startup systemd -u root --hp /root
 pm2 save
 
-# 13. Teste final
-log "🧪 Executando testes finais..."
+# 13. Validação completa automatizada
+log "🧪 Executando validação completa do deploy..."
+chmod +x ./validate-deployment.sh
 
-# Verificar serviços
-services=("nginx" "ufw")
-for service in "${services[@]}"; do
-    if systemctl is-active --quiet $service; then
-        success "$service está rodando"
-    else
-        warning "$service não está rodando"
-    fi
-done
+echo ""
+log "⏳ Aguardando 5 segundos para serviços estabilizarem..."
+sleep 5
 
-# Verificar portas
-if ss -tulpn | grep -q ":80 "; then
-    success "Porta 80 (HTTP) aberta"
-else
-    warning "Porta 80 não está sendo usada"
-fi
-
-if ss -tulpn | grep -q ":443 "; then
-    success "Porta 443 (HTTPS) aberta"
-else
-    warning "Porta 443 não está sendo usada"
-fi
-
-# Verificar DNS
-log "🔍 Testando DNS..."
-dns_ip=$(dig +short $DOMAIN)
-if [ "$dns_ip" = "$IP" ]; then
-    success "DNS configurado corretamente: $DOMAIN → $IP"
-else
-    warning "DNS pode não estar propagado ainda: $dns_ip ≠ $IP"
-fi
-
-# Teste HTTP
-log "🌐 Testando conectividade HTTP..."
-if curl -s -o /dev/null -w "%{http_code}" http://$DOMAIN | grep -q "200\|301\|302"; then
-    success "Site respondendo via HTTP"
-else
-    warning "Site pode não estar respondendo via HTTP"
-fi
+./validate-deployment.sh
 
 echo -e "${GREEN}"
 echo "╔══════════════════════════════════════════════════════════════╗"

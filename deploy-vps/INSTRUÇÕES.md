@@ -126,12 +126,20 @@ Após a instalação, configure o webhook:
 
 ## 📋 Checklist de Verificação
 
-Após instalação, verifique:
+Após instalação, execute o validador automático:
+```bash
+chmod +x validate-deployment.sh
+./validate-deployment.sh
+```
 
+O script testa automaticamente:
 - [ ] Site carrega: https://hcc.chatconquista.com
-- [ ] Status OK: https://hcc.chatconquista.com/status  
+- [ ] Portal médicos: https://hcc.chatconquista.com/dashboard-medicos
 - [ ] SSL ativo (cadeado verde no navegador)
 - [ ] HTTP redireciona para HTTPS
+- [ ] Todas as 4 edge functions
+- [ ] REST API Supabase
+- [ ] Nginx, disco, RAM
 - [ ] Webhook configurado no Supabase
 
 ## 🔄 Atualizações Futuras
