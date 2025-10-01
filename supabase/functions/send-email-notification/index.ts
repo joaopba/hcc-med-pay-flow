@@ -235,10 +235,21 @@ serve(async (req) => {
             const arrayBuffer = await pdfData.arrayBuffer();
             const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
+            // Gerar URLs de aprovação/rejeição
+            const { data: nota } = await supabase
+              .from('notas_medicos')
+              .select('id, created_at')
+              .eq('id', notaId)
+              .single();
+
+            const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 20);
+            const approveUrl = `https://hcc.chatconquista.com/aprovar-nota?nota=${notaId}&token=${token}`;
+            const rejectUrl = `https://hcc.chatconquista.com/rejeitar-nota?nota=${notaId}&token=${token}`;
+
             // Enviar para cada usuário com WhatsApp
             for (const usuario of usuariosWhatsApp) {
               try {
-                const mensagemTexto = `📋 *Nova Nota Fiscal Recebida*\n\nOlá ${usuario.name}!\n\n*Médico:* ${(pagamento.medicos as any)?.nome}\n*Especialidade:* ${(pagamento.medicos as any)?.especialidade || 'Não informado'}\n*Competência:* ${pagamento.mes_competencia}\n*Valor:* R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📎 Documento em anexo para análise.\n\n🔗 Acesse o sistema: https://hcc.chatconquista.com`;
+                const mensagemTexto = `📋 *Nova Nota Fiscal para Análise*\n\nOlá ${usuario.name}!\n\nUma nova nota fiscal foi recebida:\n\n👤 *Médico:* ${(pagamento.medicos as any)?.nome}\n🏥 *Especialidade:* ${(pagamento.medicos as any)?.especialidade || 'Não informado'}\n📅 *Competência:* ${pagamento.mes_competencia}\n💰 *Valor:* R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📎 *Documento em anexo*\n\n✅ *Aprovar:* ${approveUrl}\n\n❌ *Rejeitar:* ${rejectUrl}\n\n_Clique nos links acima para tomar sua decisão_`;
 
                 const payloadWpp = {
                   number: usuario.numero_whatsapp,
