@@ -211,18 +211,22 @@ serve(async (req) => {
       console.log('Mensagem "Encaminhar Nota" recebida de:', from);
       
       try {
-        // Buscar médico por número de WhatsApp
+        // Buscar médico por número de WhatsApp usando variações
         const numeroLimpo = from.replace(/\D/g, '');
         console.log('Número limpo para busca:', numeroLimpo);
+        
+        // Gerar todas as variações possíveis do número
+        const variants = brPhoneVariants(numeroLimpo);
+        console.log('Variações do número geradas:', variants);
         
         const { data: medicos, error: medicoError } = await supabase
           .from('medicos')
           .select('id, nome, numero_whatsapp')
-          .ilike('numero_whatsapp', `%${numeroLimpo}%`)
+          .in('numero_whatsapp', variants)
           .limit(1);
 
         if (medicoError || !medicos || medicos.length === 0) {
-          console.log('Médico não encontrado para número:', numeroLimpo);
+          console.log('Médico não encontrado para número:', numeroLimpo, 'Variações testadas:', variants);
           return new Response(JSON.stringify({
             success: false,
             message: 'Médico não encontrado'
@@ -366,52 +370,36 @@ serve(async (req) => {
 
         // Buscar pagamento pendente para este número
         const numeroLimpo = from.replace(/\D/g, '');
-        console.log('Número limpo extraído:', numeroLimpo);
+        console.log('📞 Número limpo extraído:', numeroLimpo);
         
-        const { data: pagamentos } = await supabase
-          .from('pagamentos')
-          .select(`
-            id, 
-            valor,
-            status,
-            created_at,
-            medicos!inner(numero_whatsapp, nome)
-          `)
-          .in('status', ['pendente','solicitado'])
-          .ilike('medicos.numero_whatsapp', `%${numeroLimpo}%`)
-          .order('created_at', { ascending: false })
+        // Gerar variações do número (com e sem o 9)
+        const variants = brPhoneVariants(numeroLimpo);
+        console.log('🔄 Variações geradas:', variants);
+        
+        // Buscar médico usando as variações
+        const { data: medico } = await supabase
+          .from('medicos')
+          .select('id, nome, numero_whatsapp')
+          .in('numero_whatsapp', variants)
           .limit(1);
         
-        console.log('Pagamentos encontrados:', pagamentos);
-
-        let pagamento: any = (pagamentos && pagamentos.length > 0) ? pagamentos[0] : null;
-
-        // Se não encontrou pelo join, tentar localizar o médico por variações do número (com/sem o 9)
-        if (!pagamento) {
-          const variants = brPhoneVariants(numeroLimpo);
-          let medicoId: string | null = null;
-          for (const v of variants) {
-            const { data: medicoMatch } = await supabase
-              .from('medicos')
-              .select('id')
-              .ilike('numero_whatsapp', `%${v}%`)
-              .limit(1);
-            if (medicoMatch && medicoMatch.length > 0) {
-              medicoId = medicoMatch[0].id as string;
-              break;
-            }
-          }
-          if (medicoId) {
-            const { data: payByMedico } = await supabase
-              .from('pagamentos')
-              .select('id, valor, status, created_at')
-              .in('status', ['pendente','solicitado'])
-              .eq('medico_id', medicoId)
-              .order('created_at', { ascending: false })
-              .limit(1);
-            if (payByMedico && payByMedico.length > 0) {
-              pagamento = payByMedico[0];
-            }
+        console.log('Médico encontrado:', medico);
+        
+        let pagamento: any = null;
+        
+        // Se encontrou o médico, buscar pagamento pendente
+        if (medico && medico.length > 0) {
+          const { data: pagamentos } = await supabase
+            .from('pagamentos')
+            .select('id, valor, status, created_at')
+            .in('status', ['pendente','solicitado'])
+            .eq('medico_id', medico[0].id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          if (pagamentos && pagamentos.length > 0) {
+            pagamento = pagamentos[0];
+            console.log('✅ Pagamento encontrado:', pagamento.id);
           }
         }
 
