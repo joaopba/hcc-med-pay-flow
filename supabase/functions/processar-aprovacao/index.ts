@@ -14,7 +14,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const notaId = url.searchParams.get('nota');
-    const action = url.searchParams.get('action'); // 'aprovar' ou 'rejeitar'
+    const action = url.searchParams.get('action');
     const token = url.searchParams.get('token');
 
     if (!notaId || !action || !token) {
@@ -49,7 +49,7 @@ serve(async (req) => {
       throw new Error('Nota não encontrada');
     }
 
-    // Validar token (simples hash baseado no ID)
+    // Validar token
     const expectedToken = btoa(`${notaId}-${nota.created_at}`).substring(0, 20);
     if (token !== expectedToken) {
       return new Response('Token inválido', { status: 403 });
@@ -59,26 +59,47 @@ serve(async (req) => {
     if (nota.status !== 'pendente') {
       return new Response(`
         <!DOCTYPE html>
-        <html>
+        <html lang="pt-BR">
         <head>
-          <meta charset="utf-8">
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta name="google" content="notranslate">
           <title>Nota já processada</title>
           <style>
-            body { font-family: Arial; text-align: center; padding: 50px; background: #f5f5f5; }
-            .container { background: white; padding: 40px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            .warning { color: #ff9800; font-size: 48px; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+              background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 20px;
+            }
+            .container { 
+              background: white;
+              padding: 60px 40px;
+              border-radius: 16px;
+              max-width: 500px;
+              width: 100%;
+              box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+              text-align: center;
+            }
+            .icon { font-size: 72px; margin-bottom: 24px; }
+            h1 { color: #ff9800; font-size: 28px; margin-bottom: 16px; font-weight: 600; }
+            p { color: #666; font-size: 16px; line-height: 1.6; }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="warning">⚠️</div>
-            <h2>Nota já processada</h2>
+            <div class="icon">⚠️</div>
+            <h1>Nota já processada</h1>
             <p>Esta nota fiscal já foi ${nota.status === 'aprovado' ? 'aprovada' : 'rejeitada'} anteriormente.</p>
           </div>
         </body>
         </html>
       `, {
-        headers: { 'Content-Type': 'text/html' }
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
       });
     }
 
@@ -114,69 +135,192 @@ serve(async (req) => {
 
       return new Response(`
         <!DOCTYPE html>
-        <html>
+        <html lang="pt-BR">
         <head>
-          <meta charset="utf-8">
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta name="google" content="notranslate">
           <title>Nota Aprovada</title>
           <style>
-            body { font-family: Arial; text-align: center; padding: 50px; background: #f5f5f5; }
-            .container { background: white; padding: 40px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            .success { color: #4caf50; font-size: 48px; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 20px;
+            }
+            .container { 
+              background: white;
+              padding: 60px 40px;
+              border-radius: 16px;
+              max-width: 500px;
+              width: 100%;
+              box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+              text-align: center;
+            }
+            .icon { 
+              font-size: 72px;
+              margin-bottom: 24px;
+              animation: bounce 1s ease;
+            }
+            @keyframes bounce {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-20px); }
+            }
+            h1 { 
+              color: #10b981;
+              font-size: 28px;
+              margin-bottom: 24px;
+              font-weight: 600;
+            }
+            .info { 
+              background: #f8f9fa;
+              padding: 20px;
+              border-radius: 8px;
+              margin: 20px 0;
+              text-align: left;
+            }
+            .info p { 
+              color: #333;
+              font-size: 16px;
+              margin: 10px 0;
+              line-height: 1.6;
+            }
+            .info strong { color: #667eea; }
+            .message {
+              color: #666;
+              font-size: 16px;
+              margin-top: 20px;
+            }
+            .btn {
+              display: inline-block;
+              margin-top: 30px;
+              padding: 14px 32px;
+              background: #667eea;
+              color: white;
+              text-decoration: none;
+              border-radius: 8px;
+              font-weight: 600;
+              transition: all 0.3s;
+            }
+            .btn:hover {
+              background: #5568d3;
+              transform: translateY(-2px);
+              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="success">✅</div>
-            <h2>Nota Fiscal Aprovada!</h2>
-            <p><strong>Médico:</strong> ${nota.pagamentos.medicos.nome}</p>
-            <p><strong>Competência:</strong> ${nota.pagamentos.mes_competencia}</p>
-            <p>O pagamento será processado em breve.</p>
+            <div class="icon">✅</div>
+            <h1>Nota Fiscal Aprovada!</h1>
+            <div class="info">
+              <p><strong>Médico:</strong> ${nota.pagamentos.medicos.nome}</p>
+              <p><strong>Competência:</strong> ${nota.pagamentos.mes_competencia}</p>
+              <p><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">Aprovado</span></p>
+            </div>
+            <p class="message">O pagamento será processado em breve e o médico foi notificado via WhatsApp.</p>
+            <a href="https://hcc.chatconquista.com" class="btn">Voltar ao Sistema</a>
           </div>
         </body>
         </html>
       `, {
-        headers: { 'Content-Type': 'text/html' }
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
       });
 
     } else if (action === 'rejeitar') {
-      // Página de rejeição com formulário para motivo
+      // Formulário de rejeição
       if (req.method === 'GET') {
         return new Response(`
           <!DOCTYPE html>
-          <html>
+          <html lang="pt-BR">
           <head>
-            <meta charset="utf-8">
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="google" content="notranslate">
             <title>Rejeitar Nota Fiscal</title>
             <style>
-              body { font-family: Arial; padding: 50px; background: #f5f5f5; }
-              .container { background: white; padding: 40px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-              .error { color: #f44336; font-size: 48px; text-align: center; }
-              h2 { text-align: center; }
-              textarea { width: 100%; min-height: 120px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: Arial; font-size: 14px; }
-              button { background: #f44336; color: white; border: none; padding: 12px 30px; border-radius: 5px; cursor: pointer; width: 100%; font-size: 16px; margin-top: 15px; }
-              button:hover { background: #d32f2f; }
-              .info { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ff9800; }
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+              }
+              .container { 
+                background: white;
+                padding: 40px;
+                border-radius: 16px;
+                max-width: 600px;
+                width: 100%;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+              }
+              .icon { font-size: 72px; text-align: center; margin-bottom: 20px; }
+              h1 { color: #ef4444; font-size: 28px; margin-bottom: 20px; text-align: center; font-weight: 600; }
+              .info { background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ff9800; }
+              .info p { color: #333; font-size: 14px; margin: 8px 0; line-height: 1.6; }
+              .info strong { color: #ff9800; }
+              label { display: block; color: #333; font-weight: 600; margin-bottom: 8px; font-size: 15px; }
+              textarea { 
+                width: 100%;
+                min-height: 120px;
+                padding: 12px;
+                border: 2px solid #e5e7eb;
+                border-radius: 8px;
+                font-family: inherit;
+                font-size: 14px;
+                resize: vertical;
+                transition: border-color 0.3s;
+              }
+              textarea:focus {
+                outline: none;
+                border-color: #667eea;
+              }
+              button { 
+                background: #ef4444;
+                color: white;
+                border: none;
+                padding: 14px 32px;
+                border-radius: 8px;
+                cursor: pointer;
+                width: 100%;
+                font-size: 16px;
+                font-weight: 600;
+                margin-top: 20px;
+                transition: all 0.3s;
+              }
+              button:hover { 
+                background: #dc2626;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+              }
             </style>
           </head>
           <body>
             <div class="container">
-              <div class="error">❌</div>
-              <h2>Rejeitar Nota Fiscal</h2>
+              <div class="icon">❌</div>
+              <h1>Rejeitar Nota Fiscal</h1>
               <div class="info">
-                <strong>Médico:</strong> ${nota.pagamentos.medicos.nome}<br>
-                <strong>Competência:</strong> ${nota.pagamentos.mes_competencia}<br>
-                <strong>Arquivo:</strong> ${nota.nome_arquivo}
+                <p><strong>Médico:</strong> ${nota.pagamentos.medicos.nome}</p>
+                <p><strong>Competência:</strong> ${nota.pagamentos.mes_competencia}</p>
+                <p><strong>Arquivo:</strong> ${nota.nome_arquivo}</p>
               </div>
               <form method="POST" action="?nota=${notaId}&action=rejeitar&token=${token}">
-                <label><strong>Motivo da rejeição:</strong></label>
-                <textarea name="motivo" required placeholder="Ex: Dados incorretos, documento ilegível, valores não conferem..."></textarea>
+                <label for="motivo">Motivo da rejeição:</label>
+                <textarea name="motivo" id="motivo" required placeholder="Ex: Dados incorretos, documento ilegível, valores não conferem..."></textarea>
                 <button type="submit">Confirmar Rejeição</button>
               </form>
             </div>
           </body>
           </html>
         `, {
-          headers: { 'Content-Type': 'text/html' }
+          headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
       } else if (req.method === 'POST') {
         const formData = await req.formData();
@@ -225,28 +369,54 @@ serve(async (req) => {
 
         return new Response(`
           <!DOCTYPE html>
-          <html>
+          <html lang="pt-BR">
           <head>
-            <meta charset="utf-8">
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="google" content="notranslate">
             <title>Nota Rejeitada</title>
             <style>
-              body { font-family: Arial; text-align: center; padding: 50px; background: #f5f5f5; }
-              .container { background: white; padding: 40px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-              .error { color: #f44336; font-size: 48px; }
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+              }
+              .container { 
+                background: white;
+                padding: 60px 40px;
+                border-radius: 16px;
+                max-width: 500px;
+                width: 100%;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                text-align: center;
+              }
+              .icon { font-size: 72px; margin-bottom: 24px; }
+              h1 { color: #ef4444; font-size: 28px; margin-bottom: 24px; font-weight: 600; }
+              .info { background: #fee; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left; border-left: 4px solid #ef4444; }
+              .info p { color: #333; font-size: 16px; margin: 10px 0; line-height: 1.6; }
+              .info strong { color: #ef4444; }
+              .message { color: #666; font-size: 16px; margin-top: 20px; }
             </style>
           </head>
           <body>
             <div class="container">
-              <div class="error">❌</div>
-              <h2>Nota Fiscal Rejeitada</h2>
-              <p><strong>Médico:</strong> ${nota.pagamentos.medicos.nome}</p>
-              <p><strong>Motivo:</strong> ${motivo}</p>
-              <p>O médico foi notificado via WhatsApp.</p>
+              <div class="icon">❌</div>
+              <h1>Nota Fiscal Rejeitada</h1>
+              <div class="info">
+                <p><strong>Médico:</strong> ${nota.pagamentos.medicos.nome}</p>
+                <p><strong>Motivo:</strong> ${motivo}</p>
+              </div>
+              <p class="message">O médico foi notificado via WhatsApp e poderá enviar uma nova nota corrigida.</p>
             </div>
           </body>
           </html>
         `, {
-          headers: { 'Content-Type': 'text/html' }
+          headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
       }
     }
