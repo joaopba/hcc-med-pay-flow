@@ -16,6 +16,8 @@ import TesteEmail from "./pages/TesteEmail";
 import UserProfile from "./pages/UserProfile";
 import NotasMedicos from "./pages/NotasMedicos";
 import DashboardMedicos from "./pages/DashboardMedicos";
+import AprovarNota from "./pages/AprovarNota";
+import RejeitarNota from "./pages/RejeitarNota";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -77,11 +79,13 @@ const App = () => (
           <Route path="/perfil" element={
             <ProtectedRoute>
               <UserProfile />
-            </ProtectedRoute>
-          } />
-            <Route path="/notas-medicos" element={<Navigate to="/dashboard-medicos" replace />} />
-            <Route path="/dashboard-medicos" element={<DashboardMedicos />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          </ProtectedRoute>
+        } />
+          <Route path="/notas-medicos" element={<Navigate to="/dashboard-medicos" replace />} />
+          <Route path="/dashboard-medicos" element={<DashboardMedicos />} />
+          <Route path="/aprovar-nota" element={<AprovarNota />} />
+          <Route path="/rejeitar-nota" element={<RejeitarNota />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         </BrowserRouter>
