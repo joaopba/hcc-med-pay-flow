@@ -217,9 +217,16 @@ serve(async (req) => {
       }
     }
 
-    // Enviar WhatsApp SOMENTE com texto e links para usuários (sem PDF, pois API não suporta base64)
-    if (type === 'nova_nota' && usuariosWhatsApp.length > 0) {
+    // Enviar WhatsApp com link público do PDF para usuários
+    if (type === 'nova_nota' && usuariosWhatsApp.length > 0 && pdfPath) {
       try {
+        // Gerar URL pública temporária do PDF (válida por 7 dias)
+        const { data: urlData } = await supabase.storage
+          .from('notas')
+          .createSignedUrl(pdfPath, 604800); // 7 dias em segundos
+
+        const pdfPublicUrl = urlData?.signedUrl;
+
         // Gerar URLs de aprovação/rejeição
         const { data: nota } = await supabase
           .from('notas_medicos')
@@ -237,11 +244,11 @@ serve(async (req) => {
           .select('api_url, auth_token')
           .single();
 
-        if (configWpp?.api_url && configWpp?.auth_token) {
-          // Enviar para cada usuário com WhatsApp (somente texto)
+        if (configWpp?.api_url && configWpp?.auth_token && pdfPublicUrl) {
+          // Enviar para cada usuário com WhatsApp
           for (const usuario of usuariosWhatsApp) {
             try {
-              const mensagemTexto = `📋 *Nova Nota Fiscal para Análise*\n\nOlá ${usuario.name}!\n\nUma nova nota fiscal foi recebida:\n\n👤 *Médico:* ${(pagamento.medicos as any)?.nome}\n🏥 *Especialidade:* ${(pagamento.medicos as any)?.especialidade || 'Não informado'}\n📅 *Competência:* ${pagamento.mes_competencia}\n💰 *Valor:* R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n📄 *Arquivo:* ${fileName || 'nota.pdf'}\n\n*O PDF foi enviado por email*\n\n━━━━━━━━━━━━━━━\n\n✅ *APROVAR NOTA*\n${approveUrl}\n\n❌ *REJEITAR NOTA*\n${rejectUrl}\n\n━━━━━━━━━━━━━━━\n\n_Clique nos links acima para tomar sua decisão_`;
+              const mensagemTexto = `📋 *Nova Nota Fiscal para Análise*\n\nOlá ${usuario.name}!\n\nUma nova nota fiscal foi recebida:\n\n👤 *Médico:* ${(pagamento.medicos as any)?.nome}\n🏥 *Especialidade:* ${(pagamento.medicos as any)?.especialidade || 'Não informado'}\n📅 *Competência:* ${pagamento.mes_competencia}\n💰 *Valor:* R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n━━━━━━━━━━━━━━━\n\n📎 *BAIXAR PDF DA NOTA*\n${pdfPublicUrl}\n\n✅ *APROVAR NOTA*\n${approveUrl}\n\n❌ *REJEITAR NOTA*\n${rejectUrl}\n\n━━━━━━━━━━━━━━━\n\n_Clique nos links acima para visualizar o PDF ou tomar sua decisão_\n\n⏰ Link válido por 7 dias`;
 
               const payloadWpp = {
                 number: usuario.numero_whatsapp,
@@ -250,7 +257,8 @@ serve(async (req) => {
                 isClosed: false
               };
 
-              console.log(`Enviando WhatsApp (sem PDF) para ${usuario.name} (${usuario.numero_whatsapp})`);
+              console.log(`Enviando WhatsApp com link público do PDF para ${usuario.name} (${usuario.numero_whatsapp})`);
+              console.log(`URL do PDF: ${pdfPublicUrl}`);
 
               const responseWpp = await fetch(configWpp.api_url, {
                 method: 'POST',
