@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encode as encodeBase64 } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -233,7 +234,7 @@ serve(async (req) => {
 
           if (pdfData) {
             const arrayBuffer = await pdfData.arrayBuffer();
-            const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            const base64Pdf = encodeBase64(arrayBuffer);
 
             // Gerar URLs de aprovação/rejeição
             const { data: nota } = await supabase
