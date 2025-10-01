@@ -251,7 +251,7 @@ serve(async (req) => {
 
                 console.log(`Enviando WhatsApp com PDF para ${usuario.name} (${usuario.numero_whatsapp})`);
 
-                await fetch(configWpp.api_url, {
+                const responseWpp = await fetch(configWpp.api_url, {
                   method: 'POST',
                   headers: {
                     'Authorization': `Bearer ${configWpp.auth_token}`,
@@ -260,7 +260,9 @@ serve(async (req) => {
                   body: JSON.stringify(payloadWpp),
                 });
 
-                console.log(`WhatsApp enviado para ${usuario.name} com sucesso`);
+                const responseDataWpp = await responseWpp.json();
+                console.log(`Resposta API WhatsApp para ${usuario.name}:`, responseDataWpp);
+                console.log(`WhatsApp enviado para ${usuario.name} - Status: ${responseWpp.status}`);
               } catch (wppError) {
                 console.error(`Erro ao enviar WhatsApp para ${usuario.name}:`, wppError);
               }
