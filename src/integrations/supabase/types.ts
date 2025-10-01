@@ -101,6 +101,30 @@ export type Database = {
         }
         Relationships: []
       }
+      message_locks: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          numero: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          numero: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          numero?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       message_logs: {
         Row: {
           created_at: string
@@ -255,6 +279,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          numero_whatsapp: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
           user_id: string
@@ -264,6 +289,7 @@ export type Database = {
           email: string
           id?: string
           name: string
+          numero_whatsapp?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id: string
@@ -273,6 +299,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          numero_whatsapp?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string
