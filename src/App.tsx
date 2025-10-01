@@ -12,6 +12,7 @@ import Configuracoes from "./pages/Configuracoes";
 import Relatorios from "./pages/Relatorios";
 import Usuarios from "./pages/Usuarios";
 import TesteWhatsApp from "./pages/TesteWhatsApp";
+import TesteEmail from "./pages/TesteEmail";
 import UserProfile from "./pages/UserProfile";
 import NotasMedicos from "./pages/NotasMedicos";
 import DashboardMedicos from "./pages/DashboardMedicos";
@@ -61,6 +62,11 @@ const App = () => (
           <Route path="/teste-whatsapp" element={
             <ProtectedRoute>
               <TesteWhatsApp />
+            </ProtectedRoute>
+          } />
+          <Route path="/teste-email" element={
+            <ProtectedRoute>
+              <TesteEmail />
             </ProtectedRoute>
           } />
           <Route path="/usuarios" element={
