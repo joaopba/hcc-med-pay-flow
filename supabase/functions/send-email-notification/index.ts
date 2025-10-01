@@ -132,6 +132,7 @@ serve(async (req) => {
           .from('notas')
           .createSignedUrl(pdfPath, 604800); // 7 dias
         pdfDownloadUrl = urlData?.signedUrl || '';
+        console.log('URL pública do PDF gerada:', pdfDownloadUrl);
       }
 
       subject = '📋 Nova Nota Fiscal Recebida - HCC Hospital';
