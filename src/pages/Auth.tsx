@@ -10,10 +10,8 @@ import logo from "@/assets/logo.png";
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -22,36 +20,24 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: name },
-            emailRedirectTo: `${window.location.origin}/`
-          }
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        toast({
-          title: "Conta criada com sucesso!",
-          description: "Verifique seu email para confirmar a conta.",
-        });
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
-        navigate("/dashboard");
-      }
-    } catch (error: any) {
       toast({
-        title: "Erro na autenticação",
-        description: error.message,
+        title: "Sucesso",
+        description: "Login realizado com sucesso!",
+      });
+
+      navigate("/");
+    } catch (error: any) {
+      console.error("Erro no login:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao fazer login",
         variant: "destructive",
       });
     } finally {
@@ -68,28 +54,17 @@ export default function Auth() {
           </div>
           <CardTitle className="text-2xl">Sistema de Pagamentos HCC</CardTitle>
           <CardDescription>
-            {isSignUp ? "Criar nova conta" : "Entre com suas credenciais"}
+            Entre com suas credenciais - Sistema Interno
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome completo</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
+                placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -100,6 +75,7 @@ export default function Auth() {
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -107,18 +83,9 @@ export default function Auth() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Carregando..." : (isSignUp ? "Criar conta" : "Entrar")}
+              {isLoading ? "Carregando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <Button
-              variant="link"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm"
-            >
-              {isSignUp ? "Já tem uma conta? Entre aqui" : "Não tem conta? Cadastre-se"}
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>

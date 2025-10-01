@@ -90,6 +90,24 @@ serve(async (req) => {
     let html = '';
     const destinatario = emailDestino || 'admin@hcchospital.com.br';
 
+    // Se for notificação de nova nota, buscar TODOS os usuários do sistema
+    let destinatarios = [destinatario];
+    
+    if (type === 'nova_nota') {
+      try {
+        const { data: usuarios } = await supabase
+          .from('profiles')
+          .select('email');
+        
+        if (usuarios && usuarios.length > 0) {
+          destinatarios = usuarios.map(u => u.email).filter(Boolean);
+          console.log(`Enviando para ${destinatarios.length} usuários:`, destinatarios);
+        }
+      } catch (userError) {
+        console.warn('Erro ao buscar usuários, enviando só para admin:', userError);
+      }
+    }
+
     if (type === 'nova_nota') {
       subject = '📋 Nova Nota Fiscal Recebida - HCC Hospital';
       html = `
@@ -183,7 +201,7 @@ serve(async (req) => {
       `;
     }
 
-    console.log('Enviando email para:', destinatario);
+    console.log('Enviando email para:', destinatarios);
     console.log('Assunto:', subject);
 
     // Preparar anexo se houver PDF
@@ -211,17 +229,22 @@ serve(async (req) => {
       }
     }
 
-    // Enviar email via SMTP
-    await client.send({
-      from: "HCC Hospital <suporte@chatconquista.com>",
-      to: destinatario,
-      subject: subject,
-      content: "Versão texto do email",
-      html: html,
-      attachments: attachments.length > 0 ? attachments : undefined,
-    });
-
-    console.log('Email enviado com sucesso via SMTP', attachments.length > 0 ? 'com anexo' : '');
+    // Enviar email para todos os destinatários
+    for (const dest of destinatarios) {
+      try {
+        await client.send({
+          from: "HCC Hospital <suporte@chatconquista.com>",
+          to: dest,
+          subject: subject,
+          content: "Versão texto do email",
+          html: html,
+          attachments: attachments.length > 0 ? attachments : undefined,
+        });
+        console.log(`Email enviado para ${dest} com sucesso`, attachments.length > 0 ? 'com anexo' : '');
+      } catch (emailError) {
+        console.error(`Erro ao enviar para ${dest}:`, emailError);
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,
