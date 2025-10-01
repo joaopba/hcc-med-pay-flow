@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { formatMesCompetencia } from "@/lib/utils";
 
 interface MedicoStats {
   totalNotas: number;
@@ -567,10 +568,7 @@ export default function DashboardMedicos() {
                         <div key={pagamento.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
                           <div>
                             <span className="font-medium">
-                              {new Date(pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
-                                month: 'long', 
-                                year: 'numeric' 
-                              })}
+                              {formatMesCompetencia(pagamento.mes_competencia)}
                             </span>
                             <span className="text-lg font-bold text-green-600 ml-2">
                               {formatCurrency(pagamento.valor)}
@@ -862,10 +860,7 @@ export default function DashboardMedicos() {
                       <p className="font-medium">{nota.nome_arquivo}</p>
                       <p className="text-sm text-muted-foreground">
                         {new Date(nota.created_at).toLocaleDateString('pt-BR')} • 
-                        {new Date(nota.pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
-                          year: 'numeric', 
-                          month: 'long' 
-                        })}
+                        {formatMesCompetencia(nota.pagamento.mes_competencia)}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         {getStatusBadge(nota.status)}
@@ -925,10 +920,7 @@ export default function DashboardMedicos() {
                     <div>
                       <span className="text-muted-foreground">Competência:</span>
                       <p className="font-medium">
-                        {new Date(selectedPagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
-                          year: 'numeric', 
-                          month: 'long' 
-                        })}
+                        {formatMesCompetencia(selectedPagamento.mes_competencia)}
                       </p>
                     </div>
                     <div>

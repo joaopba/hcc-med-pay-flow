@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileUp, Upload, Check, X, Clock, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { formatMesCompetencia } from "@/lib/utils";
 
 interface Pagamento {
   id: string;
@@ -308,10 +309,7 @@ export default function NotasMedicos() {
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="text-lg">
-                        {new Date(pagamento.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
-                          month: 'long', 
-                          year: 'numeric' 
-                        })}
+                        {formatMesCompetencia(pagamento.mes_competencia)}
                       </CardTitle>
                       <p className="text-2xl font-bold text-primary mt-1">
                         {formatCurrency(pagamento.valor)}

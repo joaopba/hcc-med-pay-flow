@@ -8,6 +8,7 @@ import { Check, X, Eye, Clock, FileText, Filter } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { formatMesCompetencia } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -388,10 +389,7 @@ export default function NotasAprovacao() {
                 <SelectItem value="todos">Todos os meses</SelectItem>
                 {getMesesDisponiveis().map(mes => (
                   <SelectItem key={mes} value={mes}>
-                    {new Date(mes + '-01').toLocaleDateString('pt-BR', { 
-                      month: 'long', 
-                      year: 'numeric' 
-                    })}
+                    {formatMesCompetencia(mes)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -438,10 +436,7 @@ export default function NotasAprovacao() {
                   }
                 </TableCell>
                 <TableCell>
-                  {new Date(nota.pagamentos.mes_competencia + '-01').toLocaleDateString('pt-BR', { 
-                    month: 'long', 
-                    year: 'numeric' 
-                  })}
+                  {formatMesCompetencia(nota.pagamentos.mes_competencia)}
                 </TableCell>
                 <TableCell>{formatCurrency(nota.pagamentos.valor)}</TableCell>
                 <TableCell>{getStatusBadge(nota.status)}</TableCell>
@@ -476,7 +471,7 @@ export default function NotasAprovacao() {
                           <div className="space-y-4">
                             <div>
                               <p><strong>Médico:</strong> {nota.medicos.nome}</p>
-                              <p><strong>Competência:</strong> {new Date(nota.pagamentos.mes_competencia + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</p>
+                              <p><strong>Competência:</strong> {formatMesCompetencia(nota.pagamentos.mes_competencia)}</p>
                               <p><strong>Valor:</strong> {formatCurrency(nota.pagamentos.valor)}</p>
                               <p><strong>Arquivo:</strong> {nota.nome_arquivo}</p>
                             </div>

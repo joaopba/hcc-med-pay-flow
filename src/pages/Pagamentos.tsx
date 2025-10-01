@@ -13,6 +13,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import NotasAprovacao from "@/components/NotasAprovacao";
 import ErrorBoundary from "@/components/ErrorBoundary";
 const NotasAprovacaoLazy = lazy(() => import("@/components/NotasAprovacao"));
+import { formatMesCompetencia } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -690,10 +691,7 @@ export default function Pagamentos() {
                   <SelectItem value="todos">Todos os meses</SelectItem>
                   {mesesDisponiveis.map((mes) => (
                     <SelectItem key={mes} value={mes}>
-                      {new Date(mes + '-01').toLocaleDateString('pt-BR', { 
-                        year: 'numeric', 
-                        month: 'long' 
-                      })}
+                      {formatMesCompetencia(mes)}
                     </SelectItem>
                   ))}
                 </SelectContent>
