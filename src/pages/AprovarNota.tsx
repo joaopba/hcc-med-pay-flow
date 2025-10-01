@@ -34,9 +34,13 @@ export default function AprovarNota() {
           created_at,
           status,
           pagamento_id,
-          pagamentos(
-            mes_competencia,
-            medicos(nome, numero_whatsapp)
+          medico_id,
+          pagamentos!inner(
+            mes_competencia
+          ),
+          medicos!inner(
+            nome,
+            numero_whatsapp
           )
         `)
         .eq('id', notaId)
@@ -81,8 +85,8 @@ export default function AprovarNota() {
           body: {
             type: 'nota_aprovada',
             medico: {
-              nome: nota.pagamentos.medicos.nome,
-              numero_whatsapp: nota.pagamentos.medicos.numero_whatsapp
+              nome: nota.medicos.nome,
+              numero_whatsapp: nota.medicos.numero_whatsapp
             },
             competencia: nota.pagamentos.mes_competencia,
             pagamentoId: nota.pagamento_id
@@ -92,7 +96,7 @@ export default function AprovarNota() {
         console.warn('Erro ao enviar WhatsApp:', whatsappError);
       }
 
-      setMedicoNome(nota.pagamentos.medicos.nome);
+      setMedicoNome(nota.medicos.nome);
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Erro ao processar aprovação");
