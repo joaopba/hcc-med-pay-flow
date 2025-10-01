@@ -60,7 +60,7 @@ serve(async (req) => {
     const { data: messageLogs } = await supabase
       .from('message_logs')
       .select('pagamento_id, created_at, tipo')
-      .eq('tipo', 'pagamento')
+      .eq('tipo', 'whatsapp_pagamento')
       .in('pagamento_id', (pagamentos || []).map((p: any) => p.id));
 
     // Criar um mapa de pagamento_id -> data_envio_mensagem
