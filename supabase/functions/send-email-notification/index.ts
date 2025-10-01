@@ -92,16 +92,19 @@ serve(async (req) => {
 
     // Se for notificação de nova nota, buscar TODOS os usuários do sistema
     let destinatarios = [destinatario];
+    let usuariosWhatsApp: Array<{email: string, numero_whatsapp: string, name: string}> = [];
     
     if (type === 'nova_nota') {
       try {
         const { data: usuarios } = await supabase
           .from('profiles')
-          .select('email');
+          .select('email, numero_whatsapp, name');
         
         if (usuarios && usuarios.length > 0) {
           destinatarios = usuarios.map(u => u.email).filter(Boolean);
-          console.log(`Enviando para ${destinatarios.length} usuários:`, destinatarios);
+          usuariosWhatsApp = usuarios.filter(u => u.numero_whatsapp);
+          console.log(`Enviando email para ${destinatarios.length} usuários:`, destinatarios);
+          console.log(`Enviando WhatsApp para ${usuariosWhatsApp.length} usuários com número cadastrado`);
         }
       } catch (userError) {
         console.warn('Erro ao buscar usuários, enviando só para admin:', userError);
@@ -213,11 +216,68 @@ serve(async (req) => {
       }
     }
 
+    // Enviar WhatsApp com PDF para usuários do sistema (apenas para nova_nota)
+    if (type === 'nova_nota' && usuariosWhatsApp.length > 0 && pdfPath) {
+      try {
+        // Buscar configurações da API WhatsApp
+        const { data: configWpp } = await supabase
+          .from('configuracoes')
+          .select('api_url, auth_token')
+          .single();
+
+        if (configWpp?.api_url && configWpp?.auth_token) {
+          // Baixar o PDF do storage
+          const { data: pdfData } = await supabase.storage
+            .from('notas')
+            .download(pdfPath);
+
+          if (pdfData) {
+            const arrayBuffer = await pdfData.arrayBuffer();
+            const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+            // Enviar para cada usuário com WhatsApp
+            for (const usuario of usuariosWhatsApp) {
+              try {
+                const mensagemTexto = `📋 *Nova Nota Fiscal Recebida*\n\nOlá ${usuario.name}!\n\n*Médico:* ${(pagamento.medicos as any)?.nome}\n*Especialidade:* ${(pagamento.medicos as any)?.especialidade || 'Não informado'}\n*Competência:* ${pagamento.mes_competencia}\n*Valor:* R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📎 Documento em anexo para análise.\n\n🔗 Acesse o sistema: https://hcc.chatconquista.com`;
+
+                const payloadWpp = {
+                  number: usuario.numero_whatsapp,
+                  body: mensagemTexto,
+                  mediaUrl: `data:application/pdf;base64,${base64Pdf}`,
+                  fileName: fileName || 'nota.pdf',
+                  externalKey: `nova_nota_usuarios_${notaId}_${usuario.email}_${Date.now()}`,
+                  isClosed: false
+                };
+
+                console.log(`Enviando WhatsApp com PDF para ${usuario.name} (${usuario.numero_whatsapp})`);
+
+                await fetch(configWpp.api_url, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${configWpp.auth_token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(payloadWpp),
+                });
+
+                console.log(`WhatsApp enviado para ${usuario.name} com sucesso`);
+              } catch (wppError) {
+                console.error(`Erro ao enviar WhatsApp para ${usuario.name}:`, wppError);
+              }
+            }
+          }
+        }
+      } catch (wppError) {
+        console.error('Erro ao processar envio de WhatsApp para usuários:', wppError);
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       message: 'Notificação enviada por email via SMTP',
       type,
-      smtpDelivered: true
+      smtpDelivered: true,
+      whatsappSent: usuariosWhatsApp.length > 0 && type === 'nova_nota'
     }), {
       headers: { 
         'Content-Type': 'application/json',
