@@ -186,14 +186,15 @@ serve(async (req) => {
         
         if (pdfData) {
           const arrayBuffer = await pdfData.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
+          const base64Content = encodeBase64(arrayBuffer);
           
           attachments.push({
             filename: fileName || 'nota.pdf',
-            content: uint8Array,
+            content: base64Content,
+            encoding: 'base64',
             contentType: 'application/pdf',
           });
-          console.log('PDF anexado com sucesso');
+          console.log('PDF anexado com sucesso em base64');
         }
       } catch (pdfError) {
         console.warn('Erro ao anexar PDF:', pdfError);
