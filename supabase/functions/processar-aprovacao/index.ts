@@ -113,7 +113,7 @@ serve(async (req) => {
       // Atualizar pagamento
       await supabase
         .from('pagamentos')
-        .update({ status: 'aprovado' })
+        .update({ status: 'nota_recebida', data_resposta: new Date().toISOString() })
         .eq('id', nota.pagamento_id);
 
       // Enviar notificação WhatsApp
