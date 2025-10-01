@@ -2,6 +2,8 @@
 
 Sistema de gestão de pagamentos médicos com integração WhatsApp e portal para médicos.
 
+**Criado por Conquista Inovação**
+
 ## Descrição
 
 Sistema completo para gerenciamento de notas fiscais e pagamentos de médicos, com notificações automáticas via WhatsApp e email, portal de acesso para médicos e dashboard administrativo.
