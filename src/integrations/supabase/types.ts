@@ -359,7 +359,13 @@ export type Database = {
       }
     }
     Enums: {
-      payment_status: "pendente" | "solicitado" | "nota_recebida" | "pago"
+      payment_status:
+        | "pendente"
+        | "solicitado"
+        | "nota_recebida"
+        | "pago"
+        | "aprovado"
+        | "nota_rejeitada"
       user_role: "gestor" | "usuario"
     }
     CompositeTypes: {
@@ -488,7 +494,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      payment_status: ["pendente", "solicitado", "nota_recebida", "pago"],
+      payment_status: [
+        "pendente",
+        "solicitado",
+        "nota_recebida",
+        "pago",
+        "aprovado",
+        "nota_rejeitada",
+      ],
       user_role: ["gestor", "usuario"],
     },
   },
