@@ -411,6 +411,8 @@ export default function Pagamentos() {
       case "pendente": return "secondary";
       case "solicitado": return "default";
       case "nota_recebida": return "outline";
+      case "aprovado": return "default";
+      case "nota_rejeitada": return "destructive";
       case "pago": return "secondary";
       default: return "secondary";
     }
@@ -421,6 +423,8 @@ export default function Pagamentos() {
       case "pendente": return "Pendente";
       case "solicitado": return "Solicitado";
       case "nota_recebida": return "Nota Recebida";
+      case "aprovado": return "Aprovado";
+      case "nota_rejeitada": return "Nota Rejeitada";
       case "pago": return "Pago";
       default: return status;
     }
