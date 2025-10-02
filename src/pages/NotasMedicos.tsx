@@ -144,7 +144,7 @@ export default function NotasMedicos() {
       if (uploadError) throw uploadError;
 
       // Registrar na tabela notas_medicos
-      const { error: insertError } = await supabase
+      const { data: notaData, error: insertError } = await supabase
         .from("notas_medicos")
         .insert({
           medico_id: medico.id,
@@ -152,7 +152,9 @@ export default function NotasMedicos() {
           arquivo_url: filePath,
           nome_arquivo: file.name,
           status: 'pendente'
-        });
+        })
+        .select()
+        .single();
 
       if (insertError) {
         // Se der erro, remover o arquivo do storage
@@ -160,13 +162,27 @@ export default function NotasMedicos() {
         throw insertError;
       }
 
+      // Atualizar estado local ao invés de recarregar tudo
+      setPagamentos(prev => prev.map(p => 
+        p.id === pagamentoId 
+          ? { 
+              ...p, 
+              nota_anexada: {
+                id: notaData.id,
+                status: notaData.status,
+                nome_arquivo: notaData.nome_arquivo,
+                observacoes: notaData.observacoes || '',
+                created_at: notaData.created_at,
+                arquivo_url: notaData.arquivo_url
+              }
+            }
+          : p
+      ));
+
       toast({
         title: "Sucesso",
         description: "Nota fiscal enviada com sucesso! Aguarde a análise.",
       });
-
-      // Recarregar dados
-      buscarPagamentos();
 
     } catch (error: any) {
       console.error("Erro no upload:", error);
@@ -193,12 +209,15 @@ export default function NotasMedicos() {
       // Remover arquivo do storage
       await supabase.storage.from('notas').remove([arquivoUrl]);
 
+      // Atualizar estado local ao invés de recarregar tudo
+      setPagamentos(prev => prev.map(p => 
+        p.id === pagamentoId ? { ...p, nota_anexada: undefined } : p
+      ));
+
       toast({
         title: "Sucesso",
         description: "Nota fiscal removida com sucesso",
       });
-
-      buscarPagamentos();
     } catch (error) {
       console.error("Erro ao remover nota:", error);
       toast({
