@@ -348,11 +348,95 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_queue: {
+        Row: {
+          created_at: string | null
+          enviado_em: string | null
+          erro_mensagem: string | null
+          id: string
+          max_tentativas: number | null
+          numero_destino: string
+          payload: Json
+          prioridade: number | null
+          proximo_envio: string | null
+          status: string | null
+          tentativas: number | null
+          tipo_mensagem: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          enviado_em?: string | null
+          erro_mensagem?: string | null
+          id?: string
+          max_tentativas?: number | null
+          numero_destino: string
+          payload: Json
+          prioridade?: number | null
+          proximo_envio?: string | null
+          status?: string | null
+          tentativas?: number | null
+          tipo_mensagem: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          enviado_em?: string | null
+          erro_mensagem?: string | null
+          id?: string
+          max_tentativas?: number | null
+          numero_destino?: string
+          payload?: Json
+          prioridade?: number | null
+          proximo_envio?: string | null
+          status?: string | null
+          tentativas?: number | null
+          tipo_mensagem?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_rate_limit: {
+        Row: {
+          created_at: string | null
+          id: string
+          janela_tempo: string
+          limite_por_janela: number | null
+          mensagens_enviadas: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          janela_tempo: string
+          limite_por_janela?: number | null
+          mensagens_enviadas?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          janela_tempo?: string
+          limite_por_janela?: number | null
+          mensagens_enviadas?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      check_whatsapp_rate_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      cleanup_old_whatsapp_queue: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      increment_whatsapp_rate_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       is_manager: {
         Args: { user_uuid: string }
         Returns: boolean
