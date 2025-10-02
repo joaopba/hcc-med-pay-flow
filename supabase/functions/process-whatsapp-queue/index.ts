@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Buscar mensagens pendentes (lote de 10)
+    // Buscar mensagens pendentes (lote de 50)
     const { data: mensagens, error: fetchError } = await supabase
       .from('whatsapp_queue')
       .select('*')
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       .lte('proximo_envio', new Date().toISOString())
       .order('prioridade', { ascending: true })
       .order('created_at', { ascending: true })
-      .limit(10);
+      .limit(50);
 
     if (fetchError) {
       console.error('Erro ao buscar mensagens:', fetchError);
