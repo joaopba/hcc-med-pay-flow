@@ -39,9 +39,13 @@ export default function RejeitarNota() {
           status,
           created_at,
           pagamento_id,
-          pagamentos(
-            mes_competencia,
-            medicos(nome, numero_whatsapp)
+          medico_id,
+          pagamentos!inner(
+            mes_competencia
+          ),
+          medicos!inner(
+            nome,
+            numero_whatsapp
           )
         `)
         .eq('id', notaId)
@@ -114,8 +118,8 @@ export default function RejeitarNota() {
           body: {
             type: 'nota_rejeitada',
             medico: {
-              nome: notaInfo.pagamentos.medicos.nome,
-              numero_whatsapp: notaInfo.pagamentos.medicos.numero_whatsapp
+              nome: notaInfo.medicos.nome,
+              numero_whatsapp: notaInfo.medicos.numero_whatsapp
             },
             competencia: notaInfo.pagamentos.mes_competencia,
             motivo: motivo,
@@ -178,7 +182,7 @@ export default function RejeitarNota() {
           </h1>
           <div className="bg-red-50 rounded-lg p-4 mb-6 text-left border-l-4 border-red-500">
             <p className="text-sm text-muted-foreground mb-2">Médico</p>
-            <p className="font-semibold mb-3">{notaInfo?.pagamentos?.medicos?.nome}</p>
+            <p className="font-semibold mb-3">{notaInfo?.medicos?.nome}</p>
             <p className="text-sm text-muted-foreground mb-2">Motivo da Rejeição</p>
             <p className="text-sm">{motivo}</p>
           </div>
@@ -210,7 +214,7 @@ export default function RejeitarNota() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground mb-1">Médico</p>
-              <p className="font-semibold">{notaInfo?.pagamentos?.medicos?.nome}</p>
+              <p className="font-semibold">{notaInfo?.medicos?.nome}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-1">Competência</p>

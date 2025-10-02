@@ -34,12 +34,11 @@ serve(async (req) => {
         pagamentos!inner (
           id,
           valor,
-          mes_competencia,
-          medico_id,
-          medicos!inner (
-            nome,
-            numero_whatsapp
-          )
+          mes_competencia
+        ),
+        medicos!inner (
+          nome,
+          numero_whatsapp
         )
       `)
       .eq('id', notaId)
@@ -122,8 +121,8 @@ serve(async (req) => {
           body: {
             type: 'nota_aprovada',
             medico: {
-              nome: nota.pagamentos.medicos.nome,
-              numero_whatsapp: nota.pagamentos.medicos.numero_whatsapp
+              nome: nota.medicos.nome,
+              numero_whatsapp: nota.medicos.numero_whatsapp
             },
             competencia: nota.pagamentos.mes_competencia,
             pagamentoId: nota.pagamento_id
@@ -218,7 +217,7 @@ serve(async (req) => {
             <div class="icon">✅</div>
             <h1>Nota Fiscal Aprovada!</h1>
             <div class="info">
-              <p><strong>Médico:</strong> ${nota.pagamentos.medicos.nome}</p>
+              <p><strong>Médico:</strong> ${nota.medicos.nome}</p>
               <p><strong>Competência:</strong> ${nota.pagamentos.mes_competencia}</p>
               <p><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">Aprovado</span></p>
             </div>
@@ -307,7 +306,7 @@ serve(async (req) => {
               <div class="icon">❌</div>
               <h1>Rejeitar Nota Fiscal</h1>
               <div class="info">
-                <p><strong>Médico:</strong> ${nota.pagamentos.medicos.nome}</p>
+                <p><strong>Médico:</strong> ${nota.medicos.nome}</p>
                 <p><strong>Competência:</strong> ${nota.pagamentos.mes_competencia}</p>
                 <p><strong>Arquivo:</strong> ${nota.nome_arquivo}</p>
               </div>
@@ -354,8 +353,8 @@ serve(async (req) => {
             body: {
               type: 'nota_rejeitada',
               medico: {
-                nome: nota.pagamentos.medicos.nome,
-                numero_whatsapp: nota.pagamentos.medicos.numero_whatsapp
+                nome: nota.medicos.nome,
+                numero_whatsapp: nota.medicos.numero_whatsapp
               },
               competencia: nota.pagamentos.mes_competencia,
               motivo: motivo,
@@ -408,7 +407,7 @@ serve(async (req) => {
               <div class="icon">❌</div>
               <h1>Nota Fiscal Rejeitada</h1>
               <div class="info">
-                <p><strong>Médico:</strong> ${nota.pagamentos.medicos.nome}</p>
+                <p><strong>Médico:</strong> ${nota.medicos.nome}</p>
                 <p><strong>Motivo:</strong> ${motivo}</p>
               </div>
               <p class="message">O médico foi notificado via WhatsApp e poderá enviar uma nova nota corrigida.</p>
