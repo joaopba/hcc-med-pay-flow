@@ -774,7 +774,7 @@ export default function Pagamentos() {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        {(pagamento.status === "nota_recebida" || pagamento.status === "aprovado") && (
+                        {pagamento.status === "aprovado" && (
                           <>
                             {pagamento.nota_pdf_url && (
                               <Button size="sm" variant="outline">
