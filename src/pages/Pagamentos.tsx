@@ -683,6 +683,8 @@ export default function Pagamentos() {
                   <SelectItem value="pendente">Pendente</SelectItem>
                   <SelectItem value="solicitado">Solicitado</SelectItem>
                   <SelectItem value="nota_recebida">Nota Recebida</SelectItem>
+                  <SelectItem value="aprovado">Aprovado</SelectItem>
+                  <SelectItem value="nota_rejeitada">Nota Rejeitada</SelectItem>
                   <SelectItem value="pago">Pago</SelectItem>
                 </SelectContent>
               </Select>
@@ -772,7 +774,7 @@ export default function Pagamentos() {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        {pagamento.status === "nota_recebida" && (
+                        {(pagamento.status === "nota_recebida" || pagamento.status === "aprovado") && (
                           <>
                             {pagamento.nota_pdf_url && (
                               <Button size="sm" variant="outline">
