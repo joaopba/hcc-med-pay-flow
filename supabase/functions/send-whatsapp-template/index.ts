@@ -166,25 +166,29 @@ serve(async (req) => {
         throw new Error('Tipo de mensagem inválido');
     }
 
-    console.log('Enviando mensagem WhatsApp:', payload);
-    console.log('URL da API:', apiUrl);
+    console.log('Adicionando mensagem à fila WhatsApp:', payload);
+    console.log('Tipo:', type);
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.auth_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+    // Adicionar mensagem à fila ao invés de enviar diretamente
+    const { data: queueData, error: queueError } = await supabase
+      .from('whatsapp_queue')
+      .insert({
+        numero_destino: phoneNumber!,
+        tipo_mensagem: type === 'nota' ? 'template' : 'text',
+        payload: payload,
+        prioridade: type === 'nota' ? 1 : type === 'nota_rejeitada' ? 2 : 5 // Priorizar solicitações e rejeições
+      })
+      .select()
+      .single();
 
-    const responseData = await response.json();
-    console.log('Resposta da API WhatsApp:', responseData);
+    if (queueError) {
+      console.error('Erro ao adicionar mensagem à fila:', queueError);
+      throw queueError;
+    }
 
-    // Considerar como sucesso mesmo com erro de duplicação de contato
-    const isSuccess = response.ok || (responseData?.message?.includes?.('SequelizeUniqueConstraintError') && responseData?.message?.includes?.('number must be unique'));
+    console.log('Mensagem adicionada à fila com sucesso:', queueData.id);
 
-    // Log da mensagem se tiver pagamentoId
+    // Log da mensagem se tiver pagamentoId (registrar como pendente na fila)
     if (pagamentoId) {
       try {
         await supabase
@@ -193,8 +197,8 @@ serve(async (req) => {
             pagamento_id: pagamentoId,
             tipo: `whatsapp_${type}`,
             payload: payload,
-            success: isSuccess,
-            response: responseData
+            success: false, // Ainda não foi enviado
+            response: { status: 'queued', queue_id: queueData.id }
           }]);
       } catch (logError) {
         console.warn('Erro ao registrar log:', logError);
@@ -202,9 +206,9 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      success: isSuccess,
-      data: responseData,
-      message: isSuccess ? `Mensagem ${type} enviada com sucesso` : `Erro no envio: ${responseData?.message || 'Erro desconhecido'}`
+      success: true,
+      data: { queue_id: queueData.id, status: 'queued' },
+      message: `Mensagem ${type} adicionada à fila com sucesso`
     }), {
       headers: { 
         'Content-Type': 'application/json',
