@@ -185,7 +185,7 @@ export default function NotasAprovacao() {
       const { error: pagamentoError } = await supabase
         .from("pagamentos")
         .update({ 
-          status: 'nota_recebida',
+          status: 'aprovado',
           data_resposta: new Date().toISOString(),
           nota_pdf_url: nota.arquivo_url
         })

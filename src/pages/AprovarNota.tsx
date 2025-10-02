@@ -71,10 +71,13 @@ export default function AprovarNota() {
 
       if (updateNotaError) throw updateNotaError;
 
-      // Atualizar pagamento para pago
+      // Atualizar pagamento para aprovado
       const { error: updatePagamentoError } = await supabase
         .from('pagamentos')
-        .update({ status: 'pago' })
+        .update({ 
+          status: 'aprovado',
+          data_resposta: new Date().toISOString()
+        })
         .eq('id', nota.pagamento_id);
 
       if (updatePagamentoError) throw updatePagamentoError;
