@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatMesCompetencia } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
 import logo from "@/assets/logo.png";
+import ChatWithFinanceiro from "@/components/ChatWithFinanceiro";
 
 interface MedicoStats {
   totalNotas: number;
@@ -496,6 +497,22 @@ export default function DashboardMedicos() {
   if (!medico) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+        {/* Theme Toggle */}
+        <div className="absolute top-6 right-6 z-20">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="glass-effect border-border/50 hover:bg-accent/50 transition-all"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
+
         <div className="container mx-auto px-4 py-8 max-w-xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -683,35 +700,45 @@ export default function DashboardMedicos() {
         {/* Header */}
         <Card className="mb-8 glass-effect border-primary/20">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-gradient-primary rounded-xl flex items-center justify-center">
-                  <Building2 className="h-7 w-7 text-primary-foreground" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h1 className="text-xl font-bold text-foreground">
-                      HCC Hospital
-                    </h1>
-                    <Badge variant="outline" className="text-xs">
-                      Portal Médico
-                    </Badge>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gradient-primary rounded-xl flex items-center justify-center">
+                    <img src={logo} alt="HCC" className="h-10 w-10 object-contain" />
                   </div>
-                  <h2 className="text-lg font-semibold text-primary mb-1">
-                    {medico.nome}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Dashboard - Notas fiscais e pagamentos
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h1 className="text-xl font-bold text-foreground">
+                        HCC Hospital
+                      </h1>
+                      <Badge variant="outline" className="text-xs">
+                        Portal Médico
+                      </Badge>
+                    </div>
+                    <h2 className="text-lg font-semibold text-primary mb-1">
+                      {medico.nome}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Dashboard - Notas fiscais e pagamentos
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    className="glass-effect"
+                  >
+                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setMedico(null)}
+                  >
+                    Sair
+                  </Button>
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                onClick={() => setMedico(null)}
-              >
-                Sair
-              </Button>
-            </div>
           </CardContent>
         </Card>
 
@@ -1115,6 +1142,15 @@ export default function DashboardMedicos() {
           </DialogContent>
         </Dialog>
       </div>
+      
+      {/* Chat Component */}
+      {medico && (
+        <ChatWithFinanceiro 
+          medicoId={medico.id} 
+          medicoNome={medico.nome}
+          isGestor={false}
+        />
+      )}
     </div>
   );
 }

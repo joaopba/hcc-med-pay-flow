@@ -49,6 +49,12 @@ const navigation = [
     description: "Gerenciar médicos"
   },
   { 
+    name: "Chat", 
+    href: "/chat", 
+    icon: MessageCircle,
+    description: "Chat com médicos"
+  },
+  { 
     name: "Pagamentos", 
     href: "/pagamentos", 
     icon: CreditCard,

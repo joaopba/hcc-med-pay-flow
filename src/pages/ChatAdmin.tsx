@@ -1,0 +1,167 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageCircle, Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import AppLayout from "@/components/layout/AppLayout";
+import ChatWithFinanceiro from "@/components/ChatWithFinanceiro";
+import { motion } from "framer-motion";
+
+interface MedicoWithUnread {
+  id: string;
+  nome: string;
+  unreadCount: number;
+}
+
+export default function ChatAdmin() {
+  const [medicos, setMedicos] = useState<MedicoWithUnread[]>([]);
+  const [selectedMedico, setSelectedMedico] = useState<MedicoWithUnread | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadMedicos();
+    
+    // Realtime para atualizar contadores
+    const channel = supabase
+      .channel('chat-admin-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_messages'
+        },
+        () => {
+          loadMedicos();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const loadMedicos = async () => {
+    try {
+      const { data: medicosData, error } = await supabase
+        .from('medicos')
+        .select('id, nome')
+        .eq('ativo', true);
+
+      if (error) throw error;
+
+      // Buscar mensagens não lidas para cada médico
+      const medicosComUnread = await Promise.all(
+        (medicosData || []).map(async (medico) => {
+          const { count } = await supabase
+            .from('chat_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('medico_id', medico.id)
+            .eq('sender_type', 'medico')
+            .eq('read', false);
+
+          return {
+            id: medico.id,
+            nome: medico.nome,
+            unreadCount: count || 0
+          };
+        })
+      );
+
+      setMedicos(medicosComUnread.sort((a, b) => b.unreadCount - a.unreadCount));
+    } catch (error) {
+      console.error('Erro ao carregar médicos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AppLayout title="Chat com Médicos" subtitle="Comunicação direta com os médicos">
+      <div className="p-6 h-[calc(100vh-120px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+          {/* Lista de Médicos */}
+          <Card className="lg:col-span-1 glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-5 w-5" />
+                Médicos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[calc(100vh-240px)]">
+                {loading ? (
+                  <div className="p-4 space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-16 bg-muted/50 rounded-lg animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-2">
+                    {medicos.map((medico) => (
+                      <motion.button
+                        key={medico.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedMedico(medico)}
+                        className={`w-full text-left p-3 rounded-lg transition-all ${
+                          selectedMedico?.id === medico.id
+                            ? 'bg-primary/10 border-primary/30'
+                            : 'hover:bg-accent/50'
+                        } border border-border/50`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{medico.nome}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {medico.unreadCount > 0 
+                                ? `${medico.unreadCount} nova(s)` 
+                                : 'Sem mensagens novas'}
+                            </p>
+                          </div>
+                          {medico.unreadCount > 0 && (
+                            <Badge className="bg-destructive text-destructive-foreground border-0">
+                              {medico.unreadCount}
+                            </Badge>
+                          )}
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Área de Chat */}
+          <div className="lg:col-span-3">
+            {selectedMedico ? (
+              <div className="relative h-full">
+                <ChatWithFinanceiro
+                  medicoId={selectedMedico.id}
+                  medicoNome={selectedMedico.nome}
+                  isGestor={true}
+                  fullscreen={true}
+                />
+              </div>
+            ) : (
+              <Card className="glass-card h-full flex items-center justify-center">
+                <CardContent className="text-center">
+                  <MessageCircle className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    Selecione um médico
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Escolha um médico da lista para iniciar a conversa
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    </AppLayout>
+  );
+}

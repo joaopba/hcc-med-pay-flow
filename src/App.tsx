@@ -16,6 +16,7 @@ import TesteEmail from "./pages/TesteEmail";
 import UserProfile from "./pages/UserProfile";
 import NotasMedicos from "./pages/NotasMedicos";
 import DashboardMedicos from "./pages/DashboardMedicos";
+import ChatAdmin from "./pages/ChatAdmin";
 import AprovarNota from "./pages/AprovarNota";
 import RejeitarNota from "./pages/RejeitarNota";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -81,6 +82,11 @@ const App = () => (
               <UserProfile />
           </ProtectedRoute>
         } />
+          <Route path="/chat" element={
+            <ProtectedRoute>
+              <ChatAdmin />
+            </ProtectedRoute>
+          } />
           <Route path="/notas-medicos" element={<Navigate to="/dashboard-medicos" replace />} />
           <Route path="/dashboard-medicos" element={<DashboardMedicos />} />
           <Route path="/aprovar-nota" element={<AprovarNota />} />

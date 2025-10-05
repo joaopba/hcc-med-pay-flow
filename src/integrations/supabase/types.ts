@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_messages: {
+        Row: {
+          created_at: string
+          id: string
+          medico_id: string
+          message: string
+          read: boolean
+          sender_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          medico_id: string
+          message: string
+          read?: boolean
+          sender_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          medico_id?: string
+          message?: string
+          read?: boolean
+          sender_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_medico_id_fkey"
+            columns: ["medico_id"]
+            isOneToOne: false
+            referencedRelation: "medicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracoes: {
         Row: {
           api_url: string
