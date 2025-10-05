@@ -109,7 +109,7 @@ export default function Auth() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="flex justify-center"
             >
-              <img src={logo} alt="HCC Hospital" className="h-20 w-auto" />
+              <img src={logo} alt="HCC Hospital" className="h-24 w-auto" />
             </motion.div>
 
             {/* Title */}
@@ -119,12 +119,9 @@ export default function Auth() {
               transition={{ delay: 0.3, duration: 0.5 }}
               className="space-y-2"
             >
-              <CardTitle className="text-3xl font-bold gradient-text">
-                HCC Hospital
+              <CardTitle className="text-2xl font-bold gradient-text">
+                Gestão de Pagamentos
               </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Sistema de Gestão de Pagamentos
-              </CardDescription>
             </motion.div>
           </CardHeader>
 

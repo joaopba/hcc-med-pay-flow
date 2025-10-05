@@ -517,55 +517,28 @@ export default function DashboardMedicos() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-center mb-8"
-          >
-            <div className="flex items-center justify-center mb-6">
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-              >
-                <img src={logo} alt="HCC Hospital" className="h-24 w-auto" />
-              </motion.div>
-            </div>
-            <motion.h1
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-4xl font-bold gradient-text mb-2"
-            >
-              HCC Hospital
-            </motion.h1>
-            <motion.h2
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-2xl font-semibold text-primary mb-2"
-            >
-              Portal do Médico
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-muted-foreground"
-            >
-              Acesse suas estatísticas, notas fiscais e pagamentos
-            </motion.p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.5 }}
           >
             <Card className="glass-effect border-primary/20 shadow-elegant">
-              <CardHeader className="text-center pb-4">
-                <CardTitle className="text-xl">Acesso ao Dashboard</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Digite seu CPF para visualizar suas informações
-                </p>
+              <CardHeader className="text-center pb-6 space-y-6">
+                {/* Logo dentro do card */}
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.5 }}
+                  className="flex justify-center"
+                >
+                  <div className="bg-gradient-primary p-4 rounded-2xl shadow-elegant">
+                    <img src={logo} alt="HCC Hospital" className="h-16 w-auto" />
+                  </div>
+                </motion.div>
+
+                <div>
+                  <CardTitle className="text-2xl gradient-text mb-2">Dashboard Médicos</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Digite seu CPF para visualizar suas informações
+                  </p>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -615,22 +588,6 @@ export default function DashboardMedicos() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      {/* Theme Toggle */}
-      <div className="absolute top-6 right-6 z-20">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="glass-effect border-border/50 hover:bg-accent/50 transition-all"
-        >
-          {theme === "dark" ? (
-            <Sun className="h-5 w-5" />
-          ) : (
-            <Moon className="h-5 w-5" />
-          )}
-        </Button>
-      </div>
-
       <div className="max-w-7xl mx-auto">
         {/* Seção especial para médicos com notas pendentes */}
         {pagamentosPendentes.length > 0 && (
