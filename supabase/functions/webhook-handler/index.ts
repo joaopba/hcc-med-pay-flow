@@ -436,12 +436,11 @@ serve(async (req) => {
           // Fazer download do arquivo PDF usando o token do webhook
           try {
             const wabaToken = ticket?.whatsapp?.bmToken;
-            console.log('Fazendo download do PDF com ID:', document.id, 'Token disponível:', !!wabaToken);
+            console.log('Fazendo download do PDF - Media ID:', wabaMediaId, 'Token disponível:', !!wabaToken);
             
             // Primeiro, obter a URL real do arquivo usando o wabaMediaId
-            const mediaId = wabaMediaId;
-            const mediaInfoUrl = `https://graph.facebook.com/v20.0/${mediaId}`;
-            console.log('Buscando informações do arquivo:', mediaInfoUrl, 'Media ID:', mediaId);
+            const mediaInfoUrl = `https://graph.facebook.com/v20.0/${wabaMediaId}`;
+            console.log('Buscando informações do arquivo:', mediaInfoUrl);
             
             const mediaInfoResponse = await fetch(mediaInfoUrl, {
               headers: {
@@ -466,7 +465,7 @@ serve(async (req) => {
             if (fileResponse.ok) {
               const fileData = await fileResponse.arrayBuffer();
               const baseName = filename.endsWith('.pdf') ? filename : `${filename.replace(/\.[^/.]+$/, '')}.pdf`;
-              const uniqueName = `${pagamento.id}_${mediaId}_${Date.now()}_${baseName}`;
+              const uniqueName = `${pagamento.id}_${wabaMediaId}_${Date.now()}_${baseName}`;
               const filePath = `${pagamento.id}/${uniqueName}`;
               
               // Fazer upload para o Supabase Storage
