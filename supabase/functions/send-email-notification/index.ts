@@ -133,8 +133,8 @@ serve(async (req) => {
 
       // Gerar token igual ao da função processar-aprovacao
       const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 20);
-      const approveUrl = `https://hcc.chatconquista.com/aprovar-nota?nota=${notaId}&token=${token}`;
-      const rejectUrl = `https://hcc.chatconquista.com/rejeitar-nota?nota=${notaId}&token=${token}`;
+      const approveUrl = `https://hcc.chatconquista.com/aprovar?nota=${notaId}&token=${token}`;
+      const rejectUrl = `https://hcc.chatconquista.com/rejeitar?nota=${notaId}&token=${token}`;
 
       // Gerar URL pública do PDF (válida por 7 dias)
       let pdfDownloadUrl = '';
@@ -256,8 +256,8 @@ serve(async (req) => {
           .single();
 
         const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 20);
-        const approveUrl = `https://hcc.chatconquista.com/aprovar-nota?nota=${notaId}&token=${token}`;
-        const rejectUrl = `https://hcc.chatconquista.com/rejeitar-nota?nota=${notaId}&token=${token}`;
+        const approveUrl = `https://hcc.chatconquista.com/aprovar?nota=${notaId}&token=${token}`;
+        const rejectUrl = `https://hcc.chatconquista.com/rejeitar?nota=${notaId}&token=${token}`;
 
         // Buscar configurações da API WhatsApp
         const { data: configWpp } = await supabase
