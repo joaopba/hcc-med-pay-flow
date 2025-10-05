@@ -87,11 +87,12 @@ Deno.serve(async (req) => {
         // Enviar mensagem
         const apiUrl = mensagem.tipo_mensagem === 'template'
           ? `${config.api_url}/template`
-          : mensagem.tipo_mensagem === 'document'
+          : mensagem.tipo_mensagem === 'file'
           ? `${config.api_url}/file`
           : config.api_url;
 
         console.log(`Enviando mensagem para ${mensagem.numero_destino} (tipo: ${mensagem.tipo_mensagem})`);
+        console.log(`URL da API: ${apiUrl}`);
         console.log(`Payload:`, JSON.stringify(mensagem.payload, null, 2));
 
         const response = await fetch(apiUrl, {

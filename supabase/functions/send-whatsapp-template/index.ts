@@ -159,14 +159,13 @@ serve(async (req) => {
         
         phoneNumber = financeiro_numero;
         
-        // Payload para enviar documento PDF no WhatsApp
+        // Payload no formato da API SendMessageAPIFile
         payload = {
           number: phoneNumber,
-          isClosed: false,
-          document: {
+          mediaData: {
             url: pdf_url,
             caption: `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n✅ Aprovar: ${linkAprovar}\n\n❌ Rejeitar: ${linkRejeitar}`,
-            filename: `nota_${nome}_${competencia}.pdf`
+            fileName: `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`
           }
         };
         break;
@@ -223,7 +222,7 @@ serve(async (req) => {
     console.log('Tipo:', type);
 
     // Adicionar mensagem à fila ao invés de enviar diretamente
-    const tipoMensagem = type === 'nota' ? 'template' : type === 'nota_aprovacao' ? 'document' : 'text';
+    const tipoMensagem = type === 'nota' ? 'template' : type === 'nota_aprovacao' ? 'file' : 'text';
     const { data: queueData, error: queueError } = await supabase
       .from('whatsapp_queue')
       .insert({
