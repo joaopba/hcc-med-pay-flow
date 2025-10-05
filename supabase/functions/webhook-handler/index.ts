@@ -611,11 +611,13 @@ serve(async (req) => {
 
                   console.log('PDF convertido para base64, tamanho:', base64.length);
 
-                  // Criar links de aprovação/rejeição
-                  const tokenAprovar = btoa(`${insertData.id}_${Date.now()}_aprovar`);
-                  const tokenRejeitar = btoa(`${insertData.id}_${Date.now()}_rejeitar`);
+                  // Criar tokens no formato correto (mesmo formato das páginas de aprovação/rejeição)
+                  const tokenAprovar = btoa(`${insertData.id}-${insertData.created_at}`).substring(0, 20);
+                  const tokenRejeitar = btoa(`${insertData.id}-${insertData.created_at}`).substring(0, 20);
                   const linkAprovar = `https://hcc.chatconquista.com/aprovar?nota=${insertData.id}&token=${tokenAprovar}`;
                   const linkRejeitar = `https://hcc.chatconquista.com/rejeitar?nota=${insertData.id}&token=${tokenRejeitar}`;
+
+                  console.log('Links gerados:', { linkAprovar, linkRejeitar });
 
                   await supabase.functions.invoke('send-whatsapp-template', {
                     body: {
