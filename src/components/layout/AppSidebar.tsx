@@ -11,6 +11,12 @@ import {
   User,
   Sparkles
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { NavLink, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import {
@@ -115,34 +121,44 @@ export default function AppSidebar() {
   const isActive = (href: string) => location.pathname === href;
 
   return (
-    <Sidebar 
-      className="border-r border-sidebar-border glass-effect"
-      collapsible="icon"
-    >
-      <SidebarHeader className="border-b border-sidebar-border/50 p-5">
+    <TooltipProvider delayDuration={0}>
+      <Sidebar 
+        className="border-r border-sidebar-border glass-effect transition-all duration-300"
+        collapsible="icon"
+      >
+        <SidebarHeader className="border-b border-sidebar-border/50 p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="flex items-center gap-3"
+          className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}
         >
-          <div className="relative flex-shrink-0">
-            <motion.div 
-              className="absolute inset-0 bg-gradient-primary blur-xl opacity-60 rounded-xl"
-              animate={{ 
-                scale: [1, 1.1, 1],
-                opacity: [0.6, 0.8, 0.6]
-              }}
-              transition={{ 
-                duration: 3,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            />
-            <div className="relative w-11 h-11 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
-              <Building2 className="h-6 w-6 text-primary-foreground" />
-            </div>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="relative flex-shrink-0">
+                <motion.div 
+                  className="absolute inset-0 bg-gradient-primary blur-xl opacity-60 rounded-xl"
+                  animate={{ 
+                    scale: [1, 1.1, 1],
+                    opacity: [0.6, 0.8, 0.6]
+                  }}
+                  transition={{ 
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+                <div className="relative w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
+                  <Building2 className="h-5 w-5 text-primary-foreground" />
+                </div>
+              </div>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent side="right">
+                <p className="font-semibold">HCC Hospital</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
           <AnimatePresence>
             {!collapsed && (
               <motion.div
@@ -152,7 +168,7 @@ export default function AppSidebar() {
                 transition={{ duration: 0.2 }}
                 className="min-w-0 flex-1"
               >
-                <h2 className="font-bold text-sidebar-foreground text-base truncate gradient-text leading-tight">
+                <h2 className="font-bold text-sidebar-foreground text-sm truncate gradient-text leading-tight">
                   HCC HOSPITAL
                 </h2>
                 <p className="text-xs text-sidebar-foreground/70 truncate flex items-center gap-1.5 mt-0.5">
@@ -198,37 +214,46 @@ export default function AppSidebar() {
               .map((item, index) => (
               <SidebarMenuItem key={item.name}>
                 <SidebarMenuButton asChild>
-                  <NavLink
-                    to={item.href}
-                    className={
-                      isActive(item.href)
-                        ? "sidebar-nav-premium-active"
-                        : "sidebar-nav-premium-inactive"
-                    }
-                    title={collapsed ? item.name : undefined}
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                    </motion.div>
-                    <AnimatePresence>
-                      {!collapsed && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <NavLink
+                        to={item.href}
+                        className={
+                          isActive(item.href)
+                            ? "sidebar-nav-premium-active"
+                            : "sidebar-nav-premium-inactive"
+                        }
+                      >
                         <motion.div
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          className="flex-1 min-w-0"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
                         >
-                          <span className="font-semibold text-sm">{item.name}</span>
-                          <p className="text-xs opacity-70 mt-0.5">
-                            {item.description}
-                          </p>
+                          <item.icon className="h-5 w-5 flex-shrink-0" />
                         </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </NavLink>
+                        <AnimatePresence>
+                          {!collapsed && (
+                            <motion.div
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -10 }}
+                              className="flex-1 min-w-0"
+                            >
+                              <span className="font-semibold text-sm">{item.name}</span>
+                              <p className="text-xs opacity-70 mt-0.5">
+                                {item.description}
+                              </p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </NavLink>
+                    </TooltipTrigger>
+                    {collapsed && (
+                      <TooltipContent side="right">
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">{item.description}</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -255,37 +280,46 @@ export default function AppSidebar() {
             {toolsNavigation.map((item) => (
               <SidebarMenuItem key={item.name}>
                 <SidebarMenuButton asChild>
-                  <NavLink
-                    to={item.href}
-                    className={
-                      isActive(item.href)
-                        ? "sidebar-nav-premium-active"
-                        : "sidebar-nav-premium-inactive"
-                    }
-                    title={collapsed ? item.name : undefined}
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                    </motion.div>
-                    <AnimatePresence>
-                      {!collapsed && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <NavLink
+                        to={item.href}
+                        className={
+                          isActive(item.href)
+                            ? "sidebar-nav-premium-active"
+                            : "sidebar-nav-premium-inactive"
+                        }
+                      >
                         <motion.div
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          className="flex-1 min-w-0"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
                         >
-                          <span className="font-semibold text-sm">{item.name}</span>
-                          <p className="text-xs opacity-70 mt-0.5">
-                            {item.description}
-                          </p>
+                          <item.icon className="h-5 w-5 flex-shrink-0" />
                         </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </NavLink>
+                        <AnimatePresence>
+                          {!collapsed && (
+                            <motion.div
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -10 }}
+                              className="flex-1 min-w-0"
+                            >
+                              <span className="font-semibold text-sm">{item.name}</span>
+                              <p className="text-xs opacity-70 mt-0.5">
+                                {item.description}
+                              </p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </NavLink>
+                    </TooltipTrigger>
+                    {collapsed && (
+                      <TooltipContent side="right">
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">{item.description}</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -340,5 +374,6 @@ export default function AppSidebar() {
         </div>
       </SidebarFooter>
     </Sidebar>
+    </TooltipProvider>
   );
 }

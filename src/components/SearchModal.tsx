@@ -114,38 +114,40 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card border-border/50 sm:max-w-3xl p-0 overflow-hidden">
-        <div className="relative bg-gradient-to-br from-primary/5 via-background to-background p-6 border-b border-border/50">
-          <DialogHeader>
-            <DialogTitle className="gradient-text text-2xl flex items-center gap-3">
-              <div className="p-2 bg-gradient-primary rounded-xl">
-                <Search className="h-5 w-5 text-primary-foreground" />
+      <DialogContent className="glass-card border-border/50 sm:max-w-2xl p-0 overflow-hidden">
+        <div className="relative bg-gradient-to-br from-primary/5 via-background to-background p-5 border-b border-border/50">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-primary rounded-lg shadow-glow">
+                <Search className="h-4 w-4 text-primary-foreground" />
               </div>
-              Busca Rápida
-            </DialogTitle>
-            <p className="text-sm text-muted-foreground mt-2">
+              <DialogTitle className="gradient-text text-xl">
+                Busca Rápida
+              </DialogTitle>
+            </div>
+            <p className="text-xs text-muted-foreground">
               Pesquise por médicos, pagamentos e mais...
             </p>
           </DialogHeader>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-5 space-y-4">
           <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Digite para buscar..."
-              className="pl-12 pr-4 h-12 glass-effect border-border/50 focus:border-primary/50 rounded-xl text-base"
+              className="pl-10 pr-16 h-11 glass-effect border-border/50 focus:border-primary/50 rounded-lg text-sm"
               autoFocus
             />
             {query.length >= 2 && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2"
+                className="absolute right-3 top-1/2 -translate-y-1/2"
               >
-                <kbd className="inline-flex h-6 select-none items-center gap-1 rounded-lg border border-border/50 bg-muted px-2 font-mono text-xs font-medium text-muted-foreground">
+                <kbd className="inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
                   ESC
                 </kbd>
               </motion.div>
@@ -156,18 +158,18 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="py-12 text-center space-y-4"
+              className="py-8 text-center space-y-3"
             >
               <div className="relative inline-block">
-                <div className="absolute inset-0 bg-gradient-primary blur-2xl opacity-20 rounded-full" />
-                <div className="relative p-4 glass-effect rounded-2xl border border-border/50">
-                  <Search className="h-8 w-8 text-primary" />
+                <div className="absolute inset-0 bg-gradient-primary blur-xl opacity-20 rounded-full" />
+                <div className="relative p-3 glass-effect rounded-xl border border-border/50">
+                  <Search className="h-6 w-6 text-primary" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Comece a digitar para pesquisar</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">Digite para pesquisar</p>
                 <p className="text-xs text-muted-foreground">
-                  Mínimo de 2 caracteres necessários
+                  Mínimo de 2 caracteres
                 </p>
               </div>
             </motion.div>
@@ -177,18 +179,18 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="py-12 text-center space-y-4"
+              className="py-8 text-center space-y-3"
             >
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
                 className="inline-block"
               >
-                <div className="p-4 glass-effect rounded-2xl border border-border/50">
-                  <Search className="h-8 w-8 text-primary" />
+                <div className="p-3 glass-effect rounded-xl border border-border/50">
+                  <Search className="h-6 w-6 text-primary" />
                 </div>
               </motion.div>
-              <p className="text-sm font-medium text-muted-foreground">Buscando resultados...</p>
+              <p className="text-sm font-medium text-muted-foreground">Buscando...</p>
             </motion.div>
           )}
 
@@ -196,17 +198,17 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="py-12 text-center space-y-4"
+              className="py-8 text-center space-y-3"
             >
               <div className="relative inline-block">
-                <div className="p-4 glass-effect rounded-2xl border border-border/50">
-                  <FileText className="h-8 w-8 text-muted-foreground opacity-50" />
+                <div className="p-3 glass-effect rounded-xl border border-border/50">
+                  <FileText className="h-6 w-6 text-muted-foreground opacity-50" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Nenhum resultado encontrado</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">Nenhum resultado</p>
                 <p className="text-xs text-muted-foreground">
-                  Tente buscar por outro termo
+                  Tente outro termo
                 </p>
               </div>
             </motion.div>
@@ -216,47 +218,37 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="space-y-1"
+              className="space-y-2"
             >
-              <div className="flex items-center justify-between px-2 mb-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {results.length} Resultado{results.length !== 1 ? 's' : ''} encontrado{results.length !== 1 ? 's' : ''}
+              <div className="flex items-center justify-between px-1 mb-2">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {results.length} resultado{results.length !== 1 ? 's' : ''}
                 </p>
               </div>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-1.5 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
                 {results.map((result, index) => (
                   <motion.div
                     key={`${result.type}-${result.id}`}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05, type: "spring", stiffness: 300, damping: 25 }}
-                    whileHover={{ scale: 1.02, x: 4 }}
-                    whileTap={{ scale: 0.98 }}
+                    transition={{ delay: index * 0.03 }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                     onClick={() => handleSelect(result)}
-                    className="relative p-4 glass-effect border border-border/50 rounded-xl cursor-pointer hover:border-primary/40 transition-all group overflow-hidden"
+                    className="relative p-3 glass-effect border border-border/50 rounded-lg cursor-pointer hover:border-primary/40 transition-all group"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative flex items-center gap-4">
-                      <div className="flex-shrink-0 p-3 bg-gradient-primary rounded-xl group-hover:scale-110 transition-transform shadow-lg">
-                        <result.icon className="h-5 w-5 text-primary-foreground" />
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 p-2 bg-gradient-primary rounded-lg group-hover:scale-105 transition-transform">
+                        <result.icon className="h-4 w-4 text-primary-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-foreground truncate text-base">
+                        <p className="font-semibold text-foreground truncate text-sm">
                           {result.title}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate mt-1">
+                        <p className="text-xs text-muted-foreground truncate">
                           {result.subtitle}
                         </p>
                       </div>
-                      <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        whileHover={{ opacity: 1, x: 0 }}
-                        className="flex-shrink-0"
-                      >
-                        <kbd className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-border/50 bg-muted font-mono text-xs font-medium text-muted-foreground">
-                          ↵
-                        </kbd>
-                      </motion.div>
                     </div>
                   </motion.div>
                 ))}
@@ -265,32 +257,29 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-border/50 glass-effect">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5">
-                <kbd className="inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted px-1.5 font-mono text-[10px] font-medium">
+        <div className="px-5 py-3 border-t border-border/50 glass-effect">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <kbd className="inline-flex h-4 select-none items-center rounded border border-border/50 bg-muted px-1 font-mono text-[9px] font-medium">
                   ↑↓
                 </kbd>
                 <span>Navegar</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <kbd className="inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted px-1.5 font-mono text-[10px] font-medium">
+              <div className="flex items-center gap-1">
+                <kbd className="inline-flex h-4 select-none items-center rounded border border-border/50 bg-muted px-1 font-mono text-[9px] font-medium">
                   ↵
                 </kbd>
-                <span>Selecionar</span>
+                <span>Abrir</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <kbd className="inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted px-1.5 font-mono text-[10px] font-medium">
+              <div className="flex items-center gap-1">
+                <kbd className="inline-flex h-4 select-none items-center rounded border border-border/50 bg-muted px-1 font-mono text-[9px] font-medium">
                   ESC
                 </kbd>
                 <span>Fechar</span>
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="opacity-70">Powered by</span>
-              <span className="font-semibold gradient-text">HCC</span>
-            </div>
+            <span className="font-semibold gradient-text text-xs">HCC Hospital</span>
           </div>
         </div>
       </DialogContent>
