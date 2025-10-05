@@ -91,9 +91,43 @@ Deno.serve(async (req) => {
           ? `${config.api_url}/file`
           : config.api_url;
 
+        // Normalizar payload para envio de arquivo conforme Postman
+        let outgoingPayload: any = mensagem.payload;
+        if (mensagem.tipo_mensagem === 'file') {
+          const md = mensagem.payload?.mediaData || {};
+          const file = mensagem.payload?.file || {};
+          const caption = mensagem.payload?.body || md.caption || '';
+          const fileName = file.fileName || file.filename || md.fileName || 'documento.pdf';
+          const mediaBase64 = md.mediaBase64 || file.data || mensagem.payload?.mediaBase64;
+          const url = md.url || file.url || mensagem.payload?.url;
+
+          outgoingPayload = {
+            number: mensagem.payload?.number || mensagem.numero_destino,
+            body: caption,
+            // Compatibilidade 1: mediaData
+            mediaData: {
+              ...(url ? { url } : {}),
+              ...(mediaBase64 ? { mediaBase64 } : {}),
+              caption,
+              fileName
+            },
+            // Compatibilidade 2: file
+            file: {
+              ...(mediaBase64 ? { data: mediaBase64 } : {}),
+              ...(url ? { url } : {}),
+              fileName,
+              filename: fileName
+            }
+          };
+        }
+
         console.log(`Enviando mensagem para ${mensagem.numero_destino} (tipo: ${mensagem.tipo_mensagem})`);
         console.log(`URL da API: ${apiUrl}`);
-        console.log(`Payload:`, JSON.stringify(mensagem.payload, null, 2));
+        console.log(`Outgoing Payload:`, JSON.stringify({
+          ...outgoingPayload,
+          mediaData: outgoingPayload.mediaData ? { ...outgoingPayload.mediaData, mediaBase64: outgoingPayload.mediaData.mediaBase64 ? '...base64...' : undefined } : undefined,
+          file: outgoingPayload.file ? { ...outgoingPayload.file, data: outgoingPayload.file.data ? '...base64...' : undefined } : undefined
+        }, null, 2));
 
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -101,7 +135,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${config.auth_token}`
           },
-          body: JSON.stringify(mensagem.payload)
+          body: JSON.stringify(outgoingPayload)
         });
 
         const responseData = await response.json();

@@ -157,20 +157,24 @@ serve(async (req) => {
         // Enviar PDF com botões de aprovação/rejeição para o financeiro
         phoneNumber = financeiro_numero;
         
-        console.log('Preparando payload para envio de PDF via WhatsApp');
-        console.log('Base64 length:', pdf_base64?.length);
+        const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${link_aprovar}\n\n❌ Rejeitar:\n${link_rejeitar}`;
+        const derivedFileName = (pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`);
         
-        // Payload no formato da API SendMessageAPIFile
+        // Payload incluindo ambos formatos suportados
         payload = {
           number: phoneNumber,
+          body: caption,
           mediaData: {
             mediaBase64: pdf_base64,
-            caption: `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${link_aprovar}\n\n❌ Rejeitar:\n${link_rejeitar}`,
-            fileName: pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`
+            caption,
+            fileName: derivedFileName
+          },
+          file: {
+            data: pdf_base64,
+            fileName: derivedFileName,
+            filename: derivedFileName
           }
         };
-        
-        console.log('Payload preparado:', JSON.stringify({ ...payload, mediaData: { ...payload.mediaData, mediaBase64: '...' } }));
         break;
       
       case 'nota_aprovada':
