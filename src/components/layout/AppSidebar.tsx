@@ -128,46 +128,46 @@ export default function AppSidebar() {
         collapsible="icon"
       >
         <SidebarHeader className="border-b border-sidebar-border/50 p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-          className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="relative flex-shrink-0">
-                <div className="relative w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-elegant">
-                  <Building2 className="h-5 w-5 text-primary-foreground" />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative flex-shrink-0">
+                  <div className="relative w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-sm">
+                    <Building2 className="h-5 w-5 text-primary-foreground" />
+                  </div>
                 </div>
-              </div>
-            </TooltipTrigger>
-            {collapsed && (
-              <TooltipContent side="right">
-                <p className="font-semibold">HCC Hospital</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="min-w-0 flex-1"
-              >
-                <h2 className="font-bold text-sidebar-foreground text-base truncate">
-                  HCC Hospital
-                </h2>
-                <p className="text-xs text-sidebar-foreground/60 truncate">
-                  Gestão de Pagamentos
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </SidebarHeader>
+              </TooltipTrigger>
+              {collapsed && (
+                <TooltipContent side="right">
+                  <p className="font-semibold">HCC Hospital</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="min-w-0 flex-1"
+                >
+                  <h2 className="font-bold text-sidebar-foreground text-base truncate">
+                    HCC Hospital
+                  </h2>
+                  <p className="text-xs text-sidebar-foreground/60 truncate">
+                    Sistema de Gestão
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </SidebarHeader>
       
       <SidebarContent className="p-3 space-y-6">
         {/* Main Navigation */}

@@ -600,125 +600,103 @@ export default function DashboardMedicos() {
       <div className="max-w-7xl mx-auto">
         {/* Seção especial para médicos com notas pendentes */}
         {pagamentosPendentes.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <Card className="border-warning/30 bg-gradient-to-br from-warning/5 to-warning/10 shadow-elegant">
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <motion.div
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-warning/20 to-warning/40 rounded-2xl flex items-center justify-center shadow-glow"
-                  >
-                    <Upload className="h-7 w-7 text-warning" />
-                  </motion.div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-warning" />
-                      Notas Fiscais Pendentes
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Você tem <strong className="text-warning">{pagamentosPendentes.length}</strong> pagamento(s) aguardando envio de nota fiscal.
-                    </p>
-                    <div className="grid gap-3">
-                      {pagamentosPendentes.map((pagamento) => (
-                        <motion.div
-                          key={pagamento.id}
-                          whileHover={{ scale: 1.01 }}
-                          className="flex items-center justify-between p-4 bg-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-all"
-                        >
-                          <div>
-                            <span className="font-semibold text-foreground">
-                              {formatMesCompetencia(pagamento.mes_competencia)}
-                            </span>
-                            <span className="text-lg font-bold text-success ml-3">
-                              {formatCurrency(pagamento.valor)}
-                            </span>
-                            {pagamento.temNotaRejeitada && (
-                              <Badge variant="destructive" className="ml-2">
-                                <X className="h-3 w-3 mr-1" />
-                                Rejeitada - Reenviar
-                              </Badge>
-                            )}
-                            {pagamento.temNotaPendente && (
-                              <Badge variant="secondary" className="ml-2">
-                                <Clock className="h-3 w-3 mr-1" />
-                                Aguardando Análise
-                              </Badge>
-                            )}
-                          </div>
-                          <Button
-                            onClick={() => {
-                              setSelectedPagamento(pagamento);
-                              setSelectedFile(null);
-                              setShowUploadModal(true);
-                            }}
-                            size="sm"
-                            variant={pagamento.temNotaRejeitada ? "destructive" : pagamento.temNotaPendente ? "secondary" : "default"}
-                            disabled={pagamento.temNotaPendente && !pagamento.temNotaRejeitada}
-                            className="shadow-sm hover:shadow-md transition-all"
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            {pagamento.temNotaRejeitada ? "Reenviar Nota" : 
-                             pagamento.temNotaPendente ? "Nota Enviada" : "Enviar Nota"}
-                          </Button>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Card className="glass-effect border-primary/20 shadow-elegant">
+          <Card className="mb-8 border-warning/30 bg-warning/5">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-primary blur-xl opacity-50 rounded-xl" />
-                    <div className="relative w-16 h-16 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
-                      <Building2 className="h-8 w-8 text-primary-foreground" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h1 className="text-2xl font-bold gradient-text">
-                        HCC Hospital
-                      </h1>
-                      <Badge variant="outline" className="text-xs border-primary/30">
-                        Portal Médico
-                      </Badge>
-                    </div>
-                    <h2 className="text-xl font-bold text-primary mb-1">
-                      {medico.nome}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Dashboard personalizado - Notas fiscais e pagamentos
-                    </p>
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-warning/20 rounded-xl flex items-center justify-center">
+                  <Upload className="h-6 w-6 text-warning" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-warning" />
+                    Notas Fiscais Pendentes
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    Você tem <strong className="text-warning">{pagamentosPendentes.length}</strong> pagamento(s) aguardando envio de nota fiscal.
+                  </p>
+                  <div className="grid gap-3">
+                    {pagamentosPendentes.map((pagamento) => (
+                      <div
+                        key={pagamento.id}
+                        className="flex items-center justify-between p-4 bg-card rounded-lg border border-border/50 hover:border-border transition-all"
+                      >
+                        <div>
+                          <span className="font-semibold text-foreground">
+                            {formatMesCompetencia(pagamento.mes_competencia)}
+                          </span>
+                          <span className="text-lg font-bold text-success ml-3">
+                            {formatCurrency(pagamento.valor)}
+                          </span>
+                          {pagamento.temNotaRejeitada && (
+                            <Badge variant="destructive" className="ml-2">
+                              <X className="h-3 w-3 mr-1" />
+                              Rejeitada - Reenviar
+                            </Badge>
+                          )}
+                          {pagamento.temNotaPendente && (
+                            <Badge variant="secondary" className="ml-2">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Aguardando Análise
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          onClick={() => {
+                            setSelectedPagamento(pagamento);
+                            setSelectedFile(null);
+                            setShowUploadModal(true);
+                          }}
+                          size="sm"
+                          variant={pagamento.temNotaRejeitada ? "destructive" : pagamento.temNotaPendente ? "secondary" : "default"}
+                          disabled={pagamento.temNotaPendente && !pagamento.temNotaRejeitada}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {pagamento.temNotaRejeitada ? "Reenviar Nota" : 
+                           pagamento.temNotaPendente ? "Nota Enviada" : "Enviar Nota"}
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setMedico(null)}
-                  className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
-                >
-                  Sair
-                </Button>
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        )}
+
+        {/* Header */}
+        <Card className="mb-8 glass-effect border-primary/20">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-primary rounded-xl flex items-center justify-center">
+                  <Building2 className="h-7 w-7 text-primary-foreground" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h1 className="text-xl font-bold text-foreground">
+                      HCC Hospital
+                    </h1>
+                    <Badge variant="outline" className="text-xs">
+                      Portal Médico
+                    </Badge>
+                  </div>
+                  <h2 className="text-lg font-semibold text-primary mb-1">
+                    {medico.nome}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Dashboard - Notas fiscais e pagamentos
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => setMedico(null)}
+              >
+                Sair
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Dialog para notas rejeitadas */}
         <Dialog open={showRejectedAlert} onOpenChange={setShowRejectedAlert}>

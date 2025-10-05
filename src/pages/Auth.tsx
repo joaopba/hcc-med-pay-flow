@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Lock, Mail, Sparkles, ArrowRight } from "lucide-react";
+import { Lock, Mail, ArrowRight, Moon, Sun, Building2 } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
 import logo from "@/assets/logo.png";
 
 export default function Auth() {
@@ -16,6 +17,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,24 +51,45 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+      {/* Theme Toggle */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.3 }}
+        className="absolute top-6 right-6 z-20"
+      >
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="glass-effect border-border/50 hover:bg-accent/50 transition-all"
+        >
+          {theme === "dark" ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+        </Button>
+      </motion.div>
+
       {/* Animated Background */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-glow opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
         <motion.div
-          className="absolute top-1/4 -left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl"
+          className="absolute top-1/4 -left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl"
           animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3]
+            scale: [1, 1.1, 1],
+            opacity: [0.2, 0.3, 0.2]
           }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl"
+          className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl"
           animate={{ 
-            scale: [1.2, 1, 1.2],
-            opacity: [0.5, 0.3, 0.5]
+            scale: [1.1, 1, 1.1],
+            opacity: [0.3, 0.2, 0.3]
           }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
 
@@ -86,14 +109,9 @@ export default function Auth() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="flex justify-center"
             >
-              <motion.div
-                animate={{ rotate: [0, 2, -2, 0] }}
-                transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
-                className="relative"
-              >
-                <div className="absolute inset-0 bg-gradient-primary blur-2xl opacity-40 animate-pulse" />
-                <img src={logo} alt="HCC Hospital" className="h-20 w-auto relative z-10" />
-              </motion.div>
+              <div className="relative w-20 h-20 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
+                <Building2 className="h-10 w-10 text-primary-foreground" />
+              </div>
             </motion.div>
 
             {/* Title */}
@@ -103,12 +121,11 @@ export default function Auth() {
               transition={{ delay: 0.3, duration: 0.5 }}
               className="space-y-2"
             >
-              <CardTitle className="text-3xl font-bold gradient-text flex items-center justify-center gap-2">
-                Sistema Premium
-                <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+              <CardTitle className="text-3xl font-bold gradient-text">
+                HCC Hospital
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Plataforma de Pagamentos HCC Hospital
+                Sistema de Gestão de Pagamentos
               </CardDescription>
             </motion.div>
           </CardHeader>
@@ -160,17 +177,16 @@ export default function Auth() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full relative overflow-hidden group bg-gradient-primary border-0 hover:scale-[1.02] transition-all duration-300 glow-effect h-11"
+                className="w-full bg-gradient-primary hover:opacity-90 transition-all duration-300 h-11"
               >
-                <span className="relative z-10 font-semibold flex items-center justify-center gap-2">
-                  {isLoading ? "Carregando..." : (
+                <span className="font-semibold flex items-center justify-center gap-2">
+                  {isLoading ? "Entrando..." : (
                     <>
-                      Entrar
-                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                      Entrar no Sistema
+                      <ArrowRight className="h-4 w-4" />
                     </>
                   )}
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-primary-glow/0 via-primary-glow/50 to-primary-glow/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
               </Button>
             </motion.form>
 
