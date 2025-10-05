@@ -478,6 +478,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      is_gestor: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_manager: {
         Args: { user_uuid: string }
         Returns: boolean
