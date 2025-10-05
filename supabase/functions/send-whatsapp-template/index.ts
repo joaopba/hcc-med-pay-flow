@@ -159,32 +159,16 @@ serve(async (req) => {
         
         phoneNumber = financeiro_numero;
         
-        // Payload para enviar arquivo com botões
+        // Payload para enviar documento PDF no WhatsApp
         payload = {
           number: phoneNumber,
           isClosed: false,
-          mediaData: {
+          document: {
             url: pdf_url,
-            caption: `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\nClique nos botões abaixo ou use os links:\n\n✅ Aprovar:\n${linkAprovar}\n\n❌ Rejeitar:\n${linkRejeitar}`,
-            fileName: `nota_${nota_id}.pdf`
-          },
-          buttonsData: {
-            buttons: [
-              {
-                type: "url",
-                title: "✅ Aprovar",
-                url: linkAprovar
-              },
-              {
-                type: "url", 
-                title: "❌ Rejeitar",
-                url: linkRejeitar
-              }
-            ]
+            caption: `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n✅ Aprovar: ${linkAprovar}\n\n❌ Rejeitar: ${linkRejeitar}`,
+            filename: `nota_${nome}_${competencia}.pdf`
           }
         };
-        // Usar endpoint /file para envio de arquivo
-        apiUrl = config.api_url + '/file';
         break;
       
       case 'nota_aprovada':
@@ -239,7 +223,7 @@ serve(async (req) => {
     console.log('Tipo:', type);
 
     // Adicionar mensagem à fila ao invés de enviar diretamente
-    const tipoMensagem = type === 'nota' ? 'template' : type === 'nota_aprovacao' ? 'file' : 'text';
+    const tipoMensagem = type === 'nota' ? 'template' : type === 'nota_aprovacao' ? 'document' : 'text';
     const { data: queueData, error: queueError } = await supabase
       .from('whatsapp_queue')
       .insert({
