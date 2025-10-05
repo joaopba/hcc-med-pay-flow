@@ -47,8 +47,7 @@ const navigation = [
     name: "Pagamentos", 
     href: "/pagamentos", 
     icon: CreditCard,
-    description: "Controle de pagamentos",
-    badge: "3"
+    description: "Controle de pagamentos"
   },
   { 
     name: "Usuários", 
@@ -197,16 +196,7 @@ export default function AppSidebar() {
                           exit={{ opacity: 0, x: -10 }}
                           className="flex-1 min-w-0"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-sm">{item.name}</span>
-                            {item.badge && (
-                              <Badge 
-                                className="badge-premium bg-primary/10 text-primary border-primary/30 animate-pulse"
-                              >
-                                {item.badge}
-                              </Badge>
-                            )}
-                          </div>
+                          <span className="font-semibold text-sm">{item.name}</span>
                           <p className="text-xs opacity-70 mt-0.5">
                             {item.description}
                           </p>

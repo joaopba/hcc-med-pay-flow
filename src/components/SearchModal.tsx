@@ -51,8 +51,8 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
       // Search médicos
       const { data: medicos } = await supabase
         .from("medicos")
-        .select("id, nome, especialidade, whatsapp")
-        .or(`nome.ilike.%${searchQuery}%,whatsapp.ilike.%${searchQuery}%`)
+        .select("id, nome, especialidade, numero_whatsapp")
+        .or(`nome.ilike.%${searchQuery}%,numero_whatsapp.ilike.%${searchQuery}%`)
         .limit(5);
 
       if (medicos) {
@@ -61,7 +61,7 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
             id: medico.id,
             type: "medico",
             title: medico.nome,
-            subtitle: `${medico.especialidade || 'Especialidade não informada'} • ${medico.whatsapp}`,
+            subtitle: `${medico.especialidade || 'Especialidade não informada'} • ${medico.numero_whatsapp}`,
             icon: User,
           });
         });

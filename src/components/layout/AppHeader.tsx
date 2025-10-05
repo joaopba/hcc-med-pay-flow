@@ -19,6 +19,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { motion } from "framer-motion";
@@ -49,6 +55,17 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
   useEffect(() => {
     loadUserData();
     loadNotasPendentes();
+    
+    // Keyboard shortcut for search (Cmd/Ctrl + K)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const loadUserData = async () => {
@@ -119,7 +136,8 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
   return (
     <>
       <SearchModal open={searchOpen} onOpenChange={setSearchOpen} />
-      <header className="h-16 border-b border-border glass-effect sticky top-0 z-40">
+      <TooltipProvider>
+        <header className="h-16 border-b border-border glass-effect sticky top-0 z-40">
         <div className="flex items-center justify-between h-full px-6">
           {/* Left Side */}
           <div className="flex items-center gap-4">
@@ -160,61 +178,81 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
           {/* Right Side */}
           <div className="flex items-center gap-2">
             {/* Mobile Search */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSearchOpen(true)}
-              className="lg:hidden hover:bg-muted/80 rounded-xl"
-            >
-              <Search className="h-4 w-4" />
-            </Button>
-
-            {/* Theme Toggle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="hover:bg-muted/80 rounded-xl hover:scale-105 transition-all"
-            >
-              <motion.div
-                initial={false}
-                animate={{ rotate: theme === "dark" ? 0 : 180 }}
-                transition={{ duration: 0.3 }}
-              >
-                {theme === "dark" ? (
-                  <Moon className="h-4 w-4 text-primary" />
-                ) : (
-                  <Sun className="h-4 w-4 text-warning" />
-                )}
-              </motion.div>
-            </Button>
-
-            {/* Notifications */}
-            <Popover>
-              <PopoverTrigger asChild>
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="relative hover:bg-muted/80 rounded-xl"
+                  onClick={() => setSearchOpen(true)}
+                  className="lg:hidden hover:bg-muted/80 rounded-xl"
                 >
-                  <Bell className="h-4 w-4" />
-                  {notasPendentes.length > 0 && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute -top-1 -right-1"
-                    >
-                      <Badge
-                        variant="destructive"
-                        className="h-5 w-5 p-0 text-xs flex items-center justify-center animate-pulse"
-                      >
-                        {notasPendentes.length}
-                      </Badge>
-                    </motion.div>
-                  )}
+                  <Search className="h-4 w-4" />
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 glass-card border-border/50" align="end">
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Busca Rápida (⌘K)</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Theme Toggle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleTheme}
+                  className="hover:bg-muted/80 rounded-xl hover:scale-105 transition-all"
+                >
+                  <motion.div
+                    initial={false}
+                    animate={{ rotate: theme === "dark" ? 0 : 180 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {theme === "dark" ? (
+                      <Moon className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Sun className="h-4 w-4 text-warning" />
+                    )}
+                  </motion.div>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Alternar Tema {theme === "dark" ? "(Claro)" : "(Escuro)"}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Notifications */}
+            <Tooltip>
+              <Popover>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative hover:bg-muted/80 rounded-xl"
+                    >
+                      <Bell className="h-4 w-4" />
+                      {notasPendentes.length > 0 && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="absolute -top-1 -right-1"
+                        >
+                          <Badge
+                            variant="destructive"
+                            className="h-5 w-5 p-0 text-xs flex items-center justify-center animate-pulse"
+                          >
+                            {notasPendentes.length}
+                          </Badge>
+                        </motion.div>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Notificações {notasPendentes.length > 0 && `(${notasPendentes.length})`}</p>
+                </TooltipContent>
+                <PopoverContent className="w-80 glass-card border-border/50" align="end">
                 <div className="space-y-3">
                   <h4 className="font-semibold text-foreground">Notas Pendentes</h4>
                   {notasPendentes.length === 0 ? (
@@ -246,6 +284,7 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
                 </div>
               </PopoverContent>
             </Popover>
+            </Tooltip>
 
             {/* User Dropdown */}
             <DropdownMenu>
@@ -300,6 +339,7 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
           </div>
         </div>
       </header>
+      </TooltipProvider>
     </>
   );
 }

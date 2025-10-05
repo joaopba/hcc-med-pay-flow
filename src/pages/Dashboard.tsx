@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
 import { motion } from "framer-motion";
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { useNavigate } from "react-router-dom";
 
 interface DashboardStats {
   totalMedicos: number;
@@ -27,6 +28,7 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadDashboardData();
@@ -142,13 +144,45 @@ export default function Dashboard() {
 
   return (
     <AppLayout title="Dashboard Executivo" subtitle="Análise completa do sistema de pagamentos">
-      <div className="p-6 space-y-6">
+      {loading ? (
+        <div className="p-6 space-y-6">
+          {/* Loading Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.1 }}
+                className="glass-card p-6 h-40 animate-pulse"
+              >
+                <div className="h-10 w-10 bg-muted rounded-xl mb-4" />
+                <div className="h-4 bg-muted rounded w-2/3 mb-2" />
+                <div className="h-8 bg-muted rounded w-1/2 mb-2" />
+                <div className="h-3 bg-muted rounded w-3/4" />
+              </motion.div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="xl:col-span-2 glass-card p-6 h-96 animate-pulse">
+              <div className="h-6 bg-muted rounded w-1/3 mb-4" />
+              <div className="h-full bg-muted/50 rounded" />
+            </div>
+            <div className="glass-card p-6 h-96 animate-pulse">
+              <div className="h-6 bg-muted rounded w-1/3 mb-4" />
+              <div className="h-full bg-muted/50 rounded-full" />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="p-6 space-y-6">
         {/* Alert Banner */}
         {stats.notasParaPagamento > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card border-warning/50 bg-gradient-to-r from-warning/10 to-warning/5"
+            className="glass-card border-warning/50 bg-gradient-to-r from-warning/10 to-warning/5 cursor-pointer hover:scale-[1.01] transition-all"
+            onClick={() => navigate('/pagamentos')}
           >
             <div className="flex items-center gap-4 p-4">
               <motion.div
@@ -178,13 +212,23 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="card-premium group"
+            className="card-premium group cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              navigate('/medicos');
+              toast({ description: "Navegando para Gerenciar Médicos..." });
+            }}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-primary rounded-xl group-hover:scale-110 transition-transform">
+                <motion.div 
+                  className="p-3 bg-gradient-primary rounded-xl group-hover:scale-110 transition-transform"
+                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                  transition={{ duration: 0.5 }}
+                >
                   <Users className="h-6 w-6 text-primary-foreground" />
-                </div>
+                </motion.div>
                 <div className="flex items-center gap-1 text-success text-sm font-semibold">
                   <TrendingUp className="h-4 w-4" />
                   +12%
@@ -200,13 +244,23 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="card-premium group"
+            className="card-premium group cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              navigate('/pagamentos');
+              toast({ description: "Navegando para Pagamentos Pendentes..." });
+            }}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-br from-warning to-warning/60 rounded-xl group-hover:scale-110 transition-transform">
+                <motion.div 
+                  className="p-3 bg-gradient-to-br from-warning to-warning/60 rounded-xl group-hover:scale-110 transition-transform"
+                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                  transition={{ duration: 0.5 }}
+                >
                   <Clock className="h-6 w-6 text-warning-foreground" />
-                </div>
+                </motion.div>
                 <div className="flex items-center gap-1 text-warning text-sm font-semibold">
                   <Activity className="h-4 w-4" />
                   Ativo
@@ -222,13 +276,23 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="card-premium group"
+            className="card-premium group cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              navigate('/pagamentos');
+              toast({ description: "Navegando para Notas Fiscais..." });
+            }}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-br from-accent to-accent/60 rounded-xl group-hover:scale-110 transition-transform">
+                <motion.div 
+                  className="p-3 bg-gradient-to-br from-accent to-accent/60 rounded-xl group-hover:scale-110 transition-transform"
+                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                  transition={{ duration: 0.5 }}
+                >
                   <FileCheck className="h-6 w-6 text-accent-foreground" />
-                </div>
+                </motion.div>
                 <div className="flex items-center gap-1 text-info text-sm font-semibold">
                   <ArrowUpRight className="h-4 w-4" />
                   +8
@@ -244,13 +308,23 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="card-premium group"
+            className="card-premium group cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              navigate('/relatorios');
+              toast({ description: "Navegando para Relatórios..." });
+            }}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-br from-success to-success/60 rounded-xl group-hover:scale-110 transition-transform">
+                <motion.div 
+                  className="p-3 bg-gradient-to-br from-success to-success/60 rounded-xl group-hover:scale-110 transition-transform"
+                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                  transition={{ duration: 0.5 }}
+                >
                   <DollarSign className="h-6 w-6 text-success-foreground" />
-                </div>
+                </motion.div>
                 <div className="flex items-center gap-1 text-success text-sm font-semibold">
                   <TrendingUp className="h-4 w-4" />
                   +23%
@@ -436,28 +510,52 @@ export default function Dashboard() {
             <div className="p-6">
               <h3 className="text-lg font-bold text-foreground mb-6">Ações Rápidas</h3>
               <div className="space-y-3">
-                <Button className="w-full justify-between btn-premium-primary h-14 text-base group">
+                <Button 
+                  onClick={() => {
+                    navigate('/medicos');
+                    toast({ description: "✨ Abrindo gestão de médicos..." });
+                  }}
+                  className="w-full justify-between btn-premium-primary h-14 text-base group"
+                >
                   <div className="flex items-center gap-3">
                     <Users className="h-5 w-5" />
                     <span className="font-semibold">Gerenciar Médicos</span>
                   </div>
                   <ArrowUpRight className="h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </Button>
-                <Button className="w-full justify-between btn-premium-secondary h-14 text-base group">
+                <Button 
+                  onClick={() => {
+                    navigate('/pagamentos');
+                    toast({ description: "💳 Abrindo processamento de pagamentos..." });
+                  }}
+                  className="w-full justify-between btn-premium-secondary h-14 text-base group"
+                >
                   <div className="flex items-center gap-3">
                     <CreditCard className="h-5 w-5" />
                     <span className="font-semibold">Processar Pagamentos</span>
                   </div>
                   <ArrowUpRight className="h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </Button>
-                <Button className="w-full justify-between btn-premium-secondary h-14 text-base group">
+                <Button 
+                  onClick={() => {
+                    navigate('/pagamentos');
+                    toast({ description: "📋 Abrindo validação de notas fiscais..." });
+                  }}
+                  className="w-full justify-between btn-premium-secondary h-14 text-base group"
+                >
                   <div className="flex items-center gap-3">
                     <FileCheck className="h-5 w-5" />
                     <span className="font-semibold">Validar Notas Fiscais</span>
                   </div>
                   <ArrowUpRight className="h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </Button>
-                <Button className="w-full justify-between btn-premium-secondary h-14 text-base group">
+                <Button 
+                  onClick={() => {
+                    navigate('/relatorios');
+                    toast({ description: "📊 Abrindo relatórios analíticos..." });
+                  }}
+                  className="w-full justify-between btn-premium-secondary h-14 text-base group"
+                >
                   <div className="flex items-center gap-3">
                     <Activity className="h-5 w-5" />
                     <span className="font-semibold">Relatórios Analíticos</span>
@@ -469,6 +567,7 @@ export default function Dashboard() {
           </motion.div>
         </div>
       </div>
+      )}
     </AppLayout>
   );
 }
