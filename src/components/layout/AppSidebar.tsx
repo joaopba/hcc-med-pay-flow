@@ -8,8 +8,7 @@ import {
   MessageCircle,
   Activity,
   Building2,
-  User,
-  Sparkles
+  User
 } from "lucide-react";
 import {
   Tooltip,
@@ -75,13 +74,15 @@ const toolsNavigation = [
     name: "Teste WhatsApp", 
     href: "/teste-whatsapp", 
     icon: MessageCircle,
-    description: "Testar envio de mensagens"
+    description: "Testar envio de mensagens",
+    adminOnly: true
   },
   { 
     name: "Configurações", 
     href: "/configuracoes", 
     icon: Settings,
-    description: "Configurar sistema"
+    description: "Configurar sistema",
+    adminOnly: true
   },
 ];
 
@@ -136,19 +137,7 @@ export default function AppSidebar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="relative flex-shrink-0">
-                <motion.div 
-                  className="absolute inset-0 bg-gradient-primary blur-xl opacity-60 rounded-xl"
-                  animate={{ 
-                    scale: [1, 1.1, 1],
-                    opacity: [0.6, 0.8, 0.6]
-                  }}
-                  transition={{ 
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                />
-                <div className="relative w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
+                <div className="relative w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-elegant">
                   <Building2 className="h-5 w-5 text-primary-foreground" />
                 </div>
               </div>
@@ -168,24 +157,11 @@ export default function AppSidebar() {
                 transition={{ duration: 0.2 }}
                 className="min-w-0 flex-1"
               >
-                <h2 className="font-bold text-sidebar-foreground text-sm truncate gradient-text leading-tight">
-                  HCC HOSPITAL
+                <h2 className="font-bold text-sidebar-foreground text-base truncate">
+                  HCC Hospital
                 </h2>
-                <p className="text-xs text-sidebar-foreground/70 truncate flex items-center gap-1.5 mt-0.5">
-                  <motion.div
-                    animate={{ 
-                      rotate: [0, 10, -10, 0],
-                      scale: [1, 1.1, 1.1, 1]
-                    }}
-                    transition={{ 
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  >
-                    <Sparkles className="h-3 w-3 text-warning" />
-                  </motion.div>
-                  <span className="font-medium">Sistema Premium</span>
+                <p className="text-xs text-sidebar-foreground/60 truncate">
+                  Gestão de Pagamentos
                 </p>
               </motion.div>
             )}
@@ -277,7 +253,9 @@ export default function AppSidebar() {
             )}
           </AnimatePresence>
           <SidebarMenu className="space-y-1">
-            {toolsNavigation.map((item) => (
+            {toolsNavigation
+              .filter(item => !item.adminOnly || userRole === 'gestor')
+              .map((item) => (
               <SidebarMenuItem key={item.name}>
                 <SidebarMenuButton asChild>
                   <Tooltip>

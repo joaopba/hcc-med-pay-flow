@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Save, Eye, EyeOff } from "lucide-react";
+import { User, Save, Eye, EyeOff, MessageCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -14,6 +15,8 @@ interface Profile {
   name: string;
   email: string;
   role: string;
+  numero_whatsapp?: string;
+  whatsapp_notifications_enabled?: boolean;
 }
 
 export default function UserProfile() {
@@ -27,6 +30,8 @@ export default function UserProfile() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    numero_whatsapp: "",
+    whatsapp_notifications_enabled: true,
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
@@ -56,6 +61,8 @@ export default function UserProfile() {
       setFormData({
         name: profileData.name,
         email: profileData.email,
+        numero_whatsapp: profileData.numero_whatsapp || "",
+        whatsapp_notifications_enabled: profileData.whatsapp_notifications_enabled ?? true,
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
@@ -88,6 +95,8 @@ export default function UserProfile() {
         .from("profiles")
         .update({
           name: formData.name,
+          numero_whatsapp: formData.numero_whatsapp,
+          whatsapp_notifications_enabled: formData.whatsapp_notifications_enabled,
         })
         .eq("user_id", user.id);
 
@@ -238,11 +247,49 @@ export default function UserProfile() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="whatsapp">WhatsApp</Label>
+                  <div className="relative">
+                    <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="whatsapp"
+                      type="tel"
+                      placeholder="(00) 00000-0000"
+                      value={formData.numero_whatsapp}
+                      onChange={(e) => setFormData({ ...formData, numero_whatsapp: e.target.value })}
+                      className="pl-10"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Número para receber notificações do sistema
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Função</Label>
                   <Input
                     value={profile?.role || ""}
                     disabled
                     className="bg-muted"
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between p-4 glass-effect rounded-xl border border-border/50">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="whatsapp-notifications" className="cursor-pointer">
+                      Notificações WhatsApp
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receber alertas de aprovação/rejeição via WhatsApp
+                    </p>
+                  </div>
+                  <Switch
+                    id="whatsapp-notifications"
+                    checked={formData.whatsapp_notifications_enabled}
+                    onCheckedChange={(checked) => 
+                      setFormData({ ...formData, whatsapp_notifications_enabled: checked })
+                    }
                   />
                 </div>
 

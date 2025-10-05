@@ -283,6 +283,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
           user_id: string
+          whatsapp_notifications_enabled: boolean | null
         }
         Insert: {
           created_at?: string
@@ -293,6 +294,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id: string
+          whatsapp_notifications_enabled?: boolean | null
         }
         Update: {
           created_at?: string
@@ -303,6 +305,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string
+          whatsapp_notifications_enabled?: boolean | null
         }
         Relationships: []
       }

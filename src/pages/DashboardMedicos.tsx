@@ -30,6 +30,7 @@ import {
   X,
   Building2
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatMesCompetencia } from "@/lib/utils";
@@ -489,95 +490,164 @@ export default function DashboardMedicos() {
 
   if (!medico) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
-          <div className="text-center mb-8">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+        <div className="container mx-auto px-4 py-8 max-w-xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-8"
+          >
             <div className="flex items-center justify-center mb-6">
-              <div className="w-20 h-20 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
-                <Building2 className="h-10 w-10 text-white" />
-              </div>
-            </div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              HCC HOSPITAL
-            </h1>
-            <h2 className="text-2xl font-semibold text-primary mb-2">
-              Dashboard do Médico
-            </h2>
-            <p className="text-muted-foreground">
-              Visualize suas estatísticas, notas fiscais e valores
-            </p>
-          </div>
-
-          <Card>
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="text-xl">Acesso por CPF</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Digite seu CPF para visualizar seu dashboard
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cpf" className="text-sm font-medium">CPF</Label>
-                  <Input
-                    id="cpf"
-                    placeholder="000.000.000-00"
-                    value={cpf}
-                    onChange={handleCPFChange}
-                    maxLength={14}
-                    className="text-lg text-center"
-                  />
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+                className="relative"
+              >
+                <div className="absolute inset-0 bg-gradient-primary blur-2xl opacity-40 rounded-full" />
+                <div className="relative w-24 h-24 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-elegant">
+                  <Building2 className="h-12 w-12 text-primary-foreground" />
                 </div>
-                <Button 
-                  onClick={buscarDados} 
-                  disabled={loading}
-                  className="w-full"
-                  size="lg"
-                >
-                  {loading ? "Carregando..." : "📊 Acessar Dashboard"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </motion.div>
+            </div>
+            <motion.h1
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-4xl font-bold gradient-text mb-2"
+            >
+              HCC Hospital
+            </motion.h1>
+            <motion.h2
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-2xl font-semibold text-primary mb-2"
+            >
+              Portal do Médico
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-muted-foreground"
+            >
+              Acesse suas estatísticas, notas fiscais e pagamentos
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+          >
+            <Card className="glass-effect border-primary/20 shadow-elegant">
+              <CardHeader className="text-center pb-4">
+                <CardTitle className="text-xl">Acesso ao Dashboard</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Digite seu CPF para visualizar suas informações
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cpf" className="text-sm font-medium">CPF</Label>
+                    <Input
+                      id="cpf"
+                      placeholder="000.000.000-00"
+                      value={cpf}
+                      onChange={handleCPFChange}
+                      maxLength={14}
+                      className="text-lg text-center font-semibold"
+                    />
+                  </div>
+                  <Button 
+                    onClick={buscarDados} 
+                    disabled={loading}
+                    className="w-full shadow-elegant hover:shadow-glow transition-all"
+                    size="lg"
+                  >
+                    {loading ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="mr-2"
+                        >
+                          <BarChart3 className="h-5 w-5" />
+                        </motion.div>
+                        Carregando...
+                      </>
+                    ) : (
+                      <>
+                        <BarChart3 className="h-5 w-5 mr-2" />
+                        Acessar Dashboard
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Seção especial para médicos com notas pendentes */}
         {pagamentosPendentes.length > 0 && (
-          <div className="mb-8">
-            <Card className="border-amber-200 bg-amber-50">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <Card className="border-warning/30 bg-gradient-to-br from-warning/5 to-warning/10 shadow-elegant">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                    <Upload className="h-6 w-6 text-amber-600" />
-                  </div>
+                  <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-warning/20 to-warning/40 rounded-2xl flex items-center justify-center shadow-glow"
+                  >
+                    <Upload className="h-7 w-7 text-warning" />
+                  </motion.div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-amber-800 mb-2">
-                      📋 Notas Fiscais Pendentes
+                    <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-warning" />
+                      Notas Fiscais Pendentes
                     </h3>
-                    <p className="text-amber-700 mb-4">
-                      Você tem {pagamentosPendentes.length} pagamento(s) aguardando envio de nota fiscal.
+                    <p className="text-muted-foreground mb-4">
+                      Você tem <strong className="text-warning">{pagamentosPendentes.length}</strong> pagamento(s) aguardando envio de nota fiscal.
                     </p>
                     <div className="grid gap-3">
                       {pagamentosPendentes.map((pagamento) => (
-                        <div key={pagamento.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <motion.div
+                          key={pagamento.id}
+                          whileHover={{ scale: 1.01 }}
+                          className="flex items-center justify-between p-4 bg-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-all"
+                        >
                           <div>
-                            <span className="font-medium">
+                            <span className="font-semibold text-foreground">
                               {formatMesCompetencia(pagamento.mes_competencia)}
                             </span>
-                            <span className="text-lg font-bold text-green-600 ml-2">
+                            <span className="text-lg font-bold text-success ml-3">
                               {formatCurrency(pagamento.valor)}
                             </span>
                             {pagamento.temNotaRejeitada && (
-                              <Badge variant="destructive" className="ml-2">Rejeitada - Reenviar</Badge>
+                              <Badge variant="destructive" className="ml-2">
+                                <X className="h-3 w-3 mr-1" />
+                                Rejeitada - Reenviar
+                              </Badge>
                             )}
                             {pagamento.temNotaPendente && (
-                              <Badge variant="secondary" className="ml-2">Aguardando Análise</Badge>
+                              <Badge variant="secondary" className="ml-2">
+                                <Clock className="h-3 w-3 mr-1" />
+                                Aguardando Análise
+                              </Badge>
                             )}
                           </div>
                           <Button
@@ -589,50 +659,66 @@ export default function DashboardMedicos() {
                             size="sm"
                             variant={pagamento.temNotaRejeitada ? "destructive" : pagamento.temNotaPendente ? "secondary" : "default"}
                             disabled={pagamento.temNotaPendente && !pagamento.temNotaRejeitada}
+                            className="shadow-sm hover:shadow-md transition-all"
                           >
                             <Upload className="h-4 w-4 mr-2" />
                             {pagamento.temNotaRejeitada ? "Reenviar Nota" : 
                              pagamento.temNotaPendente ? "Nota Enviada" : "Enviar Nota"}
                           </Button>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
         )}
 
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-sm">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <h1 className="text-2xl font-bold text-foreground">
-                    HCC HOSPITAL
-                  </h1>
-                  <Badge variant="outline" className="text-xs">
-                    Portal Médico
-                  </Badge>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <Card className="glass-effect border-primary/20 shadow-elegant">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-primary blur-xl opacity-50 rounded-xl" />
+                    <div className="relative w-16 h-16 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
+                      <Building2 className="h-8 w-8 text-primary-foreground" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h1 className="text-2xl font-bold gradient-text">
+                        HCC Hospital
+                      </h1>
+                      <Badge variant="outline" className="text-xs border-primary/30">
+                        Portal Médico
+                      </Badge>
+                    </div>
+                    <h2 className="text-xl font-bold text-primary mb-1">
+                      {medico.nome}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Dashboard personalizado - Notas fiscais e pagamentos
+                    </p>
+                  </div>
                 </div>
-                <h2 className="text-xl font-semibold text-primary">
-                  {medico.nome}
-                </h2>
-                <p className="text-muted-foreground text-sm">
-                  Dashboard personalizado - Notas fiscais e pagamentos
-                </p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setMedico(null)}
+                  className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+                >
+                  Sair
+                </Button>
               </div>
-            </div>
-            <Button variant="outline" onClick={() => setMedico(null)}>
-              Sair
-            </Button>
-          </div>
-        </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Dialog para notas rejeitadas */}
         <Dialog open={showRejectedAlert} onOpenChange={setShowRejectedAlert}>
