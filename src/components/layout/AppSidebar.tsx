@@ -8,7 +8,8 @@ import {
   MessageCircle,
   Activity,
   Building2,
-  User
+  User,
+  Sparkles
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -26,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
 import logo from "@/assets/logo.png";
 
 const navigation = [
@@ -115,73 +117,102 @@ export default function AppSidebar() {
 
   return (
     <Sidebar 
-      className="border-r border-sidebar-border shadow-lg"
+      className="border-r border-sidebar-border glass-effect"
       collapsible="icon"
     >
-      <SidebarHeader className="border-b border-sidebar-border p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-sm">
-              <Building2 className="h-5 w-5 text-white" />
+      <SidebarHeader className="border-b border-sidebar-border/50 p-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center gap-3"
+        >
+          <div className="relative flex-shrink-0">
+            <div className="absolute inset-0 bg-gradient-primary blur-lg opacity-50 rounded-xl" />
+            <div className="relative w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
+              <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
           </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <h2 className="font-poppins font-semibold text-sidebar-foreground text-sm truncate">
-                HCC HOSPITAL
-              </h2>
-              <p className="text-xs text-sidebar-foreground/70 truncate">
-                Sistema de Pagamentos
-              </p>
-            </div>
-          )}
-        </div>
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="min-w-0"
+              >
+                <h2 className="font-bold text-sidebar-foreground text-sm truncate gradient-text">
+                  HCC HOSPITAL
+                </h2>
+                <p className="text-xs text-sidebar-foreground/60 truncate flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  Sistema Premium
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </SidebarHeader>
       
       <SidebarContent className="p-3 space-y-6">
         {/* Main Navigation */}
         <div className="space-y-1">
-          {!collapsed && (
-            <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider px-3 mb-3">
-              Principal
-            </p>
-          )}
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider px-3 mb-3"
+              >
+                Principal
+              </motion.p>
+            )}
+          </AnimatePresence>
           <SidebarMenu className="space-y-1">
             {navigation
               .filter(item => !item.adminOnly || userRole === 'gestor')
-              .map((item) => (
+              .map((item, index) => (
               <SidebarMenuItem key={item.name}>
                 <SidebarMenuButton asChild>
                   <NavLink
                     to={item.href}
                     className={
                       isActive(item.href)
-                        ? "sidebar-nav-item-active"
-                        : "sidebar-nav-item-inactive"
+                        ? "sidebar-nav-premium-active"
+                        : "sidebar-nav-premium-inactive"
                     }
                     title={collapsed ? item.name : undefined}
                   >
-                    <item.icon className="h-5 w-5 flex-shrink-0" />
-                    {!collapsed && (
-                      <>
-                        <div className="flex-1 min-w-0">
+                    <motion.div
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                    </motion.div>
+                    <AnimatePresence>
+                      {!collapsed && (
+                        <motion.div
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                          className="flex-1 min-w-0"
+                        >
                           <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">{item.name}</span>
+                            <span className="font-semibold text-sm">{item.name}</span>
                             {item.badge && (
                               <Badge 
-                                variant="secondary" 
-                                className="h-5 text-xs bg-primary/10 text-primary border-primary/20"
+                                className="badge-premium bg-primary/10 text-primary border-primary/30 animate-pulse"
                               >
                                 {item.badge}
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-sidebar-foreground/60 mt-0.5">
+                          <p className="text-xs opacity-70 mt-0.5">
                             {item.description}
                           </p>
-                        </div>
-                      </>
-                    )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -189,15 +220,22 @@ export default function AppSidebar() {
           </SidebarMenu>
         </div>
 
-        <Separator className="bg-sidebar-border" />
+        <Separator className="bg-sidebar-border/50" />
 
         {/* Tools Navigation */}
         <div className="space-y-1">
-          {!collapsed && (
-            <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider px-3 mb-3">
-              Ferramentas
-            </p>
-          )}
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider px-3 mb-3"
+              >
+                Ferramentas
+              </motion.p>
+            )}
+          </AnimatePresence>
           <SidebarMenu className="space-y-1">
             {toolsNavigation.map((item) => (
               <SidebarMenuItem key={item.name}>
@@ -206,20 +244,32 @@ export default function AppSidebar() {
                     to={item.href}
                     className={
                       isActive(item.href)
-                        ? "sidebar-nav-item-active"
-                        : "sidebar-nav-item-inactive"
+                        ? "sidebar-nav-premium-active"
+                        : "sidebar-nav-premium-inactive"
                     }
                     title={collapsed ? item.name : undefined}
                   >
-                    <item.icon className="h-5 w-5 flex-shrink-0" />
-                    {!collapsed && (
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium text-sm">{item.name}</span>
-                        <p className="text-xs text-sidebar-foreground/60 mt-0.5">
-                          {item.description}
-                        </p>
-                      </div>
-                    )}
+                    <motion.div
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                    </motion.div>
+                    <AnimatePresence>
+                      {!collapsed && (
+                        <motion.div
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                          className="flex-1 min-w-0"
+                        >
+                          <span className="font-semibold text-sm">{item.name}</span>
+                          <p className="text-xs opacity-70 mt-0.5">
+                            {item.description}
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -228,37 +278,49 @@ export default function AppSidebar() {
         </div>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
+      <SidebarFooter className="p-4 border-t border-sidebar-border/50">
         <div className="space-y-3">
-          {!collapsed && (
-            <div className="px-3 py-2 bg-sidebar-accent/30 rounded-lg">
-              <div className="flex items-center gap-2 text-xs">
-                <Activity className="h-3 w-3 text-accent animate-pulse-soft" />
-                <span className="text-sidebar-foreground/70">Sistema Online</span>
-              </div>
-            </div>
-          )}
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="px-3 py-2 glass-effect rounded-xl border border-success/20"
+              >
+                <div className="flex items-center gap-2 text-xs">
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Activity className="h-3 w-3 text-success" />
+                  </motion.div>
+                  <span className="text-sidebar-foreground/80 font-medium">Sistema Online</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           
           <Button
             variant="ghost"
             asChild
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+            className="w-full justify-start hover:bg-sidebar-accent/80 rounded-xl transition-all hover:scale-105"
             title={collapsed ? "Meu Perfil" : undefined}
           >
             <NavLink to="/perfil">
               <User className="h-4 w-4 flex-shrink-0" />
-              {!collapsed && <span className="ml-2">Meu Perfil</span>}
+              {!collapsed && <span className="ml-2 font-medium">Meu Perfil</span>}
             </NavLink>
           </Button>
           
           <Button
             variant="ghost"
             onClick={handleLogout}
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+            className="w-full justify-start hover:bg-destructive/10 hover:text-destructive rounded-xl transition-all hover:scale-105"
             title={collapsed ? "Sair" : undefined}
           >
-            <LogOut className="h-4 w-4 flex-shrink-0 transition-transform duration-200 hover:rotate-12" />
-            {!collapsed && <span className="ml-2">Sair do Sistema</span>}
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            {!collapsed && <span className="ml-2 font-medium">Sair do Sistema</span>}
           </Button>
         </div>
       </SidebarFooter>

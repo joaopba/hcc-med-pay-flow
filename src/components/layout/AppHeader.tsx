@@ -1,4 +1,4 @@
-import { Bell, Search, User, Menu } from "lucide-react";
+import { Bell, Search, User, Menu, Moon, Sun, LogOut, UserCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -11,7 +11,18 @@ import {
   PopoverContent, 
   PopoverTrigger 
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@/components/ThemeProvider";
+import { motion } from "framer-motion";
+import { SearchModal } from "@/components/SearchModal";
 
 interface AppHeaderProps {
   title?: string;
@@ -29,18 +40,22 @@ interface NotasPendentes {
 
 export default function AppHeader({ title, subtitle }: AppHeaderProps) {
   const [userName, setUserName] = useState("Usuário");
+  const [userEmail, setUserEmail] = useState("");
   const [notasPendentes, setNotasPendentes] = useState<NotasPendentes[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
-    loadUserName();
+    loadUserData();
     loadNotasPendentes();
   }, []);
 
-  const loadUserName = async () => {
+  const loadUserData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        setUserEmail(user.email || "");
         const { data: profile } = await supabase
           .from('profiles')
           .select('name')
@@ -52,7 +67,7 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
         }
       }
     } catch (error) {
-      console.error('Erro ao carregar nome do usuário:', error);
+      console.error('Erro ao carregar dados do usuário:', error);
     }
   };
 
@@ -82,115 +97,209 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
   const handleNotificationClick = () => {
     navigate('/pagamentos');
   };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth');
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+  
   return (
-    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-      <div className="flex items-center justify-between h-full px-6">
-        {/* Left Side */}
-        <div className="flex items-center gap-4">
-          <SidebarTrigger className="p-2 hover:bg-muted rounded-lg transition-colors" />
-          
-          {title && (
-            <div className="hidden md:block">
-              <h1 className="text-xl font-poppins font-semibold text-foreground">
-                {title}
-              </h1>
-              {subtitle && (
-                <p className="text-sm text-muted-foreground -mt-1">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Center - Search */}
-        <div className="hidden lg:flex flex-1 max-w-md mx-8">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar médicos, pagamentos..."
-              className="pl-10 bg-background/50 border-border focus:bg-background transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* Right Side */}
-        <div className="flex items-center gap-3">
-          {/* Mobile Search */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden hover:bg-muted"
-          >
-            <Search className="h-4 w-4" />
-          </Button>
-
-          {/* Notifications */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative hover:bg-muted"
+    <>
+      <SearchModal open={searchOpen} onOpenChange={setSearchOpen} />
+      <header className="h-16 border-b border-border glass-effect sticky top-0 z-40">
+        <div className="flex items-center justify-between h-full px-6">
+          {/* Left Side */}
+          <div className="flex items-center gap-4">
+            <SidebarTrigger className="p-2 hover:bg-muted/80 rounded-xl transition-all hover:scale-105" />
+            
+            {title && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="hidden md:block"
               >
-                <Bell className="h-4 w-4" />
-                {notasPendentes.length > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
-                  >
-                    {notasPendentes.length}
-                  </Badge>
+                <h1 className="text-xl font-bold gradient-text">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <p className="text-sm text-muted-foreground -mt-1">
+                    {subtitle}
+                  </p>
                 )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" align="end">
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Notas Pendentes de Aprovação</h4>
-                {notasPendentes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma nota pendente</p>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Center - Search */}
+          <div className="hidden lg:flex flex-1 max-w-md mx-8">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="relative w-full glass-effect border border-border/50 rounded-xl px-4 py-2 text-left hover:border-primary/50 transition-all group"
+            >
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="pl-7 text-sm text-muted-foreground">Buscar médicos, pagamentos...</span>
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </button>
+          </div>
+
+          {/* Right Side */}
+          <div className="flex items-center gap-2">
+            {/* Mobile Search */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSearchOpen(true)}
+              className="lg:hidden hover:bg-muted/80 rounded-xl"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+
+            {/* Theme Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="hover:bg-muted/80 rounded-xl hover:scale-105 transition-all"
+            >
+              <motion.div
+                initial={false}
+                animate={{ rotate: theme === "dark" ? 0 : 180 }}
+                transition={{ duration: 0.3 }}
+              >
+                {theme === "dark" ? (
+                  <Moon className="h-4 w-4 text-primary" />
                 ) : (
-                  <div className="space-y-2">
-                    {notasPendentes.map((nota) => (
-                      <div 
-                        key={nota.id}
-                        className="p-2 rounded-md bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                  <Sun className="h-4 w-4 text-warning" />
+                )}
+              </motion.div>
+            </Button>
+
+            {/* Notifications */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative hover:bg-muted/80 rounded-xl"
+                >
+                  <Bell className="h-4 w-4" />
+                  {notasPendentes.length > 0 && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1"
+                    >
+                      <Badge
+                        variant="destructive"
+                        className="h-5 w-5 p-0 text-xs flex items-center justify-center animate-pulse"
+                      >
+                        {notasPendentes.length}
+                      </Badge>
+                    </motion.div>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 glass-card border-border/50" align="end">
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-foreground">Notas Pendentes</h4>
+                  {notasPendentes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma nota pendente</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {notasPendentes.map((nota) => (
+                        <motion.div
+                          key={nota.id}
+                          whileHover={{ scale: 1.02 }}
+                          className="p-3 rounded-xl glass-effect border border-border/50 cursor-pointer hover:border-primary/30 transition-all"
+                          onClick={handleNotificationClick}
+                        >
+                          <p className="text-sm font-semibold text-foreground">{nota.medicos.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            R$ {nota.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} • {nota.mes_competencia}
+                          </p>
+                        </motion.div>
+                      ))}
+                      <Button 
+                        size="sm" 
+                        className="w-full btn-premium-primary mt-2"
                         onClick={handleNotificationClick}
                       >
-                        <p className="text-sm font-medium">{nota.medicos.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          R$ {nota.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} - {nota.mes_competencia}
-                        </p>
-                      </div>
-                    ))}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full mt-2"
-                      onClick={handleNotificationClick}
-                    >
-                      Ver todas as notas
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
+                        Ver todas
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
 
-          {/* User Profile */}
-          <div className="flex items-center gap-2 pl-2">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                <User className="h-4 w-4" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="hidden md:block text-sm">
-              <p className="font-medium text-foreground">{userName}</p>
-              <p className="text-xs text-muted-foreground">HCC HOSPITAL</p>
-            </div>
+            {/* User Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="flex items-center gap-2 hover:bg-muted/80 rounded-xl px-2 hover:scale-105 transition-all"
+                >
+                  <Avatar className="h-9 w-9 border-2 border-primary/20">
+                    <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold text-sm">
+                      {getInitials(userName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden md:block text-left">
+                    <p className="text-sm font-semibold text-foreground">{userName}</p>
+                    <p className="text-xs text-muted-foreground">{userEmail.split('@')[0]}</p>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 glass-card border-border/50" align="end">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-semibold text-foreground">{userName}</p>
+                    <p className="text-xs text-muted-foreground">{userEmail}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-border/50" />
+                <DropdownMenuItem 
+                  onClick={() => navigate('/perfil')}
+                  className="cursor-pointer hover:bg-muted/80 rounded-lg"
+                >
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  <span>Meu Perfil</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => navigate('/configuracoes')}
+                  className="cursor-pointer hover:bg-muted/80 rounded-lg"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Configurações</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-border/50" />
+                <DropdownMenuItem 
+                  onClick={handleLogout}
+                  className="cursor-pointer text-destructive hover:bg-destructive/10 rounded-lg"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 }
