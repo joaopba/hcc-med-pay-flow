@@ -588,26 +588,51 @@ serve(async (req) => {
                   .single();
 
                 if (configFinanceiro?.numero_whatsapp && medicoData) {
-                  // Obter URL pública do PDF
-                  const { data: urlData } = await supabase.storage
+                  console.log('Preparando envio de PDF ao financeiro...');
+                  
+                  // Baixar o PDF do storage
+                  const { data: pdfData, error: downloadError } = await supabase.storage
                     .from('notas')
-                    .createSignedUrl(filePath, 604800); // 7 dias
+                    .download(filePath);
 
-                  if (urlData?.signedUrl) {
-                    await supabase.functions.invoke('send-whatsapp-template', {
-                      body: {
-                        type: 'nota_aprovacao',
-                        nome: medicoData.nome,
-                        valor: pagamento.valor.toString(),
-                        competencia: insertData.pagamentos.mes_competencia,
-                        nota_id: insertData.id,
-                        pdf_url: urlData.signedUrl,
-                        financeiro_numero: configFinanceiro.numero_whatsapp,
-                        pagamentoId: pagamento.id
-                      }
-                    });
-                    console.log('Notificação de aprovação enviada ao financeiro com PDF');
+                  if (downloadError) {
+                    console.error('Erro ao baixar PDF:', downloadError);
+                    throw downloadError;
                   }
+
+                  console.log('PDF baixado, tamanho:', pdfData.size);
+
+                  // Converter para base64
+                  const arrayBuffer = await pdfData.arrayBuffer();
+                  const base64 = btoa(
+                    new Uint8Array(arrayBuffer)
+                      .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                  );
+
+                  console.log('PDF convertido para base64, tamanho:', base64.length);
+
+                  // Criar links de aprovação/rejeição
+                  const tokenAprovar = btoa(`${insertData.id}_${Date.now()}_aprovar`);
+                  const tokenRejeitar = btoa(`${insertData.id}_${Date.now()}_rejeitar`);
+                  const linkAprovar = `https://hcc.chatconquista.com/aprovar?nota=${insertData.id}&token=${tokenAprovar}`;
+                  const linkRejeitar = `https://hcc.chatconquista.com/rejeitar?nota=${insertData.id}&token=${tokenRejeitar}`;
+
+                  await supabase.functions.invoke('send-whatsapp-template', {
+                    body: {
+                      type: 'nota_aprovacao',
+                      nome: medicoData.nome,
+                      valor: pagamento.valor.toString(),
+                      competencia: insertData.pagamentos.mes_competencia,
+                      nota_id: insertData.id,
+                      pdf_base64: base64,
+                      pdf_filename: filename,
+                      link_aprovar: linkAprovar,
+                      link_rejeitar: linkRejeitar,
+                      financeiro_numero: configFinanceiro.numero_whatsapp,
+                      pagamentoId: pagamento.id
+                    }
+                  });
+                  console.log('Notificação de aprovação enviada ao financeiro com PDF');
                 }
               } catch (financeiroError) {
                 console.warn('Erro ao enviar notificação ao financeiro:', financeiroError);

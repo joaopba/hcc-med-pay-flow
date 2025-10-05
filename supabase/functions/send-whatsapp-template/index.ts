@@ -25,7 +25,10 @@ interface WhatsAppRequest {
   mensagem?: string;
   medico_id?: string;
   nota_id?: string;
-  pdf_url?: string;
+  pdf_base64?: string;
+  pdf_filename?: string;
+  link_aprovar?: string;
+  link_rejeitar?: string;
   financeiro_numero?: string;
 }
 
@@ -41,7 +44,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_url, financeiro_numero }: WhatsAppRequest = await req.json();
+    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero }: WhatsAppRequest = await req.json();
 
     // Buscar configurações da API
     const { data: config, error: configError } = await supabase
@@ -152,22 +155,22 @@ serve(async (req) => {
       
       case 'nota_aprovacao':
         // Enviar PDF com botões de aprovação/rejeição para o financeiro
-        const tokenAprovar = btoa(`${nota_id}_${Date.now()}_aprovar`);
-        const tokenRejeitar = btoa(`${nota_id}_${Date.now()}_rejeitar`);
-        const linkAprovar = `https://hcc.chatconquista.com/aprovar?nota=${nota_id}&token=${tokenAprovar}`;
-        const linkRejeitar = `https://hcc.chatconquista.com/rejeitar?nota=${nota_id}&token=${tokenRejeitar}`;
-        
         phoneNumber = financeiro_numero;
+        
+        console.log('Preparando payload para envio de PDF via WhatsApp');
+        console.log('Base64 length:', pdf_base64?.length);
         
         // Payload no formato da API SendMessageAPIFile
         payload = {
           number: phoneNumber,
           mediaData: {
-            url: pdf_url,
-            caption: `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n✅ Aprovar: ${linkAprovar}\n\n❌ Rejeitar: ${linkRejeitar}`,
-            fileName: `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`
+            mediaBase64: pdf_base64,
+            caption: `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${link_aprovar}\n\n❌ Rejeitar:\n${link_rejeitar}`,
+            fileName: pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`
           }
         };
+        
+        console.log('Payload preparado:', JSON.stringify({ ...payload, mediaData: { ...payload.mediaData, mediaBase64: '...' } }));
         break;
       
       case 'nota_aprovada':
