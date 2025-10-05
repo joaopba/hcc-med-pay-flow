@@ -109,9 +109,7 @@ export default function Auth() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="flex justify-center"
             >
-              <div className="relative w-20 h-20 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
-                <Building2 className="h-10 w-10 text-primary-foreground" />
-              </div>
+              <img src={logo} alt="HCC Hospital" className="h-20 w-auto" />
             </motion.div>
 
             {/* Title */}

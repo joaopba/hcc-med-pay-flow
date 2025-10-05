@@ -28,12 +28,16 @@ import {
   Upload,
   AlertTriangle,
   X,
-  Building2
+  Building2,
+  Moon,
+  Sun
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatMesCompetencia } from "@/lib/utils";
+import { useTheme } from "@/components/ThemeProvider";
+import logo from "@/assets/logo.png";
 
 interface MedicoStats {
   totalNotas: number;
@@ -97,6 +101,7 @@ export default function DashboardMedicos() {
   const [showConfirmUpload, setShowConfirmUpload] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
 
   const formatCPF = (value: string) => {
     return value
@@ -503,12 +508,8 @@ export default function DashboardMedicos() {
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
-                className="relative"
               >
-                <div className="absolute inset-0 bg-gradient-primary blur-2xl opacity-40 rounded-full" />
-                <div className="relative w-24 h-24 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-elegant">
-                  <Building2 className="h-12 w-12 text-primary-foreground" />
-                </div>
+                <img src={logo} alt="HCC Hospital" className="h-24 w-auto" />
               </motion.div>
             </div>
             <motion.h1
@@ -597,6 +598,22 @@ export default function DashboardMedicos() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      {/* Theme Toggle */}
+      <div className="absolute top-6 right-6 z-20">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="glass-effect border-border/50 hover:bg-accent/50 transition-all"
+        >
+          {theme === "dark" ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+        </Button>
+      </div>
+
       <div className="max-w-7xl mx-auto">
         {/* Seção especial para médicos com notas pendentes */}
         {pagamentosPendentes.length > 0 && (
