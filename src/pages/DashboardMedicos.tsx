@@ -528,9 +528,7 @@ export default function DashboardMedicos() {
                   transition={{ delay: 0.2, duration: 0.5 }}
                   className="flex justify-center"
                 >
-                  <div className="bg-gradient-primary p-4 rounded-2xl shadow-elegant">
-                    <img src={logo} alt="HCC Hospital" className="h-16 w-auto" />
-                  </div>
+                  <img src={logo} alt="HCC Hospital" className="h-20 w-auto" />
                 </motion.div>
 
                 <div>
