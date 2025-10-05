@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface WhatsAppRequest {
-  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'encaminhar_nota' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro';
+  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'encaminhar_nota' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro' | 'nota_aprovacao';
   numero?: string;
   nome?: string;
   valor?: string;
@@ -24,6 +24,9 @@ interface WhatsAppRequest {
   mensagem_preview?: string;
   mensagem?: string;
   medico_id?: string;
+  nota_id?: string;
+  pdf_url?: string;
+  financeiro_numero?: string;
 }
 
 serve(async (req) => {
@@ -38,7 +41,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id }: WhatsAppRequest = await req.json();
+    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_url, financeiro_numero }: WhatsAppRequest = await req.json();
 
     // Buscar configurações da API
     const { data: config, error: configError } = await supabase
@@ -147,6 +150,43 @@ serve(async (req) => {
         };
         break;
       
+      case 'nota_aprovacao':
+        // Enviar PDF com botões de aprovação/rejeição para o financeiro
+        const tokenAprovar = btoa(`${nota_id}_${Date.now()}_aprovar`);
+        const tokenRejeitar = btoa(`${nota_id}_${Date.now()}_rejeitar`);
+        const linkAprovar = `https://hcc.chatconquista.com/aprovar?nota=${nota_id}&token=${tokenAprovar}`;
+        const linkRejeitar = `https://hcc.chatconquista.com/rejeitar?nota=${nota_id}&token=${tokenRejeitar}`;
+        
+        phoneNumber = financeiro_numero;
+        
+        // Payload para enviar arquivo com botões
+        payload = {
+          number: phoneNumber,
+          isClosed: false,
+          mediaData: {
+            url: pdf_url,
+            caption: `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\nClique nos botões abaixo ou use os links:\n\n✅ Aprovar:\n${linkAprovar}\n\n❌ Rejeitar:\n${linkRejeitar}`,
+            fileName: `nota_${nota_id}.pdf`
+          },
+          buttonsData: {
+            buttons: [
+              {
+                type: "url",
+                title: "✅ Aprovar",
+                url: linkAprovar
+              },
+              {
+                type: "url", 
+                title: "❌ Rejeitar",
+                url: linkRejeitar
+              }
+            ]
+          }
+        };
+        // Usar endpoint /file para envio de arquivo
+        apiUrl = config.api_url + '/file';
+        break;
+      
       case 'nota_aprovada':
         message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
         payload = {
@@ -199,13 +239,14 @@ serve(async (req) => {
     console.log('Tipo:', type);
 
     // Adicionar mensagem à fila ao invés de enviar diretamente
+    const tipoMensagem = type === 'nota' ? 'template' : type === 'nota_aprovacao' ? 'file' : 'text';
     const { data: queueData, error: queueError } = await supabase
       .from('whatsapp_queue')
       .insert({
         numero_destino: phoneNumber!,
-        tipo_mensagem: type === 'nota' ? 'template' : 'text',
+        tipo_mensagem: tipoMensagem,
         payload: payload,
-        prioridade: type === 'nota' ? 1 : type === 'nota_rejeitada' ? 2 : 5 // Priorizar solicitações e rejeições
+        prioridade: type === 'nota' ? 1 : type === 'nota_rejeitada' || type === 'nota_aprovacao' ? 2 : 5 // Priorizar solicitações, rejeições e aprovações
       })
       .select()
       .single();

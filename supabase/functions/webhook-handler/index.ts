@@ -576,6 +576,43 @@ serve(async (req) => {
                 }
               }
 
+              // Enviar PDF com botões de aprovação/rejeição para o financeiro
+              try {
+                // Buscar configurações do financeiro
+                const { data: configFinanceiro } = await supabase
+                  .from('profiles')
+                  .select('numero_whatsapp')
+                  .eq('role', 'gestor')
+                  .not('numero_whatsapp', 'is', null)
+                  .limit(1)
+                  .single();
+
+                if (configFinanceiro?.numero_whatsapp && medicoData) {
+                  // Obter URL pública do PDF
+                  const { data: urlData } = await supabase.storage
+                    .from('notas')
+                    .createSignedUrl(filePath, 604800); // 7 dias
+
+                  if (urlData?.signedUrl) {
+                    await supabase.functions.invoke('send-whatsapp-template', {
+                      body: {
+                        type: 'nota_aprovacao',
+                        nome: medicoData.nome,
+                        valor: pagamento.valor.toString(),
+                        competencia: insertData.pagamentos.mes_competencia,
+                        nota_id: insertData.id,
+                        pdf_url: urlData.signedUrl,
+                        financeiro_numero: configFinanceiro.numero_whatsapp,
+                        pagamentoId: pagamento.id
+                      }
+                    });
+                    console.log('Notificação de aprovação enviada ao financeiro com PDF');
+                  }
+                }
+              } catch (financeiroError) {
+                console.warn('Erro ao enviar notificação ao financeiro:', financeiroError);
+              }
+
               console.log('Pagamento atualizado com sucesso');
 
               // Enviar notificação por email com PDF anexado e botões de ação

@@ -87,6 +87,8 @@ Deno.serve(async (req) => {
         // Enviar mensagem
         const apiUrl = mensagem.tipo_mensagem === 'template'
           ? `${config.api_url}/template`
+          : mensagem.tipo_mensagem === 'file'
+          ? `${config.api_url}/file`
           : config.api_url;
 
         console.log(`Enviando mensagem para ${mensagem.numero_destino} (tipo: ${mensagem.tipo_mensagem})`);
