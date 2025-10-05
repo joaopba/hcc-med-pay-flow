@@ -654,39 +654,40 @@ export default function DashboardMedicos() {
 
         {/* Header */}
         <Card className="mb-8 glass-effect border-primary/20">
-          <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
+          <CardContent className="p-4 md:p-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="relative flex-shrink-0">
                     <div className="absolute inset-0 bg-gradient-primary opacity-10 blur-xl rounded-lg" />
                     <img 
                       src={logo} 
                       alt="HCC Hospital" 
-                      className="h-16 w-16 object-contain relative z-10 drop-shadow-lg"
+                      className="h-12 w-12 md:h-16 md:w-16 object-contain relative z-10 drop-shadow-lg"
                     />
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold gradient-text mb-1">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg md:text-2xl font-bold gradient-text mb-0.5 md:mb-1 truncate">
                       {medico.nome}
                     </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Portal do Médico • Notas fiscais e pagamentos
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Portal do Médico • Notas e pagamentos
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 justify-end">
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                    className="glass-effect border-primary/20"
+                    className="glass-effect border-primary/20 flex-shrink-0"
                   >
                     {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                   </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => setMedico(null)}
-                    className="glass-effect border-primary/20"
+                    className="glass-effect border-primary/20 flex-shrink-0"
+                    size="sm"
                   >
                     Sair
                   </Button>
@@ -756,8 +757,8 @@ export default function DashboardMedicos() {
           <Alert className="mb-6 border-orange-200 bg-orange-50">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex-1">
                   <strong>Atenção!</strong> Você possui {pagamentosPendentes.length} pagamento(s) que precisam de nota fiscal para liberação.
                   {pagamentosPendentes.some(p => p.temNotaRejeitada) && (
                     <div className="mt-1 text-sm">
@@ -768,7 +769,7 @@ export default function DashboardMedicos() {
                 <Button 
                   size="sm" 
                   variant="outline"
-                  className="ml-4 border-orange-300 text-orange-700 hover:bg-orange-100"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-100 w-full sm:w-auto flex-shrink-0"
                   onClick={() => {
                     setSelectedPagamento(pagamentosPendentes[0]);
                     setShowUploadModal(true);
@@ -958,9 +959,9 @@ export default function DashboardMedicos() {
 
         {/* Modal para upload de notas */}
         <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-xl">
+              <DialogTitle className="flex items-center gap-2 text-lg md:text-xl">
                 <Upload className="h-5 w-5 text-primary" />
                 {selectedPagamento?.temNotaRejeitada ? 'Reenviar Nota Fiscal' : 'Enviar Nota Fiscal'}
               </DialogTitle>
@@ -968,16 +969,16 @@ export default function DashboardMedicos() {
             
             <div className="space-y-4">
               {selectedPagamento && (
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium">Detalhes do Pagamento</h4>
+                <div className="p-3 md:p-4 bg-muted/50 rounded-lg">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                    <h4 className="font-medium text-sm md:text-base">Detalhes do Pagamento</h4>
                     {selectedPagamento.temNotaRejeitada && (
-                      <Badge variant="destructive" className="text-xs">
+                      <Badge variant="destructive" className="text-xs w-fit">
                         Nota Rejeitada - Reenvio Necessário
                       </Badge>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Competência:</span>
                       <p className="font-medium">
@@ -1003,7 +1004,7 @@ export default function DashboardMedicos() {
               )}
 
               <div className="space-y-2">
-                <Label>Arquivo PDF da Nota Fiscal</Label>
+                <Label className="text-sm md:text-base">Arquivo PDF da Nota Fiscal</Label>
                 <Input
                   type="file"
                   accept=".pdf"
@@ -1014,14 +1015,15 @@ export default function DashboardMedicos() {
                     }
                   }}
                   disabled={uploading}
+                  className="text-sm"
                 />
               </div>
 
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
+                <AlertDescription className="text-sm">
                   <strong>Importante:</strong>
-                  <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                  <ul className="list-disc list-inside mt-2 space-y-1">
                     <li>Apenas arquivos PDF são aceitos</li>
                     <li>Certifique-se de que todos os dados estão corretos</li>
                     <li>A nota deve corresponder ao valor e período informado</li>

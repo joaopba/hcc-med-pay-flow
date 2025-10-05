@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,20 +94,20 @@ export default function ChatAdmin() {
 
   return (
     <AppLayout title="Chat com Médicos" subtitle="Comunicação direta com os médicos">
-      <div className="p-6 h-[calc(100vh-120px)]">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
-          {/* Lista de Médicos */}
-          <Card className="lg:col-span-1 glass-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="h-5 w-5" />
+      <div className="p-3 md:p-6 h-[calc(100vh-120px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 h-full">
+          {/* Lista de Médicos - Esconder no mobile quando um médico está selecionado */}
+          <Card className={`lg:col-span-1 glass-card ${selectedMedico && 'hidden lg:block'}`}>
+            <CardHeader className="pb-3 px-3 md:px-6">
+              <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+                <Users className="h-4 w-4 md:h-5 md:w-5" />
                 Médicos
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <ScrollArea className="h-[calc(100vh-240px)]">
+              <ScrollArea className="h-[calc(100vh-200px)] md:h-[calc(100vh-240px)]">
                 {loading ? (
-                  <div className="p-4 space-y-2">
+                  <div className="p-2 md:p-4 space-y-2">
                     {[1, 2, 3].map((i) => (
                       <div key={i} className="h-16 bg-muted/50 rounded-lg animate-pulse" />
                     ))}
@@ -119,7 +120,7 @@ export default function ChatAdmin() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setSelectedMedico(medico)}
-                        className={`w-full text-left p-3 rounded-lg transition-all ${
+                        className={`w-full text-left p-2.5 md:p-3 rounded-lg transition-all ${
                           selectedMedico?.id === medico.id
                             ? 'bg-primary/10 border-primary/30'
                             : 'hover:bg-accent/50'
@@ -127,15 +128,15 @@ export default function ChatAdmin() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{medico.nome}</p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="font-medium text-xs md:text-sm truncate">{medico.nome}</p>
+                            <p className="text-[10px] md:text-xs text-muted-foreground">
                               {medico.unreadCount > 0 
                                 ? `${medico.unreadCount} nova(s)` 
                                 : 'Sem mensagens novas'}
                             </p>
                           </div>
                           {medico.unreadCount > 0 && (
-                            <Badge className="bg-destructive text-destructive-foreground border-0">
+                            <Badge className="bg-destructive text-destructive-foreground border-0 text-xs">
                               {medico.unreadCount}
                             </Badge>
                           )}
@@ -149,9 +150,20 @@ export default function ChatAdmin() {
           </Card>
 
           {/* Área de Chat */}
-          <div className="lg:col-span-3">
+          <div className={`lg:col-span-3 ${!selectedMedico && 'hidden lg:block'}`}>
             {selectedMedico ? (
               <div className="relative h-full">
+                {/* Botão voltar para mobile */}
+                <div className="lg:hidden mb-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedMedico(null)}
+                    className="gap-2"
+                  >
+                    ← Voltar para lista
+                  </Button>
+                </div>
                 <ChatWithFinanceiro
                   medicoId={selectedMedico.id}
                   medicoNome={selectedMedico.nome}
@@ -161,8 +173,8 @@ export default function ChatAdmin() {
               </div>
             ) : (
               <Card className="glass-card h-full flex items-center justify-center">
-                <CardContent className="text-center">
-                  <MessageCircle className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+                <CardContent className="text-center p-6">
+                  <MessageCircle className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-4 text-muted-foreground/50" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">
                     Selecione um médico
                   </h3>
