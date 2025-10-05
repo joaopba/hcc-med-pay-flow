@@ -162,18 +162,31 @@ export default function AppHeader({ title, subtitle }: AppHeaderProps) {
           </div>
 
           {/* Center - Search */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-8">
+          <motion.div 
+            className="hidden lg:flex flex-1 max-w-2xl mx-8"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
             <button
               onClick={() => setSearchOpen(true)}
-              className="relative w-full glass-effect border border-border/50 rounded-xl px-4 py-2 text-left hover:border-primary/50 transition-all group"
+              className="relative w-full glass-effect border border-border/50 rounded-xl px-5 py-2.5 text-left hover:border-primary/50 transition-all group hover:shadow-lg hover:shadow-primary/5"
             >
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              <span className="pl-7 text-sm text-muted-foreground">Buscar médicos, pagamentos...</span>
-              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                <span className="text-xs">⌘</span>K
-              </kbd>
+              <div className="flex items-center gap-3">
+                <div className="p-1.5 bg-gradient-primary rounded-lg group-hover:scale-110 transition-transform">
+                  <Search className="h-3.5 w-3.5 text-primary-foreground" />
+                </div>
+                <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                  Buscar médicos, pagamentos...
+                </span>
+              </div>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded-lg border border-border/50 bg-muted px-2 font-mono text-[11px] font-medium text-muted-foreground">
+                  <span className="text-xs">⌘</span>K
+                </kbd>
+              </div>
             </button>
-          </div>
+          </motion.div>
 
           {/* Right Side */}
           <div className="flex items-center gap-2">

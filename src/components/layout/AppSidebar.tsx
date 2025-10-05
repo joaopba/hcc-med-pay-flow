@@ -119,16 +119,28 @@ export default function AppSidebar() {
       className="border-r border-sidebar-border glass-effect"
       collapsible="icon"
     >
-      <SidebarHeader className="border-b border-sidebar-border/50 p-4">
+      <SidebarHeader className="border-b border-sidebar-border/50 p-5">
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
           className="flex items-center gap-3"
         >
           <div className="relative flex-shrink-0">
-            <div className="absolute inset-0 bg-gradient-primary blur-lg opacity-50 rounded-xl" />
-            <div className="relative w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
+            <motion.div 
+              className="absolute inset-0 bg-gradient-primary blur-xl opacity-60 rounded-xl"
+              animate={{ 
+                scale: [1, 1.1, 1],
+                opacity: [0.6, 0.8, 0.6]
+              }}
+              transition={{ 
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+            <div className="relative w-11 h-11 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
+              <Building2 className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
           <AnimatePresence>
@@ -137,14 +149,27 @@ export default function AppSidebar() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="min-w-0"
+                transition={{ duration: 0.2 }}
+                className="min-w-0 flex-1"
               >
-                <h2 className="font-bold text-sidebar-foreground text-sm truncate gradient-text">
+                <h2 className="font-bold text-sidebar-foreground text-base truncate gradient-text leading-tight">
                   HCC HOSPITAL
                 </h2>
-                <p className="text-xs text-sidebar-foreground/60 truncate flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  Sistema Premium
+                <p className="text-xs text-sidebar-foreground/70 truncate flex items-center gap-1.5 mt-0.5">
+                  <motion.div
+                    animate={{ 
+                      rotate: [0, 10, -10, 0],
+                      scale: [1, 1.1, 1.1, 1]
+                    }}
+                    transition={{ 
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    <Sparkles className="h-3 w-3 text-warning" />
+                  </motion.div>
+                  <span className="font-medium">Sistema Premium</span>
                 </p>
               </motion.div>
             )}
