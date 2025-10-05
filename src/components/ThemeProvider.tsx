@@ -22,7 +22,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({
   children,
-  defaultTheme = "dark",
+  defaultTheme = "light",
   storageKey = "hcc-theme",
   ...props
 }: ThemeProviderProps) {

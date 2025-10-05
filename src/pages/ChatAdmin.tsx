@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +16,7 @@ interface MedicoWithUnread {
 }
 
 export default function ChatAdmin() {
+  const [searchParams] = useSearchParams();
   const [medicos, setMedicos] = useState<MedicoWithUnread[]>([]);
   const [selectedMedico, setSelectedMedico] = useState<MedicoWithUnread | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +73,17 @@ export default function ChatAdmin() {
       );
 
       setMedicos(medicosComUnread.sort((a, b) => b.unreadCount - a.unreadCount));
+      
+      // Verificar se há parâmetro de médico na URL (vindo do WhatsApp)
+      const medicoIdFromUrl = searchParams.get('medico');
+      const shouldRespond = searchParams.get('responder');
+      
+      if (medicoIdFromUrl && shouldRespond === 'true') {
+        const medicoToSelect = medicosComUnread.find(m => m.id === medicoIdFromUrl);
+        if (medicoToSelect) {
+          setSelectedMedico(medicoToSelect);
+        }
+      }
     } catch (error) {
       console.error('Erro ao carregar médicos:', error);
     } finally {
