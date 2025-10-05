@@ -18,6 +18,22 @@ interface DashboardStats {
   notasParaPagamento: number;
 }
 
+interface MonthlyPayment {
+  month: string;
+  valor: number;
+}
+
+interface StatusDistribution {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface DailyActivity {
+  day: string;
+  pagamentos: number;
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalMedicos: 0,
@@ -27,6 +43,9 @@ export default function Dashboard() {
     notasParaPagamento: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [monthlyPayments, setMonthlyPayments] = useState<MonthlyPayment[]>([]);
+  const [statusDistribution, setStatusDistribution] = useState<StatusDistribution[]>([]);
+  const [dailyActivity, setDailyActivity] = useState<DailyActivity[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -71,6 +90,100 @@ export default function Dashboard() {
         notasParaPagamento: notasRecebidas?.length || 0,
       });
 
+      // Buscar pagamentos dos últimos 6 meses agrupados por mês
+      const { data: allPayments } = await supabase
+        .from("pagamentos")
+        .select("mes_competencia, valor, created_at")
+        .order("mes_competencia", { ascending: true });
+
+      if (allPayments) {
+        // Agrupar por mês
+        const monthlyMap = allPayments.reduce((acc: Record<string, number>, payment) => {
+          const month = payment.mes_competencia;
+          if (!acc[month]) acc[month] = 0;
+          acc[month] += Number(payment.valor);
+          return acc;
+        }, {});
+
+        // Converter para array e pegar últimos 6 meses
+        const monthlyArray = Object.entries(monthlyMap)
+          .map(([month, valor]) => ({
+            month: new Date(month + '-01').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+            valor: valor as number,
+            rawMonth: month
+          }))
+          .sort((a, b) => a.rawMonth.localeCompare(b.rawMonth))
+          .slice(-6)
+          .map(({ month, valor }) => ({ month, valor }));
+
+        setMonthlyPayments(monthlyArray);
+      }
+
+      // Buscar distribuição por status de notas
+      const { data: allNotes } = await supabase
+        .from("notas_medicos")
+        .select("status");
+
+      if (allNotes) {
+        const statusMap: Record<string, number> = {};
+        allNotes.forEach(note => {
+          statusMap[note.status] = (statusMap[note.status] || 0) + 1;
+        });
+
+        const statusColors: Record<string, string> = {
+          'aprovado': 'hsl(142 70% 50%)',
+          'pendente': 'hsl(43 90% 60%)',
+          'rejeitado': 'hsl(0 85% 60%)',
+        };
+
+        const statusLabels: Record<string, string> = {
+          'aprovado': 'Aprovadas',
+          'pendente': 'Pendentes',
+          'rejeitado': 'Rejeitadas',
+        };
+
+        const distribution = Object.entries(statusMap)
+          .map(([status, value]) => ({
+            name: statusLabels[status] || status,
+            value,
+            color: statusColors[status] || 'hsl(200 85% 55%)'
+          }))
+          .filter(item => item.value > 0);
+
+        setStatusDistribution(distribution);
+      }
+
+      // Buscar atividade dos últimos 7 dias
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const { data: recentPayments } = await supabase
+        .from("pagamentos")
+        .select("created_at")
+        .gte("created_at", sevenDaysAgo.toISOString());
+
+      if (recentPayments) {
+        const dayMap: Record<string, number> = {
+          'Dom': 0, 'Seg': 0, 'Ter': 0, 'Qua': 0, 'Qui': 0, 'Sex': 0, 'Sáb': 0
+        };
+
+        recentPayments.forEach(payment => {
+          const date = new Date(payment.created_at);
+          const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' });
+          const dayShort = dayName.charAt(0).toUpperCase() + dayName.slice(1, 3);
+          if (dayMap[dayShort] !== undefined) {
+            dayMap[dayShort]++;
+          }
+        });
+
+        const activity = Object.entries(dayMap).map(([day, pagamentos]) => ({
+          day,
+          pagamentos
+        }));
+
+        setDailyActivity(activity);
+      }
+
       // Mostrar notificação se houver notas para pagamento
       if (notasRecebidas && notasRecebidas.length > 0) {
         toast({
@@ -97,32 +210,6 @@ export default function Dashboard() {
     }).format(value);
   };
 
-  // Mock data for charts
-  const revenueData = [
-    { month: 'Jan', valor: 145000, meta: 150000 },
-    { month: 'Fev', valor: 168000, meta: 160000 },
-    { month: 'Mar', valor: 152000, meta: 170000 },
-    { month: 'Abr', valor: 189000, meta: 180000 },
-    { month: 'Mai', valor: 203000, meta: 190000 },
-    { month: 'Jun', valor: 197000, meta: 200000 },
-  ];
-
-  const statusData = [
-    { name: 'Aprovados', value: 65, color: 'hsl(142 70% 50%)' },
-    { name: 'Pendentes', value: 20, color: 'hsl(43 90% 60%)' },
-    { name: 'Rejeitados', value: 8, color: 'hsl(0 85% 60%)' },
-    { name: 'Em análise', value: 7, color: 'hsl(200 85% 55%)' },
-  ];
-
-  const activityData = [
-    { day: 'Seg', pagamentos: 12, notas: 8 },
-    { day: 'Ter', pagamentos: 15, notas: 12 },
-    { day: 'Qua', pagamentos: 8, notas: 6 },
-    { day: 'Qui', pagamentos: 18, notas: 14 },
-    { day: 'Sex', pagamentos: 22, notas: 18 },
-    { day: 'Sáb', pagamentos: 5, notas: 3 },
-    { day: 'Dom', pagamentos: 2, notas: 1 },
-  ];
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -349,59 +436,53 @@ export default function Dashboard() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">Evolução de Receita</h3>
-                  <p className="text-sm text-muted-foreground">Comparativo com meta mensal</p>
+                  <h3 className="text-lg font-bold text-foreground">Evolução de Pagamentos</h3>
+                  <p className="text-sm text-muted-foreground">Últimos 6 meses</p>
                 </div>
-                <Badge className="badge-premium bg-success/10 text-success border-success/30">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  +15.3%
-                </Badge>
+                {monthlyPayments.length > 0 && (
+                  <Badge className="badge-premium bg-success/10 text-success border-success/30">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    Dados Reais
+                  </Badge>
+                )}
               </div>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={revenueData}>
-                  <defs>
-                    <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(220 90% 56%)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(220 90% 56%)" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorMeta" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(270 80% 65%)" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="hsl(270 80% 65%)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke="hsl(var(--muted-foreground))"
-                    style={{ fontSize: '12px' }}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))"
-                    style={{ fontSize: '12px' }}
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="valor" 
-                    name="Valor Real"
-                    stroke="hsl(220 90% 56%)" 
-                    strokeWidth={3}
-                    fillOpacity={1} 
-                    fill="url(#colorValor)" 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="meta" 
-                    name="Meta"
-                    stroke="hsl(270 80% 65%)" 
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    fillOpacity={1} 
-                    fill="url(#colorMeta)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {monthlyPayments.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={monthlyPayments}>
+                    <defs>
+                      <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(220 90% 56%)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(220 90% 56%)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                    <XAxis 
+                      dataKey="month" 
+                      stroke="hsl(var(--muted-foreground))"
+                      style={{ fontSize: '12px' }}
+                    />
+                    <YAxis 
+                      stroke="hsl(var(--muted-foreground))"
+                      style={{ fontSize: '12px' }}
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="valor" 
+                      name="Valor Pagamentos"
+                      stroke="hsl(220 90% 56%)" 
+                      strokeWidth={3}
+                      fillOpacity={1} 
+                      fill="url(#colorValor)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  <p>Nenhum dado de pagamento disponível</p>
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -415,40 +496,48 @@ export default function Dashboard() {
             <div className="p-6">
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-foreground">Distribuição por Status</h3>
-                <p className="text-sm text-muted-foreground">Últimos 30 dias</p>
+                <p className="text-sm text-muted-foreground">Notas fiscais</p>
               </div>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+              {statusDistribution.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={statusDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {statusDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    {statusDistribution.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground">{item.name}</p>
+                          <p className="text-sm font-semibold text-foreground">{item.value}</p>
+                        </div>
+                      </div>
                     ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                {statusData.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <div className="flex-1">
-                      <p className="text-xs text-muted-foreground">{item.name}</p>
-                      <p className="text-sm font-semibold text-foreground">{item.value}%</p>
-                    </div>
                   </div>
-                ))}
-              </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  <p>Nenhuma nota fiscal cadastrada</p>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
@@ -466,37 +555,37 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Atividade Semanal</h3>
-                  <p className="text-sm text-muted-foreground">Pagamentos vs Notas Fiscais</p>
+                  <p className="text-sm text-muted-foreground">Pagamentos por dia</p>
                 </div>
                 <Activity className="h-5 w-5 text-primary" />
               </div>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={activityData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                  <XAxis 
-                    dataKey="day" 
-                    stroke="hsl(var(--muted-foreground))"
-                    style={{ fontSize: '12px' }}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))"
-                    style={{ fontSize: '12px' }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar 
-                    dataKey="pagamentos" 
-                    name="Pagamentos"
-                    fill="hsl(220 90% 56%)" 
-                    radius={[8, 8, 0, 0]}
-                  />
-                  <Bar 
-                    dataKey="notas" 
-                    name="Notas"
-                    fill="hsl(250 85% 60%)" 
-                    radius={[8, 8, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              {dailyActivity.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={dailyActivity}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                    <XAxis 
+                      dataKey="day" 
+                      stroke="hsl(var(--muted-foreground))"
+                      style={{ fontSize: '12px' }}
+                    />
+                    <YAxis 
+                      stroke="hsl(var(--muted-foreground))"
+                      style={{ fontSize: '12px' }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar 
+                      dataKey="pagamentos" 
+                      name="Pagamentos"
+                      fill="hsl(220 90% 56%)" 
+                      radius={[8, 8, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                  <p>Nenhuma atividade registrada</p>
+                </div>
+              )}
             </div>
           </motion.div>
 
