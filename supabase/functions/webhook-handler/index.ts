@@ -355,14 +355,16 @@ serve(async (req) => {
         });
       }
 
-      // Determinar o nome do arquivo
+      // Determinar o nome do arquivo e sanitizar
       let filename = 'documento.pdf';
       if (document?.filename) {
-        filename = document.filename;
+        filename = sanitizeFilename(document.filename);
       } else if (msg.body) {
         // Se não tem document.filename, usar o body da mensagem que pode conter o nome
-        filename = msg.body;
+        filename = sanitizeFilename(msg.body);
       }
+      
+      console.log('Nome do arquivo sanitizado:', filename);
 
       if ((document && document.mime_type === 'application/pdf') || 
           (msg.mediaType === 'document' && wabaMediaId)) {
@@ -464,9 +466,22 @@ serve(async (req) => {
             
             if (fileResponse.ok) {
               const fileData = await fileResponse.arrayBuffer();
-              const baseName = filename.endsWith('.pdf') ? filename : `${filename.replace(/\.[^/.]+$/, '')}.pdf`;
-              const uniqueName = `${pagamento.id}_${wabaMediaId}_${Date.now()}_${baseName}`;
+              
+              // Verificar tamanho do arquivo (máx 10MB)
+              const maxSize = 10 * 1024 * 1024; // 10MB em bytes
+              if (fileData.byteLength > maxSize) {
+                throw new Error(`Arquivo muito grande: ${(fileData.byteLength / 1024 / 1024).toFixed(2)}MB. Máximo permitido: 10MB`);
+              }
+              
+              // Nome do arquivo já está sanitizado
+              const uniqueName = `${pagamento.id}_${wabaMediaId}_${Date.now()}_${filename}`;
               const filePath = `${pagamento.id}/${uniqueName}`;
+              
+              console.log('Preparando upload:', { 
+                filePath, 
+                size: `${(fileData.byteLength / 1024).toFixed(2)}KB`,
+                pagamentoId: pagamento.id 
+              });
               
               // Fazer upload para o Supabase Storage
               const { data: uploadData, error: uploadError } = await supabase.storage
@@ -647,6 +662,32 @@ function brPhoneVariants(num: string): string[] {
     }
   }
   return Array.from(set);
+}
+
+// Função para sanitizar nome de arquivo
+function sanitizeFilename(filename: string): string {
+  // Remove caracteres especiais, espaços e acentos
+  let sanitized = filename
+    .normalize('NFD') // Decompõe caracteres acentuados
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacríticos
+    .replace(/[^a-zA-Z0-9.-]/g, '_') // Substitui caracteres especiais por _
+    .replace(/\.pdf(\.pdf)+$/gi, '.pdf') // Remove múltiplos .pdf
+    .replace(/_{2,}/g, '_') // Substitui múltiplos _ por um único
+    .toLowerCase();
+  
+  // Garante que termina com .pdf
+  if (!sanitized.endsWith('.pdf')) {
+    sanitized = sanitized.replace(/\.[^.]*$/, '') + '.pdf';
+  }
+  
+  // Limita o tamanho do nome
+  const maxLength = 100;
+  if (sanitized.length > maxLength) {
+    const extension = '.pdf';
+    sanitized = sanitized.substring(0, maxLength - extension.length) + extension;
+  }
+  
+  return sanitized;
 }
 
 // Funções auxiliares para extração de texto (placeholder)
