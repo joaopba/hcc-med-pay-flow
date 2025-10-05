@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface WhatsAppRequest {
-  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'encaminhar_nota' | 'nota_recebida';
+  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'encaminhar_nota' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro';
   numero?: string;
   nome?: string;
   valor?: string;
@@ -19,6 +19,11 @@ interface WhatsAppRequest {
   };
   motivo?: string;
   linkPortal?: string;
+  numero_destino?: string;
+  medico_nome?: string;
+  mensagem_preview?: string;
+  mensagem?: string;
+  medico_id?: string;
 }
 
 serve(async (req) => {
@@ -33,7 +38,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal }: WhatsAppRequest = await req.json();
+    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id }: WhatsAppRequest = await req.json();
 
     // Buscar configurações da API
     const { data: config, error: configError } = await supabase
@@ -158,6 +163,30 @@ serve(async (req) => {
           body: message,
           number: phoneNumber,
           externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+          isClosed: false
+        };
+        break;
+      
+      case 'nova_mensagem_chat':
+        phoneNumber = numero_destino;
+        const linkResposta = `https://hcc.chatconquista.com/chat?medico=${medico_id || ''}&responder=true`;
+        message = `💬 *Nova Mensagem no Chat*\n\n*De:* ${medico_nome}\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Responder agora:\n${linkResposta}\n\nOu acesse o sistema para visualizar o histórico completo.`;
+        payload = {
+          body: message,
+          number: phoneNumber,
+          externalKey: `chat_${medico_id}_${Date.now()}`,
+          isClosed: false
+        };
+        break;
+      
+      case 'resposta_financeiro':
+        phoneNumber = numero_destino;
+        const linkChatMedico = `https://hcc.chatconquista.com/dashboard-medicos`;
+        message = `💬 *Nova Resposta do Financeiro*\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Ver conversa:\n${linkChatMedico}\n\nAcesse seu painel para continuar a conversa.`;
+        payload = {
+          body: message,
+          number: phoneNumber,
+          externalKey: `chat_resp_${Date.now()}`,
           isClosed: false
         };
         break;

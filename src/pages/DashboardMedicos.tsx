@@ -702,23 +702,20 @@ export default function DashboardMedicos() {
           <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gradient-primary rounded-xl flex items-center justify-center">
-                    <img src={logo} alt="HCC" className="h-10 w-10 object-contain" />
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-primary opacity-10 blur-xl rounded-lg" />
+                    <img 
+                      src={logo} 
+                      alt="HCC Hospital" 
+                      className="h-16 w-16 object-contain relative z-10 drop-shadow-lg"
+                    />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h1 className="text-xl font-bold text-foreground">
-                        HCC Hospital
-                      </h1>
-                      <Badge variant="outline" className="text-xs">
-                        Portal Médico
-                      </Badge>
-                    </div>
-                    <h2 className="text-lg font-semibold text-primary mb-1">
+                    <h2 className="text-2xl font-bold gradient-text mb-1">
                       {medico.nome}
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Dashboard - Notas fiscais e pagamentos
+                      Portal do Médico • Notas fiscais e pagamentos
                     </p>
                   </div>
                 </div>
@@ -727,13 +724,14 @@ export default function DashboardMedicos() {
                     variant="outline"
                     size="icon"
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                    className="glass-effect"
+                    className="glass-effect border-primary/20"
                   >
-                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                    {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                   </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => setMedico(null)}
+                    className="glass-effect border-primary/20"
                   >
                     Sair
                   </Button>

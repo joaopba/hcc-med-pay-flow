@@ -144,7 +144,8 @@ export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = fa
                 type: 'nova_mensagem_chat',
                 numero_destino: profile.numero_whatsapp,
                 medico_nome: medicoNome,
-                mensagem_preview: newMessage.trim().substring(0, 50)
+                mensagem: newMessage.trim(),
+                medico_id: medicoId
               }
             });
           }
@@ -162,7 +163,7 @@ export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = fa
             body: {
               type: 'resposta_financeiro',
               numero_destino: medico.numero_whatsapp,
-              mensagem_preview: newMessage.trim().substring(0, 50)
+              mensagem: newMessage.trim()
             }
           });
         }
