@@ -37,9 +37,9 @@ fi
 # Instalar dependências (inclui dev para build)
 echo "📦 Instalando dependências para build (inclui dev)..."
 if [ -f package-lock.json ]; then
-  npm ci
+  npm ci --include=dev || npm ci
 else
-  npm install
+  npm install --include=dev || npm install
 fi
 
 # Build da aplicação

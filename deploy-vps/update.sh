@@ -32,13 +32,16 @@ fi
 
 echo "📦 Instalando dependências para build (inclui dev)..."
 if [ -f package-lock.json ]; then
-  npm ci
+  npm ci --include=dev || npm ci
 else
-  npm install
+  npm install --include=dev || npm install
 fi
 
 echo "🔨 Fazendo novo build..."
 npm run build
+
+echo "🧹 Removendo devDependencies para produção..."
+npm prune --production || true
 
 # Verificar build
 if [ ! -d "dist" ]; then
