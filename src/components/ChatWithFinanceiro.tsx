@@ -134,22 +134,24 @@ export default function ChatWithFinanceiro({
 
   const loadMessages = async () => {
     try {
+      // Buscar o ticket mais recente (aberto ou em atendimento)
+      const { data: activeTicket } = await supabase
+        .from('chat_tickets')
+        .select('id, created_at, status')
+        .eq('medico_id', medicoId)
+        .in('status', ['aberto', 'em_atendimento'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       let query = supabase
         .from('chat_messages')
         .select('*')
         .eq('medico_id', medicoId);
 
-      // Se houver ticket ativo e for gestor, carregar apenas mensagens deste ticket
-      if (currentTicketId && isGestor) {
-        const { data: ticket } = await supabase
-          .from('chat_tickets')
-          .select('created_at')
-          .eq('id', currentTicketId)
-          .single();
-
-        if (ticket) {
-          query = query.gte('created_at', ticket.created_at);
-        }
+      // Sempre filtrar mensagens do ticket ativo - isso faz com que mensagens antigas desapareçam
+      if (activeTicket) {
+        query = query.gte('created_at', activeTicket.created_at);
       }
 
       const { data, error } = await query.order('created_at', { ascending: true });
@@ -159,7 +161,7 @@ export default function ChatWithFinanceiro({
 
       // Count unread messages
       const unread = data?.filter(m => 
-        !m.read && m.sender_type !== (isGestor ? 'medico' : 'financeiro')
+        !m.read && m.sender_type === 'medico'
       ).length || 0;
       setUnreadCount(unread);
     } catch (error) {
@@ -205,7 +207,7 @@ export default function ChatWithFinanceiro({
         .maybeSingle();
 
       if (existingTicket) {
-        // Se ticket está aberto, assumir
+        // Se ticket está aberto, qualquer gestor pode assumir
         if (existingTicket.status === 'aberto') {
           const { data, error } = await supabase
             .from('chat_tickets')
@@ -225,14 +227,10 @@ export default function ChatWithFinanceiro({
             // Enviar mensagem de saudação
             await sendSystemMessage(`🤝 ${profile.name} iniciou o atendimento. Olá Dr(a). ${medicoNome}, como posso ajudá-lo(a) hoje?`);
           }
-        } else if (existingTicket.status === 'em_atendimento' && existingTicket.gestor_id === profile.id) {
-          // Gestor voltando para seu próprio ticket
+        } else {
+          // Ticket já em atendimento - qualquer gestor pode acessar e responder
           setCurrentTicketId(existingTicket.id);
           setCurrentTicketStatus('em_atendimento');
-        } else {
-          // Ticket já está sendo atendido por outro gestor
-          setCurrentTicketId(existingTicket.id);
-          setCurrentTicketStatus(existingTicket.status as 'aberto' | 'em_atendimento' | 'finalizado');
         }
       } else {
         // Criar novo ticket

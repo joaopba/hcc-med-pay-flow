@@ -160,20 +160,15 @@ export default function ChatAdmin() {
                 ) : (
                   <div className="p-2 space-y-2">
                     {medicos.map((medico) => {
-                      const isLocked = medico.ticketStatus === 'em_atendimento' && medico.ticketGestorId !== gestorId;
-                      
                       return (
                         <motion.button
                           key={medico.id}
-                          whileHover={{ scale: isLocked ? 1 : 1.02 }}
-                          whileTap={{ scale: isLocked ? 1 : 0.98 }}
-                          onClick={() => !isLocked && setSelectedMedico(medico)}
-                          disabled={isLocked}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setSelectedMedico(medico)}
                           className={`w-full text-left p-2.5 md:p-3 rounded-lg transition-all ${
                             selectedMedico?.id === medico.id
                               ? 'bg-primary/10 border-primary/30'
-                              : isLocked
-                              ? 'opacity-50 cursor-not-allowed'
                               : 'hover:bg-accent/50'
                           } border border-border/50`}
                         >
@@ -181,14 +176,14 @@ export default function ChatAdmin() {
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-xs md:text-sm truncate">{medico.nome}</p>
                               <p className="text-[10px] md:text-xs text-muted-foreground">
-                                {isLocked
-                                  ? `Em atendimento por ${medico.ticketGestorNome}`
+                                {medico.ticketGestorNome 
+                                  ? `Atendido por ${medico.ticketGestorNome}`
                                   : medico.unreadCount > 0 
                                     ? `${medico.unreadCount} nova(s)` 
                                     : 'Sem mensagens novas'}
                               </p>
                             </div>
-                            {medico.unreadCount > 0 && !isLocked && (
+                            {medico.unreadCount > 0 && (
                               <Badge className="bg-destructive text-destructive-foreground border-0 text-xs">
                                 {medico.unreadCount}
                               </Badge>
