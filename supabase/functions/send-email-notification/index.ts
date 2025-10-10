@@ -231,8 +231,11 @@ serve(async (req) => {
     }
 
     // Enviar email para todos os destinatários
+    const resultadosEnvio: Array<{email: string, sucesso: boolean, erro?: string}> = [];
+    
     for (const dest of destinatarios) {
       try {
+        console.log(`📧 Tentando enviar email para: ${dest}`);
         await client.send({
           from: "HCC Hospital <suporte@chatconquista.com>",
           to: dest,
@@ -241,11 +244,15 @@ serve(async (req) => {
           html: html,
           attachments: attachments.length > 0 ? attachments : undefined,
         });
-        console.log(`Email enviado para ${dest} com sucesso`, attachments.length > 0 ? 'com anexo' : '');
+        console.log(`✅ Email enviado para ${dest} com sucesso`, attachments.length > 0 ? 'com anexo' : '');
+        resultadosEnvio.push({ email: dest, sucesso: true });
       } catch (emailError) {
-        console.error(`Erro ao enviar para ${dest}:`, emailError);
+        console.error(`❌ Erro ao enviar para ${dest}:`, emailError);
+        resultadosEnvio.push({ email: dest, sucesso: false, erro: String(emailError) });
       }
     }
+    
+    console.log('📊 Resumo de envios:', resultadosEnvio);
 
     // Enviar WhatsApp com link público do PDF para usuários
     if (type === 'nova_nota' && usuariosWhatsApp.length > 0 && pdfPath) {
