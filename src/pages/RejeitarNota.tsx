@@ -69,9 +69,29 @@ export default function RejeitarNota() {
         return;
       }
 
-      // Extrair dados dos joins (podem vir como array)
-      const medicoData = Array.isArray(nota.medicos) ? nota.medicos[0] : nota.medicos;
-      const pagamentoData = Array.isArray(nota.pagamentos) ? nota.pagamentos[0] : nota.pagamentos;
+      // Extrair dados dos joins (podem vir como array) e aplicar fallback por consulta direta
+      let medicoData = Array.isArray(nota.medicos) ? nota.medicos[0] : nota.medicos;
+      let pagamentoData = Array.isArray(nota.pagamentos) ? nota.pagamentos[0] : nota.pagamentos;
+
+      if (!medicoData && nota.medico_id) {
+        const { data: medicoRow, error: medicoErr } = await supabase
+          .from('medicos')
+          .select('nome, numero_whatsapp')
+          .eq('id', nota.medico_id)
+          .maybeSingle();
+        if (medicoErr) console.warn('Fallback medicos erro:', medicoErr);
+        medicoData = medicoRow || medicoData;
+      }
+
+      if (!pagamentoData && nota.pagamento_id) {
+        const { data: pagamentoRow, error: pagErr } = await supabase
+          .from('pagamentos')
+          .select('mes_competencia')
+          .eq('id', nota.pagamento_id)
+          .maybeSingle();
+        if (pagErr) console.warn('Fallback pagamentos erro:', pagErr);
+        pagamentoData = pagamentoRow || pagamentoData;
+      }
       
       console.log('Médico:', medicoData);
       console.log('Pagamento:', pagamentoData);
