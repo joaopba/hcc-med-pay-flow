@@ -130,11 +130,25 @@ export default function ChatWithFinanceiro({
 
   const loadMessages = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('chat_messages')
         .select('*')
-        .eq('medico_id', medicoId)
-        .order('created_at', { ascending: true });
+        .eq('medico_id', medicoId);
+
+      // Se houver ticket ativo e for gestor, carregar apenas mensagens deste ticket
+      if (currentTicketId && isGestor) {
+        const { data: ticket } = await supabase
+          .from('chat_tickets')
+          .select('created_at')
+          .eq('id', currentTicketId)
+          .single();
+
+        if (ticket) {
+          query = query.gte('created_at', ticket.created_at);
+        }
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: true });
 
       if (error) throw error;
       setMessages((data || []) as Message[]);
@@ -178,7 +192,7 @@ export default function ChatWithFinanceiro({
 
       if (!profile) return;
 
-      // Verificar se já existe ticket aberto ou criar novo
+      // Verificar se já existe ticket aberto ou em atendimento
       const { data: existingTicket } = await supabase
         .from('chat_tickets')
         .select('*')
@@ -207,8 +221,12 @@ export default function ChatWithFinanceiro({
             // Enviar mensagem de saudação
             await sendSystemMessage(`🤝 ${profile.name} iniciou o atendimento. Olá Dr(a). ${medicoNome}, como posso ajudá-lo(a) hoje?`);
           }
+        } else if (existingTicket.status === 'em_atendimento' && existingTicket.gestor_id === profile.id) {
+          // Gestor voltando para seu próprio ticket
+          setCurrentTicketId(existingTicket.id);
+          setCurrentTicketStatus('em_atendimento');
         } else {
-          // Já está em atendimento
+          // Ticket já está sendo atendido por outro gestor
           setCurrentTicketId(existingTicket.id);
           setCurrentTicketStatus(existingTicket.status as 'aberto' | 'em_atendimento' | 'finalizado');
         }
@@ -229,8 +247,11 @@ export default function ChatWithFinanceiro({
           setCurrentTicketStatus('em_atendimento');
           onTicketUpdate?.();
           
-          // Enviar mensagem de saudação
-          await sendSystemMessage(`🤝 ${profile.name} iniciou o atendimento. Olá Dr(a). ${medicoNome}, como posso ajudá-lo(a) hoje?`);
+          // Enviar mensagem de saudação completa
+          await sendSystemMessage(`🤝 **${profile.name}** iniciou o atendimento`);
+          await sendSystemMessage(`👋 Olá Dr(a). **${medicoNome}**, seja bem-vindo(a) ao nosso canal de suporte financeiro!`);
+          await sendSystemMessage(`💬 Estou aqui para ajudá-lo(a) com dúvidas sobre pagamentos, notas fiscais e questões administrativas.`);
+          await sendSystemMessage(`⏰ Horário de atendimento: Segunda a Sexta, das 8h às 18h`);
         }
       }
     } catch (error) {
@@ -551,26 +572,32 @@ export default function ChatWithFinanceiro({
                         messages.map((msg) => {
                           const isOwn = isGestor ? msg.sender_type === 'financeiro' : msg.sender_type === 'medico';
                           return (
-                            <motion.div
+                             <motion.div
                               key={msg.id}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                              className={`flex ${msg.sender_type === 'sistema' ? 'justify-center' : isOwn ? 'justify-end' : 'justify-start'}`}
                             >
                               <div
-                                className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                                  isOwn
+                           className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                                  msg.sender_type === 'sistema'
+                                    ? 'bg-muted/50 border border-border/50 text-center w-full max-w-full'
+                                    : isOwn
                                     ? 'bg-gradient-primary text-primary-foreground'
                                     : 'glass-effect border border-border/50'
                                 }`}
                               >
-                                <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                                <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                  {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
+                               <p className={`text-sm whitespace-pre-wrap ${msg.sender_type === 'sistema' ? 'text-muted-foreground font-medium' : ''}`}>
+                                  {msg.message}
                                 </p>
+                                {msg.sender_type !== 'sistema' && (
+                                  <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                    {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                )}
                               </div>
                             </motion.div>
                           );
