@@ -578,6 +578,16 @@ export default function DashboardMedicos() {
                   </Button>
                 </div>
               </CardContent>
+              <div className="px-6 pb-6 pt-4 border-t border-border/30">
+                <div className="flex items-center justify-center gap-3">
+                  <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+                  <img 
+                    src={conquistaLogo} 
+                    alt="Conquista Inovação" 
+                    className="h-5 opacity-60 hover:opacity-100 transition-opacity"
+                  />
+                </div>
+              </div>
             </Card>
           </motion.div>
         </div>
