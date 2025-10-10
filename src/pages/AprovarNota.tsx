@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import conquistaLogo from "@/assets/conquista-inovacao.png";
 
 export default function AprovarNota() {
   const [searchParams] = useSearchParams();
@@ -166,6 +167,16 @@ export default function AprovarNota() {
         >
           Voltar ao Sistema
         </button>
+        
+        {/* Footer with Conquista Logo */}
+        <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
+          <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+          <img 
+            src={conquistaLogo} 
+            alt="Conquista Inovação" 
+            className="h-5 opacity-60"
+          />
+        </div>
       </div>
     </div>
   );

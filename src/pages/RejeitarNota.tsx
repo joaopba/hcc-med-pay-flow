@@ -5,6 +5,7 @@ import { Loader2, XCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import conquistaLogo from "@/assets/conquista-inovacao.png";
 
 export default function RejeitarNota() {
   const [searchParams] = useSearchParams();
@@ -195,6 +196,16 @@ export default function RejeitarNota() {
           >
             Voltar ao Sistema
           </button>
+          
+          {/* Footer with Conquista Logo */}
+          <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
+            <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+            <img 
+              src={conquistaLogo} 
+              alt="Conquista Inovação" 
+              className="h-5 opacity-60"
+            />
+          </div>
         </div>
       </div>
     );
@@ -263,6 +274,16 @@ export default function RejeitarNota() {
             )}
           </Button>
         </form>
+        
+        {/* Footer with Conquista Logo */}
+        <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
+          <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+          <img 
+            src={conquistaLogo} 
+            alt="Conquista Inovação" 
+            className="h-5 opacity-60"
+          />
+        </div>
       </div>
     </div>
   );
