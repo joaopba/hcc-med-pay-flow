@@ -219,11 +219,11 @@ export default function RejeitarNota() {
           <h1 className="text-3xl font-bold text-red-600 mb-4">
             Nota Fiscal Rejeitada
           </h1>
-          <div className="bg-red-50 rounded-lg p-4 mb-6 text-left border-l-4 border-red-500">
-            <p className="text-sm text-muted-foreground mb-2">Médico</p>
-            <p className="font-semibold mb-3">{notaInfo?.medicos?.nome}</p>
-            <p className="text-sm text-muted-foreground mb-2">Motivo da Rejeição</p>
-            <p className="text-sm">{motivo}</p>
+          <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-4 mb-6 text-left border-l-4 border-red-500">
+            <p className="text-sm text-red-700 dark:text-red-400 mb-2 font-medium">Médico</p>
+            <p className="font-semibold text-foreground mb-3">{notaInfo?.medicos?.nome}</p>
+            <p className="text-sm text-red-700 dark:text-red-400 mb-2 font-medium">Motivo da Rejeição</p>
+            <p className="text-sm text-foreground">{motivo}</p>
           </div>
           <p className="text-muted-foreground mb-8">
             O médico foi notificado via WhatsApp e poderá enviar uma nova nota corrigida.
@@ -259,19 +259,19 @@ export default function RejeitarNota() {
           </h1>
         </div>
 
-        <div className="bg-amber-50 rounded-lg p-6 mb-6 border-l-4 border-amber-500">
+        <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-6 mb-6 border-l-4 border-amber-500">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-muted-foreground mb-1">Médico</p>
-              <p className="font-semibold">{notaInfo?.medicos?.nome}</p>
+              <p className="text-amber-700 dark:text-amber-400 mb-1 font-medium">Médico</p>
+              <p className="font-semibold text-foreground">{notaInfo?.medicos?.nome || 'Carregando...'}</p>
             </div>
             <div>
-              <p className="text-muted-foreground mb-1">Competência</p>
-              <p className="font-semibold">{notaInfo?.pagamentos?.mes_competencia}</p>
+              <p className="text-amber-700 dark:text-amber-400 mb-1 font-medium">Competência</p>
+              <p className="font-semibold text-foreground">{notaInfo?.pagamentos?.mes_competencia || 'Carregando...'}</p>
             </div>
             <div className="col-span-2">
-              <p className="text-muted-foreground mb-1">Arquivo</p>
-              <p className="font-semibold text-sm">{notaInfo?.nome_arquivo}</p>
+              <p className="text-amber-700 dark:text-amber-400 mb-1 font-medium">Arquivo</p>
+              <p className="font-semibold text-sm text-foreground break-all">{notaInfo?.nome_arquivo || 'Carregando...'}</p>
             </div>
           </div>
         </div>
