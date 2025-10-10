@@ -228,12 +228,8 @@ serve(async (req) => {
     console.log('Enviando mensagem WhatsApp diretamente:', payload);
     console.log('Tipo:', type);
 
-    // Determinar endpoint correto baseado no tipo
-    const endpoint = type === 'nota' 
-      ? `${apiUrl}/template` 
-      : type === 'nota_aprovacao'
-      ? `${apiUrl}/file`
-      : apiUrl;
+    // Usar sempre o endpoint base - a API identifica pelo payload
+    const endpoint = apiUrl;
 
     console.log('Endpoint da API:', endpoint);
     console.log('Payload enviado:', JSON.stringify(payload, null, 2));
