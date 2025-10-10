@@ -60,8 +60,14 @@ export default function ChatWithFinanceiro({
   const [editingMessageText, setEditingMessageText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const lastMessageCountRef = useRef(0);
+
+  // Auto-scroll sempre que mensagens mudarem
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
     if (isOpen || fullscreen) {
@@ -101,9 +107,8 @@ export default function ChatWithFinanceiro({
   }, [medicoId, isOpen, fullscreen, isGestor]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    // Scroll para o final sempre que mensagens mudarem
+    scrollToBottom();
     
     // Notificação de nova mensagem
     if (messages.length > lastMessageCountRef.current && lastMessageCountRef.current > 0) {
@@ -632,7 +637,8 @@ export default function ChatWithFinanceiro({
                           <p className="text-xs">Inicie a conversa!</p>
                         </div>
                       ) : (
-                        messages.map((msg) => {
+                        <>
+                          {messages.map((msg) => {
                           const isOwn = isGestor ? msg.sender_type === 'financeiro' : msg.sender_type === 'medico';
                           const isEditing = editingMessageId === msg.id;
                           
@@ -725,7 +731,10 @@ export default function ChatWithFinanceiro({
                               </div>
                             </motion.div>
                           );
-                        })
+                        })}
+                        {/* Elemento invisível para scroll automático */}
+                        <div ref={messagesEndRef} />
+                        </>
                       )}
                     </div>
                   </ScrollArea>

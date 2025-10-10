@@ -39,6 +39,7 @@ import { formatMesCompetencia } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
 import logo from "@/assets/logo.png";
 import ChatWithFinanceiro from "@/components/ChatWithFinanceiro";
+import TicketHistory from "@/components/TicketHistory";
 import RatingDialog from "@/components/RatingDialog";
 import conquistaLogo from "@/assets/conquista-inovacao.png";
 
@@ -976,6 +977,11 @@ export default function DashboardMedicos() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Histórico de Tickets do Chat */}
+        <div className="mb-8">
+          <TicketHistory medicoId={medico.id} medicoNome={medico.nome} />
         </div>
 
         {/* Histórico de notas */}
