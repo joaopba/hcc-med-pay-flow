@@ -34,20 +34,20 @@ else
     cd $APP_DIR
 fi
 
-# Verificar se package.json mudou
-if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -q "package.json"; then
-    echo "📦 package.json alterado - reinstalando dependências..."
-    rm -rf node_modules package-lock.json
-    npm install
+# Instalar dependências (inclui dev para build)
+echo "📦 Instalando dependências para build (inclui dev)..."
+if [ -f package-lock.json ]; then
+  npm ci
 else
-    echo "📦 Instalando/atualizando dependências..."
-    npm install --production
+  npm install
 fi
 
 # Build da aplicação
 echo "🔨 Fazendo build da aplicação..."
 npm run build
 
+echo "🧹 Pruning dependências de produção..."
+npm prune --production || true
 # Verificar se build foi bem sucedido
 if [ ! -d "dist" ]; then
     echo "❌ Erro: pasta dist não foi criada!"

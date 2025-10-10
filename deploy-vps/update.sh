@@ -30,8 +30,12 @@ if [ "$OLD_COMMIT" = "$NEW_COMMIT" ]; then
     exit 0
 fi
 
-echo "📦 Atualizando dependências se necessário..."
-npm install --production
+echo "📦 Instalando dependências para build (inclui dev)..."
+if [ -f package-lock.json ]; then
+  npm ci
+else
+  npm install
+fi
 
 echo "🔨 Fazendo novo build..."
 npm run build
