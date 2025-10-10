@@ -32,6 +32,12 @@ interface ChatWithFinanceiroProps {
   onTicketUpdate?: () => void;
 }
 
+interface TypingIndicator {
+  userId: string;
+  userName: string;
+  timestamp: number;
+}
+
 export default function ChatWithFinanceiro({ 
   medicoId, 
   medicoNome, 
@@ -59,8 +65,11 @@ export default function ChatWithFinanceiro({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageText, setEditingMessageText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState<TypingIndicator | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
   const lastMessageCountRef = useRef(0);
 
@@ -80,7 +89,7 @@ export default function ChatWithFinanceiro({
   }, [isOpen, fullscreen, medicoId]);
 
   useEffect(() => {
-    // Realtime subscription
+    // Realtime subscription para mensagens e indicador de digitação
     const channel = supabase
       .channel(`chat-${medicoId}`)
       .on(
@@ -99,12 +108,33 @@ export default function ChatWithFinanceiro({
           }
         }
       )
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        // Mostrar indicador de digitação apenas se for outra pessoa
+        const currentUserId = isGestor ? gestorId : medicoId;
+        if (payload.userId !== currentUserId) {
+          setOtherUserTyping({
+            userId: payload.userId,
+            userName: payload.userName,
+            timestamp: Date.now()
+          });
+          
+          // Remover indicador após 3 segundos
+          setTimeout(() => {
+            setOtherUserTyping(prev => {
+              if (prev && Date.now() - prev.timestamp >= 3000) {
+                return null;
+              }
+              return prev;
+            });
+          }, 3000);
+        }
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [medicoId, isOpen, fullscreen, isGestor]);
+  }, [medicoId, isOpen, fullscreen, isGestor, gestorId]);
 
   useEffect(() => {
     // Scroll para o final sempre que mensagens mudarem
@@ -285,6 +315,11 @@ export default function ChatWithFinanceiro({
   };
 
   const handleCloseTicket = async () => {
+    // Confirmação antes de fechar
+    if (!confirm('Tem certeza que deseja finalizar este atendimento? O ticket será desvinculado e arquivado.')) {
+      return;
+    }
+
     try {
       if (!currentTicketId) return;
 
@@ -293,11 +328,13 @@ export default function ChatWithFinanceiro({
       // Enviar mensagem de encerramento
       await sendSystemMessage(`✅ Atendimento finalizado por ${gestorNome}. Obrigado pelo contato!`);
       
+      // Desvincular gestor e finalizar ticket
       const { error } = await supabase
         .from('chat_tickets')
         .update({
           status: 'finalizado',
-          closed_at: new Date().toISOString()
+          closed_at: new Date().toISOString(),
+          gestor_id: null // Desvincular o gestor
         })
         .eq('id', currentTicketId);
 
@@ -307,9 +344,16 @@ export default function ChatWithFinanceiro({
       onTicketUpdate?.();
       
       toast({
-        title: "Atendimento Finalizado",
+        title: "✅ Atendimento Finalizado",
         description: "O médico será notificado para avaliar o atendimento.",
       });
+
+      // Fechar o chat após finalizar
+      if (fullscreen) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
     } catch (error: any) {
       console.error('Erro ao finalizar ticket:', error);
       toast({
@@ -450,6 +494,29 @@ export default function ChatWithFinanceiro({
     } finally {
       setSending(false);
     }
+  };
+
+  const handleTyping = () => {
+    // Broadcast evento de digitação
+    const channel = supabase.channel(`chat-${medicoId}`);
+    channel.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: {
+        userId: isGestor ? gestorId : medicoId,
+        userName: isGestor ? gestorNome : medicoNome
+      }
+    });
+
+    // Limpar timeout anterior
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Parar de digitar após 2 segundos de inatividade
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 2000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -629,7 +696,7 @@ export default function ChatWithFinanceiro({
                 <CardContent className={`p-0 ${fullscreen ? 'flex-1 flex flex-col' : ''}`}>
                   {/* Messages */}
                   <ScrollArea className={`p-4 ${fullscreen ? 'flex-1' : 'h-96'}`} ref={scrollRef}>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {messages.length === 0 ? (
                         <div className="text-center text-muted-foreground py-8">
                           <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -638,102 +705,144 @@ export default function ChatWithFinanceiro({
                         </div>
                       ) : (
                         <>
-                          {messages.map((msg) => {
-                          const isOwn = isGestor ? msg.sender_type === 'financeiro' : msg.sender_type === 'medico';
-                          const isEditing = editingMessageId === msg.id;
-                          
-                          return (
-                            <motion.div
-                              key={msg.id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className={`flex ${msg.sender_type === 'sistema' ? 'justify-center' : isOwn ? 'justify-end' : 'justify-start'} group`}
-                            >
-                              <div
-                                className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                                  msg.sender_type === 'sistema'
-                                    ? 'bg-muted/50 border border-border/50 text-center w-full max-w-full'
-                                    : isOwn
-                                    ? 'bg-gradient-primary text-primary-foreground'
-                                    : 'glass-effect border border-border/50'
-                                }`}
-                              >
-                                {isEditing ? (
-                                  <div className="space-y-2">
-                                    <Textarea
-                                      value={editingMessageText}
-                                      onChange={(e) => setEditingMessageText(e.target.value)}
-                                      className="min-h-[60px] text-sm"
-                                      disabled={savingEdit}
-                                    />
-                                    <div className="flex gap-2 justify-end">
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => {
-                                          setEditingMessageId(null);
-                                          setEditingMessageText("");
-                                        }}
-                                        disabled={savingEdit}
-                                      >
-                                        Cancelar
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleSaveEdit(msg.id)}
-                                        disabled={savingEdit || !editingMessageText.trim()}
-                                      >
-                                        <Check className="h-3 w-3 mr-1" />
-                                        Salvar
-                                      </Button>
+                          {messages.map((msg, index) => {
+                            const showDateSeparator = index === 0 || 
+                              new Date(messages[index - 1].created_at).toDateString() !== new Date(msg.created_at).toDateString();
+                            
+                            return (
+                              <div key={msg.id}>
+                                {showDateSeparator && (
+                                  <div className="flex items-center justify-center my-4">
+                                    <div className="bg-muted/50 px-3 py-1 rounded-full text-xs text-muted-foreground">
+                                      {new Date(msg.created_at).toLocaleDateString('pt-BR', {
+                                        day: '2-digit',
+                                        month: 'long',
+                                        year: 'numeric'
+                                      })}
                                     </div>
                                   </div>
-                                ) : (
-                                  <>
-                                    <div className="flex items-start justify-between gap-2">
-                                      <p className={`text-sm whitespace-pre-wrap flex-1 ${msg.sender_type === 'sistema' ? 'text-muted-foreground font-medium' : ''}`}>
-                                        {msg.message}
-                                      </p>
-                                      
-                                      {/* Botões de edição/exclusão para gestores */}
-                                      {isGestor && msg.sender_type !== 'sistema' && !isEditing && (
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-6 w-6"
-                                            onClick={() => handleEditMessage(msg.id, msg.message)}
-                                          >
-                                            <Edit className="h-3 w-3" />
-                                          </Button>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-6 w-6 text-destructive hover:text-destructive"
-                                            onClick={() => handleDeleteMessage(msg.id)}
-                                          >
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      )}
-                                    </div>
-                                    
-                                    {msg.sender_type !== 'sistema' && (
-                                      <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                        {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
-                                          hour: '2-digit',
-                                          minute: '2-digit'
-                                        })}
-                                      </p>
-                                    )}
-                                  </>
                                 )}
+                                {(() => {
+                                  const isOwn = isGestor ? msg.sender_type === 'financeiro' : msg.sender_type === 'medico';
+                                  const isEditing = editingMessageId === msg.id;
+                                
+                                  return (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      className={`flex ${msg.sender_type === 'sistema' ? 'justify-center' : isOwn ? 'justify-end' : 'justify-start'} group`}
+                                    >
+                                      <div
+                                        className={`max-w-[80%] rounded-2xl px-4 py-2 transition-all ${
+                                          msg.sender_type === 'sistema'
+                                            ? 'bg-muted/50 border border-border/50 text-center w-full max-w-full'
+                                            : isOwn
+                                            ? 'bg-gradient-primary text-primary-foreground shadow-lg'
+                                            : 'glass-effect border border-border/50 shadow-md'
+                                        }`}
+                                      >
+                                        {isEditing ? (
+                                          <div className="space-y-2">
+                                            <Textarea
+                                              value={editingMessageText}
+                                              onChange={(e) => setEditingMessageText(e.target.value)}
+                                              className="min-h-[60px] text-sm"
+                                              disabled={savingEdit}
+                                            />
+                                            <div className="flex gap-2 justify-end">
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => {
+                                                  setEditingMessageId(null);
+                                                  setEditingMessageText("");
+                                                }}
+                                                disabled={savingEdit}
+                                              >
+                                                Cancelar
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                onClick={() => handleSaveEdit(msg.id)}
+                                                disabled={savingEdit || !editingMessageText.trim()}
+                                              >
+                                                <Check className="h-3 w-3 mr-1" />
+                                                Salvar
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            <div className="flex items-start justify-between gap-2">
+                                              <p className={`text-sm whitespace-pre-wrap flex-1 ${msg.sender_type === 'sistema' ? 'text-muted-foreground font-medium' : ''}`}>
+                                                {msg.message}
+                                              </p>
+                                              
+                                              {/* Botões de edição/exclusão para gestores */}
+                                              {isGestor && msg.sender_type !== 'sistema' && !isEditing && (
+                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                  <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-6 w-6"
+                                                    onClick={() => handleEditMessage(msg.id, msg.message)}
+                                                  >
+                                                    <Edit className="h-3 w-3" />
+                                                  </Button>
+                                                  <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-6 w-6 text-destructive hover:text-destructive"
+                                                    onClick={() => handleDeleteMessage(msg.id)}
+                                                  >
+                                                    <Trash2 className="h-3 w-3" />
+                                                  </Button>
+                                                </div>
+                                              )}
+                                            </div>
+                                            
+                                            {msg.sender_type !== 'sistema' && (
+                                              <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
+                                                  hour: '2-digit',
+                                                  minute: '2-digit'
+                                                })}
+                                              </p>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                    </motion.div>
+                                  );
+                                })()}
+                              </div>
+                            );
+                          })}
+                          
+                          {/* Indicador de digitação */}
+                          {otherUserTyping && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="flex justify-start"
+                            >
+                              <div className="glass-effect border border-border/50 rounded-2xl px-4 py-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex gap-1">
+                                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {otherUserTyping.userName} está digitando...
+                                  </span>
+                                </div>
                               </div>
                             </motion.div>
-                          );
-                        })}
-                        {/* Elemento invisível para scroll automático */}
-                        <div ref={messagesEndRef} />
+                          )}
+                          
+                          {/* Elemento invisível para scroll automático */}
+                          <div ref={messagesEndRef} />
                         </>
                       )}
                     </div>
@@ -743,18 +852,21 @@ export default function ChatWithFinanceiro({
                   <div className="p-4 border-t border-border/50 flex-shrink-0">
                     <div className="flex gap-2">
                       <Input
-                        placeholder={currentTicketStatus === 'finalizado' ? 'Atendimento finalizado' : 'Digite sua mensagem...'}
+                        placeholder={currentTicketStatus === 'finalizado' ? 'Atendimento finalizado' : 'Digite sua mensagem... (Enter para enviar)'}
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        onChange={(e) => {
+                          setNewMessage(e.target.value);
+                          handleTyping();
+                        }}
                         onKeyPress={handleKeyPress}
                         disabled={currentTicketStatus === 'finalizado'}
-                        className="glass-effect border-border/50"
+                        className="glass-effect border-border/50 focus:ring-2 focus:ring-primary/50 transition-all"
                       />
                       <Button
                         onClick={sendMessage}
                         disabled={sending || !newMessage.trim() || currentTicketStatus === 'finalizado'}
                         size="icon"
-                        className="bg-gradient-primary flex-shrink-0"
+                        className="bg-gradient-primary flex-shrink-0 hover:shadow-glow transition-all"
                       >
                         <Send className="h-4 w-4" />
                       </Button>
