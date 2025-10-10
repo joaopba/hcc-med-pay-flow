@@ -28,6 +28,7 @@ interface ChatWithFinanceiroProps {
   gestorNome?: string;
   gestorId?: string;
   ticketId?: string;
+  ticketNumber?: number;
   ticketStatus?: 'aberto' | 'em_atendimento' | 'finalizado';
   onTicketUpdate?: () => void;
 }
@@ -46,6 +47,7 @@ export default function ChatWithFinanceiro({
   gestorNome,
   gestorId,
   ticketId,
+  ticketNumber: initialTicketNumber,
   ticketStatus,
   onTicketUpdate 
 }: ChatWithFinanceiroProps) {
@@ -56,6 +58,7 @@ export default function ChatWithFinanceiro({
   const [unreadCount, setUnreadCount] = useState(0);
   const [sending, setSending] = useState(false);
   const [currentTicketId, setCurrentTicketId] = useState(ticketId);
+  const [currentTicketNumber, setCurrentTicketNumber] = useState(initialTicketNumber);
   const [currentTicketStatus, setCurrentTicketStatus] = useState(ticketStatus);
   const [closingTicket, setClosingTicket] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
@@ -172,12 +175,17 @@ export default function ChatWithFinanceiro({
       // Buscar o ticket mais recente (aberto ou em atendimento)
       const { data: activeTicket } = await supabase
         .from('chat_tickets')
-        .select('id, created_at, status')
+        .select('id, created_at, status, ticket_number')
         .eq('medico_id', medicoId)
         .in('status', ['aberto', 'em_atendimento'])
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      // Atualizar número do ticket se encontrado
+      if (activeTicket) {
+        setCurrentTicketNumber(activeTicket.ticket_number);
+      }
 
       let query = supabase
         .from('chat_messages')
@@ -256,35 +264,40 @@ export default function ChatWithFinanceiro({
 
           if (!error && data) {
             setCurrentTicketId(data.id);
+            setCurrentTicketNumber(data.ticket_number);
             setCurrentTicketStatus('em_atendimento');
             onTicketUpdate?.();
             
-            // Enviar mensagem de saudação
+            // Enviar mensagem de saudação com número do ticket
+            await sendSystemMessage(`🎫 Ticket #${data.ticket_number} assumido por ${profile.name}`);
             await sendSystemMessage(`🤝 ${profile.name} iniciou o atendimento. Olá Dr(a). ${medicoNome}, como posso ajudá-lo(a) hoje?`);
           }
         } else {
           // Ticket já em atendimento - qualquer gestor pode acessar e responder
           setCurrentTicketId(existingTicket.id);
+          setCurrentTicketNumber(existingTicket.ticket_number);
           setCurrentTicketStatus('em_atendimento');
         }
       } else {
-        // Criar novo ticket
+        // Criar novo ticket - o ticket_number será auto-gerado pelo trigger
         const { data, error } = await supabase
           .from('chat_tickets')
-          .insert({
+          .insert([{
             medico_id: medicoId,
             gestor_id: profile.id,
-            status: 'em_atendimento'
-          })
+            status: 'em_atendimento' as const
+          } as any])
           .select()
           .single();
 
         if (!error && data) {
           setCurrentTicketId(data.id);
+          setCurrentTicketNumber(data.ticket_number);
           setCurrentTicketStatus('em_atendimento');
           onTicketUpdate?.();
           
-          // Enviar mensagem de saudação completa
+          // Enviar mensagem de boas-vindas com número do ticket
+          await sendSystemMessage(`🎫 Ticket #${data.ticket_number} aberto`);
           await sendSystemMessage(`🤝 **${profile.name}** iniciou o atendimento`);
           await sendSystemMessage(`👋 Olá Dr(a). **${medicoNome}**, seja bem-vindo(a) ao nosso canal de suporte financeiro!`);
           await sendSystemMessage(`💬 Estou aqui para ajudá-lo(a) com dúvidas sobre pagamentos, notas fiscais e questões administrativas.`);
@@ -325,8 +338,8 @@ export default function ChatWithFinanceiro({
 
       setClosingTicket(true);
       
-      // Enviar mensagem de encerramento
-      await sendSystemMessage(`✅ Atendimento finalizado por ${gestorNome}. Obrigado pelo contato!`);
+      // Enviar mensagem de encerramento com número do ticket
+      await sendSystemMessage(`✅ Ticket #${currentTicketNumber} finalizado por ${gestorNome}. Obrigado pelo contato!`);
       
       // Desvincular gestor e finalizar ticket
       const { error } = await supabase
@@ -628,13 +641,18 @@ export default function ChatWithFinanceiro({
                       currentTicketStatus === 'finalizado' ? 'bg-muted' : 'bg-success animate-pulse'
                     }`} />
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base truncate">
+                      <CardTitle className="text-base truncate flex items-center gap-2">
                         {isGestor 
                           ? `Chat com ${medicoNome}` 
                           : gestorNome 
                             ? `Chat com ${gestorNome}` 
                             : 'Chat Financeiro'
                         }
+                        {currentTicketNumber && (
+                          <Badge variant="outline" className="text-xs">
+                            #{currentTicketNumber}
+                          </Badge>
+                        )}
                       </CardTitle>
                       {currentTicketStatus === 'finalizado' && (
                         <p className="text-xs text-muted-foreground">Atendimento finalizado</p>

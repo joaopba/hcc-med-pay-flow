@@ -63,6 +63,7 @@ export type Database = {
           opened_at: string
           rating: number | null
           status: string
+          ticket_number: number
           updated_at: string
         }
         Insert: {
@@ -75,6 +76,7 @@ export type Database = {
           opened_at?: string
           rating?: number | null
           status?: string
+          ticket_number: number
           updated_at?: string
         }
         Update: {
@@ -87,6 +89,7 @@ export type Database = {
           opened_at?: string
           rating?: number | null
           status?: string
+          ticket_number?: number
           updated_at?: string
         }
         Relationships: [

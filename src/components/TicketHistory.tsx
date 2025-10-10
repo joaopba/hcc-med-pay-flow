@@ -15,6 +15,7 @@ interface Ticket {
   closed_at: string | null;
   rating: number | null;
   feedback_text: string | null;
+  ticket_number: number;
   gestor: {
     name: string;
   } | null;
@@ -48,6 +49,7 @@ export default function TicketHistory({ medicoId, medicoNome }: TicketHistoryPro
           closed_at,
           rating,
           feedback_text,
+          ticket_number,
           profiles!chat_tickets_gestor_id_fkey(name)
         `)
         .eq('medico_id', medicoId)
@@ -157,7 +159,12 @@ export default function TicketHistory({ medicoId, medicoNome }: TicketHistoryPro
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-2">
-                          {getStatusBadge(ticket.status)}
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(ticket.status)}
+                            <Badge variant="secondary" className="text-xs">
+                              Ticket #{ticket.ticket_number}
+                            </Badge>
+                          </div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <MessageCircle className="h-3 w-3" />
                             {ticket.message_count} mensagens
@@ -214,7 +221,8 @@ export default function TicketHistory({ medicoId, medicoNome }: TicketHistoryPro
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Badge variant="outline">Ticket #{selectedTicket?.ticket_number}</Badge>
               Atendimento - {new Date(selectedTicket?.created_at || '').toLocaleDateString('pt-BR')}
             </DialogTitle>
           </DialogHeader>

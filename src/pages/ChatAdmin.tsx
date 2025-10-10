@@ -18,6 +18,7 @@ interface MedicoWithUnread {
   ticketGestorId?: string;
   ticketGestorNome?: string;
   ticketId?: string;
+  ticketNumber?: number;
 }
 
 export default function ChatAdmin() {
@@ -99,6 +100,7 @@ export default function ChatAdmin() {
               id,
               status,
               gestor_id,
+              ticket_number,
               profiles!chat_tickets_gestor_id_fkey(name)
             `)
             .eq('medico_id', medico.id)
@@ -114,6 +116,7 @@ export default function ChatAdmin() {
             ticketGestorId: ticket?.gestor_id,
             ticketGestorNome: ticket?.profiles?.name,
             ticketId: ticket?.id,
+            ticketNumber: ticket?.ticket_number,
           };
         })
       );
@@ -174,7 +177,14 @@ export default function ChatAdmin() {
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-xs md:text-sm truncate">{medico.nome}</p>
+                              <p className="font-medium text-xs md:text-sm truncate flex items-center gap-2">
+                                {medico.nome}
+                                {medico.ticketNumber && (
+                                  <Badge variant="outline" className="text-[10px] md:text-xs">
+                                    #{medico.ticketNumber}
+                                  </Badge>
+                                )}
+                              </p>
                               <p className="text-[10px] md:text-xs text-muted-foreground">
                                 {medico.ticketGestorNome 
                                   ? `Atendido por ${medico.ticketGestorNome}`
@@ -221,6 +231,7 @@ export default function ChatAdmin() {
                   gestorNome={gestorNome}
                   gestorId={gestorId}
                   ticketId={selectedMedico.ticketId}
+                  ticketNumber={selectedMedico.ticketNumber}
                   ticketStatus={selectedMedico.ticketStatus}
                   onTicketUpdate={loadMedicos}
                 />
