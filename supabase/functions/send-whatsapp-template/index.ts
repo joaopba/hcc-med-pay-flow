@@ -236,6 +236,7 @@ serve(async (req) => {
       : apiUrl;
 
     console.log('Endpoint da API:', endpoint);
+    console.log('Payload enviado:', JSON.stringify(payload, null, 2));
 
     // Enviar mensagem diretamente
     const response = await fetch(endpoint, {
@@ -247,11 +248,28 @@ serve(async (req) => {
       body: JSON.stringify(payload)
     });
 
-    const responseData = await response.json();
+    console.log('Status da resposta:', response.status, response.statusText);
+    console.log('Content-Type da resposta:', response.headers.get('content-type'));
+
+    // Verificar se a resposta é JSON antes de tentar parsear
+    const contentType = response.headers.get('content-type');
+    let responseData: any;
+    
+    if (contentType?.includes('application/json')) {
+      responseData = await response.json();
+    } else {
+      const textResponse = await response.text();
+      console.error('Resposta não é JSON:', textResponse.substring(0, 500));
+      throw new Error(`API retornou resposta não-JSON (${response.status}): ${textResponse.substring(0, 200)}`);
+    }
+    
     console.log('Resposta da API WhatsApp:', responseData);
 
-    if (!response.ok) {
-      throw new Error(`Erro ao enviar WhatsApp: ${JSON.stringify(responseData)}`);
+    // Verificar se houve erro na resposta
+    if (!response.ok || responseData.error || (responseData.message && responseData.message.includes('error'))) {
+      const errorMsg = responseData.message || responseData.error || JSON.stringify(responseData);
+      console.error('Erro ao enviar mensagem WhatsApp:', errorMsg);
+      throw new Error(`Erro ao enviar WhatsApp (${response.status}): ${errorMsg}`);
     }
 
     // Log da mensagem se tiver pagamentoId
