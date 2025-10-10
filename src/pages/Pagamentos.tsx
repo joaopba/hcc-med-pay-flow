@@ -10,7 +10,6 @@ import { Plus, Search, Eye, Trash2, Users, FileSpreadsheet, Send, Download, Chec
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
-import NotasAprovacao from "@/components/NotasAprovacao";
 import ErrorBoundary from "@/components/ErrorBoundary";
 const NotasAprovacaoLazy = lazy(() => import("@/components/NotasAprovacao"));
 import { formatMesCompetencia } from "@/lib/utils";
