@@ -160,7 +160,7 @@ export default function ChatAdmin() {
                 ) : (
                   <div className="p-2 space-y-2">
                     {medicos.map((medico) => {
-                      const isLocked = medico.ticketStatus === 'em_atendimento' && medico.ticketGestorId !== gestorNome;
+                      const isLocked = medico.ticketStatus === 'em_atendimento' && medico.ticketGestorId !== gestorId;
                       
                       return (
                         <motion.button
