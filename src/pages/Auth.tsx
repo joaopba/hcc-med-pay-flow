@@ -9,7 +9,8 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock, Mail, ArrowRight, Moon, Sun, Building2 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
-// Imagens removidas temporariamente - adicione ao repositório Git
+import logo from "@/assets/logo.png";
+import conquistaLogo from "@/assets/conquista-inovacao.png";
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -109,9 +110,7 @@ export default function Auth() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="flex justify-center"
             >
-              <div className="h-24 w-24 rounded-full bg-gradient-primary flex items-center justify-center">
-                <Building2 className="h-12 w-12 text-white" />
-              </div>
+              <img src={logo} alt="HCC Hospital" className="h-24 w-auto" />
             </motion.div>
 
             {/* Title */}
@@ -199,9 +198,12 @@ export default function Auth() {
                 <span>Acesso seguro e criptografado</span>
               </div>
               <div className="pt-4 border-t border-border/30">
-                <p className="text-xs text-muted-foreground">
-                  Desenvolvido por <span className="font-semibold text-foreground">Conquista Inovação</span>
-                </p>
+                <p className="text-xs text-muted-foreground mb-2">Desenvolvido por</p>
+                <img 
+                  src={conquistaLogo} 
+                  alt="Conquista Inovação" 
+                  className="h-6 mx-auto opacity-60 hover:opacity-100 transition-opacity"
+                />
               </div>
             </motion.div>
           </CardContent>
