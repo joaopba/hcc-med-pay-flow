@@ -29,10 +29,10 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
       <ErrorBoundary pageName="Aplicação">
         <BrowserRouter>
+          <Toaster />
+          <Sonner />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/auth" element={<Auth />} />
@@ -97,7 +97,7 @@ const App = () => (
           <Route path="/dashboard-medicos" element={<DashboardMedicos />} />
           <Route path="/aprovar-nota" element={<AprovarNota />} />
           <Route path="/rejeitar-nota" element={<RejeitarNota />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         </BrowserRouter>

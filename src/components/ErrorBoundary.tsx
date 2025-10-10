@@ -22,8 +22,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: undefined });
-    // Optional: full reload to recover broken chunks
+    // Force full reload to recover from errors
     window.location.reload();
   };
 
