@@ -225,30 +225,36 @@ serve(async (req) => {
         throw new Error('Tipo de mensagem inválido');
     }
 
-    console.log('Adicionando mensagem à fila WhatsApp:', payload);
+    console.log('Enviando mensagem WhatsApp diretamente:', payload);
     console.log('Tipo:', type);
 
-    // Adicionar mensagem à fila ao invés de enviar diretamente
-    const tipoMensagem = type === 'nota' ? 'template' : type === 'nota_aprovacao' ? 'file' : 'text';
-    const { data: queueData, error: queueError } = await supabase
-      .from('whatsapp_queue')
-      .insert({
-        numero_destino: phoneNumber!,
-        tipo_mensagem: tipoMensagem,
-        payload: payload,
-        prioridade: type === 'nota' ? 1 : type === 'nota_rejeitada' || type === 'nota_aprovacao' ? 2 : 5 // Priorizar solicitações, rejeições e aprovações
-      })
-      .select()
-      .single();
+    // Determinar endpoint correto baseado no tipo
+    const endpoint = type === 'nota' 
+      ? `${apiUrl}/template` 
+      : type === 'nota_aprovacao'
+      ? `${apiUrl}/file`
+      : apiUrl;
 
-    if (queueError) {
-      console.error('Erro ao adicionar mensagem à fila:', queueError);
-      throw queueError;
+    console.log('Endpoint da API:', endpoint);
+
+    // Enviar mensagem diretamente
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.auth_token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const responseData = await response.json();
+    console.log('Resposta da API WhatsApp:', responseData);
+
+    if (!response.ok) {
+      throw new Error(`Erro ao enviar WhatsApp: ${JSON.stringify(responseData)}`);
     }
 
-    console.log('Mensagem adicionada à fila com sucesso:', queueData.id);
-
-    // Log da mensagem se tiver pagamentoId (registrar como pendente na fila)
+    // Log da mensagem se tiver pagamentoId
     if (pagamentoId) {
       try {
         await supabase
@@ -257,8 +263,8 @@ serve(async (req) => {
             pagamento_id: pagamentoId,
             tipo: `whatsapp_${type}`,
             payload: payload,
-            success: false, // Ainda não foi enviado
-            response: { status: 'queued', queue_id: queueData.id }
+            success: true,
+            response: responseData
           }]);
       } catch (logError) {
         console.warn('Erro ao registrar log:', logError);
@@ -267,8 +273,8 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      data: { queue_id: queueData.id, status: 'queued' },
-      message: `Mensagem ${type} adicionada à fila com sucesso`
+      data: responseData,
+      message: `Mensagem ${type} enviada com sucesso`
     }), {
       headers: { 
         'Content-Type': 'application/json',

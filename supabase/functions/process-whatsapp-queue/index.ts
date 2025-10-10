@@ -1,3 +1,6 @@
+// EDGE FUNCTION DESATIVADA - Não usar mais fila de WhatsApp
+// As mensagens agora são enviadas diretamente pela function send-whatsapp-template
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
