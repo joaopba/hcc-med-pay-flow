@@ -52,6 +52,60 @@ export type Database = {
           },
         ]
       }
+      chat_tickets: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          feedback_text: string | null
+          gestor_id: string | null
+          id: string
+          medico_id: string
+          opened_at: string
+          rating: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          feedback_text?: string | null
+          gestor_id?: string | null
+          id?: string
+          medico_id: string
+          opened_at?: string
+          rating?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          feedback_text?: string | null
+          gestor_id?: string | null
+          id?: string
+          medico_id?: string
+          opened_at?: string
+          rating?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_tickets_gestor_id_fkey"
+            columns: ["gestor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_tickets_medico_id_fkey"
+            columns: ["medico_id"]
+            isOneToOne: false
+            referencedRelation: "medicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracoes: {
         Row: {
           api_url: string

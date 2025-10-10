@@ -14,6 +14,10 @@ interface MedicoWithUnread {
   id: string;
   nome: string;
   unreadCount: number;
+  ticketStatus?: 'aberto' | 'em_atendimento' | 'finalizado';
+  ticketGestorId?: string;
+  ticketGestorNome?: string;
+  ticketId?: string;
 }
 
 export default function ChatAdmin() {
@@ -76,7 +80,7 @@ export default function ChatAdmin() {
 
       if (error) throw error;
 
-      // Buscar mensagens não lidas para cada médico
+      // Buscar mensagens não lidas e tickets para cada médico
       const medicosComUnread = await Promise.all(
         (medicosData || []).map(async (medico) => {
           const { count } = await supabase
@@ -86,10 +90,28 @@ export default function ChatAdmin() {
             .eq('sender_type', 'medico')
             .eq('read', false);
 
+          // Buscar ticket ativo ou mais recente
+          const { data: ticket } = await supabase
+            .from('chat_tickets')
+            .select(`
+              id,
+              status,
+              gestor_id,
+              profiles!chat_tickets_gestor_id_fkey(name)
+            `)
+            .eq('medico_id', medico.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
           return {
             id: medico.id,
             nome: medico.nome,
-            unreadCount: count || 0
+            unreadCount: count || 0,
+            ticketStatus: ticket?.status as 'aberto' | 'em_atendimento' | 'finalizado' | undefined,
+            ticketGestorId: ticket?.gestor_id,
+            ticketGestorNome: ticket?.profiles?.name,
+            ticketId: ticket?.id,
           };
         })
       );
@@ -135,35 +157,44 @@ export default function ChatAdmin() {
                   </div>
                 ) : (
                   <div className="p-2 space-y-2">
-                    {medicos.map((medico) => (
-                      <motion.button
-                        key={medico.id}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setSelectedMedico(medico)}
-                        className={`w-full text-left p-2.5 md:p-3 rounded-lg transition-all ${
-                          selectedMedico?.id === medico.id
-                            ? 'bg-primary/10 border-primary/30'
-                            : 'hover:bg-accent/50'
-                        } border border-border/50`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-xs md:text-sm truncate">{medico.nome}</p>
-                            <p className="text-[10px] md:text-xs text-muted-foreground">
-                              {medico.unreadCount > 0 
-                                ? `${medico.unreadCount} nova(s)` 
-                                : 'Sem mensagens novas'}
-                            </p>
+                    {medicos.map((medico) => {
+                      const isLocked = medico.ticketStatus === 'em_atendimento' && medico.ticketGestorId !== gestorNome;
+                      
+                      return (
+                        <motion.button
+                          key={medico.id}
+                          whileHover={{ scale: isLocked ? 1 : 1.02 }}
+                          whileTap={{ scale: isLocked ? 1 : 0.98 }}
+                          onClick={() => !isLocked && setSelectedMedico(medico)}
+                          disabled={isLocked}
+                          className={`w-full text-left p-2.5 md:p-3 rounded-lg transition-all ${
+                            selectedMedico?.id === medico.id
+                              ? 'bg-primary/10 border-primary/30'
+                              : isLocked
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'hover:bg-accent/50'
+                          } border border-border/50`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-xs md:text-sm truncate">{medico.nome}</p>
+                              <p className="text-[10px] md:text-xs text-muted-foreground">
+                                {isLocked
+                                  ? `Em atendimento por ${medico.ticketGestorNome}`
+                                  : medico.unreadCount > 0 
+                                    ? `${medico.unreadCount} nova(s)` 
+                                    : 'Sem mensagens novas'}
+                              </p>
+                            </div>
+                            {medico.unreadCount > 0 && !isLocked && (
+                              <Badge className="bg-destructive text-destructive-foreground border-0 text-xs">
+                                {medico.unreadCount}
+                              </Badge>
+                            )}
                           </div>
-                          {medico.unreadCount > 0 && (
-                            <Badge className="bg-destructive text-destructive-foreground border-0 text-xs">
-                              {medico.unreadCount}
-                            </Badge>
-                          )}
-                        </div>
-                      </motion.button>
-                    ))}
+                        </motion.button>
+                      );
+                    })}
                   </div>
                 )}
               </ScrollArea>
@@ -191,6 +222,9 @@ export default function ChatAdmin() {
                   isGestor={true}
                   fullscreen={true}
                   gestorNome={gestorNome}
+                  ticketId={selectedMedico.ticketId}
+                  ticketStatus={selectedMedico.ticketStatus}
+                  onTicketUpdate={loadMedicos}
                 />
               </div>
             ) : (

@@ -39,6 +39,7 @@ import { formatMesCompetencia } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
 import logo from "@/assets/logo.png";
 import ChatWithFinanceiro from "@/components/ChatWithFinanceiro";
+import RatingDialog from "@/components/RatingDialog";
 import conquistaLogo from "@/assets/conquista-inovacao.png";
 
 interface MedicoStats {
@@ -102,6 +103,8 @@ export default function DashboardMedicos() {
   const [rejectedNotes, setRejectedNotes] = useState<any[]>([]);
   const [showConfirmUpload, setShowConfirmUpload] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+  const [pendingTicket, setPendingTicket] = useState<any>(null);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -173,6 +176,63 @@ export default function DashboardMedicos() {
     setCpf(formatted);
   };
 
+  const checkPendingRating = async (medicoId: string) => {
+    try {
+      const { data: ticket } = await supabase
+        .from('chat_tickets')
+        .select(`
+          id,
+          rating,
+          gestor_id,
+          profiles!chat_tickets_gestor_id_fkey(name)
+        `)
+        .eq('medico_id', medicoId)
+        .eq('status', 'finalizado')
+        .is('rating', null)
+        .order('closed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (ticket) {
+        setPendingTicket(ticket);
+        setRatingDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar avaliação pendente:', error);
+    }
+  };
+
+  const handleSubmitRating = async (rating: number, feedback: string) => {
+    if (!pendingTicket) return;
+
+    try {
+      const { error } = await supabase
+        .from('chat_tickets')
+        .update({
+          rating,
+          feedback_text: feedback
+        })
+        .eq('id', pendingTicket.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Avaliação Enviada",
+        description: "Obrigado pelo seu feedback!",
+      });
+
+      setPendingTicket(null);
+    } catch (error: any) {
+      console.error('Erro ao enviar avaliação:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao enviar avaliação",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const buscarDados = async () => {
     if (!cpf || cpf.length < 14) {
       toast({
@@ -202,6 +262,9 @@ export default function DashboardMedicos() {
 
       const medicoData = result.medico;
       setMedico(medicoData);
+
+      // Verificar se há ticket pendente de avaliação
+      checkPendingRating(medicoData.id);
 
       // Consolidar notas por pagamento para decidir corretamente se ainda precisa enviar
       const notasRaw = result.notas || [];
@@ -1111,11 +1174,22 @@ export default function DashboardMedicos() {
       
       {/* Chat Component */}
       {medico && (
-        <ChatWithFinanceiro 
-          medicoId={medico.id} 
-          medicoNome={medico.nome}
-          isGestor={false}
-        />
+        <>
+          <ChatWithFinanceiro 
+            medicoId={medico.id} 
+            medicoNome={medico.nome}
+            isGestor={false}
+            gestorNome={pendingTicket?.profiles?.name}
+          />
+          
+          {/* Rating Dialog */}
+          <RatingDialog
+            open={ratingDialogOpen}
+            onClose={() => setRatingDialogOpen(false)}
+            onSubmit={handleSubmitRating}
+            gestorNome={pendingTicket?.profiles?.name}
+          />
+        </>
       )}
 
       {/* Footer with Conquista Logo */}

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, X, Minimize2, Maximize2 } from "lucide-react";
+import { MessageCircle, Send, X, Minimize2, Maximize2, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,22 +23,40 @@ interface ChatWithFinanceiroProps {
   isGestor?: boolean;
   fullscreen?: boolean;
   gestorNome?: string;
+  ticketId?: string;
+  ticketStatus?: 'aberto' | 'em_atendimento' | 'finalizado';
+  onTicketUpdate?: () => void;
 }
 
-export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = false, fullscreen = false, gestorNome }: ChatWithFinanceiroProps) {
+export default function ChatWithFinanceiro({ 
+  medicoId, 
+  medicoNome, 
+  isGestor = false, 
+  fullscreen = false, 
+  gestorNome,
+  ticketId,
+  ticketStatus,
+  onTicketUpdate 
+}: ChatWithFinanceiroProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isOpen, setIsOpen] = useState(fullscreen);
   const [isMinimized, setIsMinimized] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [sending, setSending] = useState(false);
+  const [currentTicketId, setCurrentTicketId] = useState(ticketId);
+  const [currentTicketStatus, setCurrentTicketStatus] = useState(ticketStatus);
+  const [closingTicket, setClosingTicket] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen || fullscreen) {
       loadMessages();
-      if (isGestor) markAsRead();
+      if (isGestor) {
+        markAsRead();
+        claimTicket();
+      }
     }
   }, [isOpen, fullscreen, medicoId]);
 
@@ -96,6 +114,75 @@ export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = fa
     }
   };
 
+  const claimTicket = async () => {
+    try {
+      if (!isGestor) return;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile) return;
+
+      // Verificar se já existe ticket aberto ou criar novo
+      const { data: existingTicket } = await supabase
+        .from('chat_tickets')
+        .select('*')
+        .eq('medico_id', medicoId)
+        .in('status', ['aberto', 'em_atendimento'])
+        .maybeSingle();
+
+      if (existingTicket) {
+        // Se ticket está aberto, assumir
+        if (existingTicket.status === 'aberto') {
+          const { data, error } = await supabase
+            .from('chat_tickets')
+            .update({
+              status: 'em_atendimento',
+              gestor_id: profile.id
+            })
+            .eq('id', existingTicket.id)
+            .select()
+            .single();
+
+          if (!error && data) {
+            setCurrentTicketId(data.id);
+            setCurrentTicketStatus('em_atendimento');
+            onTicketUpdate?.();
+          }
+        } else {
+          // Já está em atendimento
+          setCurrentTicketId(existingTicket.id);
+          setCurrentTicketStatus(existingTicket.status as 'aberto' | 'em_atendimento' | 'finalizado');
+        }
+      } else {
+        // Criar novo ticket
+        const { data, error } = await supabase
+          .from('chat_tickets')
+          .insert({
+            medico_id: medicoId,
+            gestor_id: profile.id,
+            status: 'em_atendimento'
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          setCurrentTicketId(data.id);
+          setCurrentTicketStatus('em_atendimento');
+          onTicketUpdate?.();
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao assumir ticket:', error);
+    }
+  };
+
   const markAsRead = async () => {
     try {
       if (!isGestor) return;
@@ -114,8 +201,50 @@ export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = fa
     }
   };
 
+  const handleCloseTicket = async () => {
+    try {
+      if (!currentTicketId) return;
+
+      setClosingTicket(true);
+      const { error } = await supabase
+        .from('chat_tickets')
+        .update({
+          status: 'finalizado',
+          closed_at: new Date().toISOString()
+        })
+        .eq('id', currentTicketId);
+
+      if (error) throw error;
+
+      setCurrentTicketStatus('finalizado');
+      onTicketUpdate?.();
+      
+      toast({
+        title: "Atendimento Finalizado",
+        description: "O médico será notificado para avaliar o atendimento.",
+      });
+    } catch (error: any) {
+      console.error('Erro ao finalizar ticket:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao finalizar atendimento",
+        variant: "destructive",
+      });
+    } finally {
+      setClosingTicket(false);
+    }
+  };
+
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
+    if (currentTicketStatus === 'finalizado') {
+      toast({
+        title: "Atendimento Finalizado",
+        description: "Este atendimento já foi finalizado.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSending(true);
     try {
@@ -227,37 +356,58 @@ export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = fa
             <Card className={`glass-card border-primary/20 shadow-elegant ${fullscreen ? 'h-full flex flex-col' : ''}`}>
               <CardHeader className="pb-3 border-b border-border/50 flex-shrink-0">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-success rounded-full animate-pulse" />
-                    <CardTitle className="text-base">
-                      {isGestor 
-                        ? `Chat com ${medicoNome}` 
-                        : gestorNome 
-                          ? `Chat com ${gestorNome}` 
-                          : 'Chat Financeiro'
-                      }
-                    </CardTitle>
-                  </div>
-                  {!fullscreen && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setIsMinimized(!isMinimized)}
-                        className="h-8 w-8"
-                      >
-                        {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setIsOpen(false)}
-                        className="h-8 w-8"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className={`w-3 h-3 rounded-full ${
+                      currentTicketStatus === 'finalizado' ? 'bg-muted' : 'bg-success animate-pulse'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base truncate">
+                        {isGestor 
+                          ? `Chat com ${medicoNome}` 
+                          : gestorNome 
+                            ? `Chat com ${gestorNome}` 
+                            : 'Chat Financeiro'
+                        }
+                      </CardTitle>
+                      {currentTicketStatus === 'finalizado' && (
+                        <p className="text-xs text-muted-foreground">Atendimento finalizado</p>
+                      )}
                     </div>
-                  )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {isGestor && currentTicketStatus === 'em_atendimento' && fullscreen && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCloseTicket}
+                        disabled={closingTicket}
+                        className="gap-2"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        Finalizar
+                      </Button>
+                    )}
+                    {!fullscreen && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setIsMinimized(!isMinimized)}
+                          className="h-8 w-8"
+                        >
+                          {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setIsOpen(false)}
+                          className="h-8 w-8"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
 
@@ -316,7 +466,7 @@ export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = fa
                       />
                       <Button
                         onClick={sendMessage}
-                        disabled={sending || !newMessage.trim()}
+                        disabled={sending || !newMessage.trim() || currentTicketStatus === 'finalizado'}
                         size="icon"
                         className="bg-gradient-primary flex-shrink-0"
                       >
