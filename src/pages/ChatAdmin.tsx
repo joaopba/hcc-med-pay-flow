@@ -21,9 +21,11 @@ export default function ChatAdmin() {
   const [medicos, setMedicos] = useState<MedicoWithUnread[]>([]);
   const [selectedMedico, setSelectedMedico] = useState<MedicoWithUnread | null>(null);
   const [loading, setLoading] = useState(true);
+  const [gestorNome, setGestorNome] = useState("");
 
   useEffect(() => {
     loadMedicos();
+    loadGestorInfo();
     
     // Realtime para atualizar contadores
     const channel = supabase
@@ -45,6 +47,25 @@ export default function ChatAdmin() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const loadGestorInfo = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile) {
+          setGestorNome(profile.name);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar informações do gestor:', error);
+    }
+  };
 
   const loadMedicos = async () => {
     try {
@@ -169,6 +190,7 @@ export default function ChatAdmin() {
                   medicoNome={selectedMedico.nome}
                   isGestor={true}
                   fullscreen={true}
+                  gestorNome={gestorNome}
                 />
               </div>
             ) : (

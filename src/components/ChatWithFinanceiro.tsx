@@ -22,9 +22,10 @@ interface ChatWithFinanceiroProps {
   medicoNome: string;
   isGestor?: boolean;
   fullscreen?: boolean;
+  gestorNome?: string;
 }
 
-export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = false, fullscreen = false }: ChatWithFinanceiroProps) {
+export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = false, fullscreen = false, gestorNome }: ChatWithFinanceiroProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isOpen, setIsOpen] = useState(fullscreen);
@@ -163,7 +164,8 @@ export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = fa
             body: {
               type: 'resposta_financeiro',
               numero_destino: medico.numero_whatsapp,
-              mensagem: newMessage.trim()
+              mensagem: newMessage.trim(),
+              gestor_nome: gestorNome || 'Financeiro'
             }
           });
         }
@@ -228,7 +230,12 @@ export default function ChatWithFinanceiro({ medicoId, medicoNome, isGestor = fa
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-success rounded-full animate-pulse" />
                     <CardTitle className="text-base">
-                      {isGestor ? `Chat com ${medicoNome}` : 'Chat Financeiro'}
+                      {isGestor 
+                        ? `Chat com ${medicoNome}` 
+                        : gestorNome 
+                          ? `Chat com ${gestorNome}` 
+                          : 'Chat Financeiro'
+                      }
                     </CardTitle>
                   </div>
                   {!fullscreen && (
