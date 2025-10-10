@@ -32,7 +32,7 @@ export default function RejeitarNota() {
     }
 
     try {
-      const { data: nota } = await supabase
+      const { data: nota, error: notaError } = await supabase
         .from('notas_medicos')
         .select(`
           id,
@@ -50,11 +50,18 @@ export default function RejeitarNota() {
           )
         `)
         .eq('id', notaId)
-        .single();
+        .maybeSingle();
+
+      if (notaError) {
+        console.error('Erro ao buscar nota:', notaError);
+        throw new Error('Erro ao buscar nota no banco de dados');
+      }
 
       if (!nota) {
         throw new Error('Nota não encontrada');
       }
+      
+      console.log('Nota carregada:', nota);
 
       if (nota.status !== 'pendente') {
         setError(`Esta nota já foi ${nota.status === 'aprovado' ? 'aprovada' : 'rejeitada'} anteriormente`);
@@ -62,7 +69,18 @@ export default function RejeitarNota() {
         return;
       }
 
-      setNotaInfo(nota);
+      // Extrair dados dos joins (podem vir como array)
+      const medicoData = Array.isArray(nota.medicos) ? nota.medicos[0] : nota.medicos;
+      const pagamentoData = Array.isArray(nota.pagamentos) ? nota.pagamentos[0] : nota.pagamentos;
+      
+      console.log('Médico:', medicoData);
+      console.log('Pagamento:', pagamentoData);
+
+      setNotaInfo({
+        ...nota,
+        medicos: medicoData,
+        pagamentos: pagamentoData
+      });
     } catch (err: any) {
       setError(err.message || "Erro ao carregar nota");
     } finally {

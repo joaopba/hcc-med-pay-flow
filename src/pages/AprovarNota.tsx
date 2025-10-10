@@ -45,11 +45,18 @@ export default function AprovarNota() {
           )
         `)
         .eq('id', notaId)
-        .single();
+        .maybeSingle();
 
-      if (notaError || !nota) {
+      if (notaError) {
+        console.error('Erro ao buscar nota:', notaError);
+        throw new Error('Erro ao buscar nota no banco de dados');
+      }
+
+      if (!nota) {
         throw new Error('Nota não encontrada');
       }
+
+      console.log('Nota carregada:', nota);
 
       // Validar token
       const expectedToken = btoa(`${notaId}-${nota.created_at}`).substring(0, 20);
@@ -63,6 +70,13 @@ export default function AprovarNota() {
         setLoading(false);
         return;
       }
+
+      // Extrair dados dos joins (podem vir como array)
+      const medicoData = Array.isArray(nota.medicos) ? nota.medicos[0] : nota.medicos;
+      const pagamentoData = Array.isArray(nota.pagamentos) ? nota.pagamentos[0] : nota.pagamentos;
+      
+      console.log('Médico:', medicoData);
+      console.log('Pagamento:', pagamentoData);
 
       // Aprovar nota
       const { error: updateNotaError } = await supabase
@@ -89,10 +103,10 @@ export default function AprovarNota() {
           body: {
             type: 'nota_aprovada',
             medico: {
-              nome: nota.medicos.nome,
-              numero_whatsapp: nota.medicos.numero_whatsapp
+              nome: medicoData.nome,
+              numero_whatsapp: medicoData.numero_whatsapp
             },
-            competencia: nota.pagamentos.mes_competencia,
+            competencia: pagamentoData.mes_competencia,
             pagamentoId: nota.pagamento_id
           }
         });
@@ -100,7 +114,7 @@ export default function AprovarNota() {
         console.warn('Erro ao enviar WhatsApp:', whatsappError);
       }
 
-      setMedicoNome(nota.medicos.nome);
+      setMedicoNome(medicoData.nome);
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Erro ao processar aprovação");

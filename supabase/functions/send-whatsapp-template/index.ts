@@ -261,8 +261,16 @@ serve(async (req) => {
     
     console.log('Resposta da API WhatsApp:', responseData);
 
-    // Verificar se houve erro na resposta
-    if (!response.ok || responseData.error || (responseData.message && responseData.message.includes('error'))) {
+    // Verificar se houve erro na resposta (API pode retornar 200 mas com erro na mensagem)
+    const hasError = !response.ok || 
+                     responseData.error || 
+                     (responseData.message && (
+                       responseData.message.includes('error') ||
+                       responseData.message.includes('Error') ||
+                       responseData.message.toLowerCase().includes('sent error')
+                     ));
+    
+    if (hasError) {
       const errorMsg = responseData.message || responseData.error || JSON.stringify(responseData);
       console.error('Erro ao enviar mensagem WhatsApp:', errorMsg);
       throw new Error(`Erro ao enviar WhatsApp (${response.status}): ${errorMsg}`);
