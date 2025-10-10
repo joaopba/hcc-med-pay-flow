@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import { Lock, Mail, ArrowRight, Moon, Sun, Building2 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import logo from "@/assets/logo.png";
+import conquistaLogo from "@/assets/conquista-inovacao.png";
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -190,11 +191,19 @@ export default function Auth() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6, duration: 0.5 }}
-              className="mt-6 text-center"
+              className="mt-6 text-center space-y-3"
             >
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3" />
                 <span>Acesso seguro e criptografado</span>
+              </div>
+              <div className="pt-4 border-t border-border/30">
+                <p className="text-xs text-muted-foreground mb-2">Desenvolvido por</p>
+                <img 
+                  src={conquistaLogo} 
+                  alt="Conquista Inovação" 
+                  className="h-6 mx-auto opacity-60 hover:opacity-100 transition-opacity"
+                />
               </div>
             </motion.div>
           </CardContent>

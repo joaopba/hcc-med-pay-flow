@@ -39,6 +39,7 @@ import { formatMesCompetencia } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
 import logo from "@/assets/logo.png";
 import ChatWithFinanceiro from "@/components/ChatWithFinanceiro";
+import conquistaLogo from "@/assets/conquista-inovacao.png";
 
 interface MedicoStats {
   totalNotas: number;
@@ -1105,6 +1106,18 @@ export default function DashboardMedicos() {
           medicoNome={medico.nome}
           isGestor={false}
         />
+      )}
+
+      {/* Footer with Conquista Logo */}
+      {medico && (
+        <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-center gap-3">
+          <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+          <img 
+            src={conquistaLogo} 
+            alt="Conquista Inovação" 
+            className="h-5 opacity-60 hover:opacity-100 transition-opacity"
+          />
+        </div>
       )}
     </div>
   );

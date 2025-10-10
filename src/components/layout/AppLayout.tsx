@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "./AppSidebar";
 import AppHeader from "./AppHeader";
+import conquistaLogo from "@/assets/conquista-inovacao.png";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -21,6 +22,16 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
               {children}
             </div>
           </main>
+          <footer className="py-4 border-t border-border/30">
+            <div className="container mx-auto px-6 flex items-center justify-center gap-3">
+              <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+              <img 
+                src={conquistaLogo} 
+                alt="Conquista Inovação" 
+                className="h-5 opacity-60 hover:opacity-100 transition-opacity"
+              />
+            </div>
+          </footer>
         </div>
       </div>
     </SidebarProvider>

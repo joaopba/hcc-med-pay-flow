@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import ExcelImport from "@/components/ExcelImport";
+import conquistaLogo from "@/assets/conquista-inovacao.png";
 
 interface Medico {
   id: string;
@@ -357,6 +358,16 @@ export default function Medicos() {
               </TableBody>
             </Table>
           </div>
+        </div>
+
+        {/* Footer with Conquista Logo */}
+        <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-center gap-3">
+          <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+          <img 
+            src={conquistaLogo} 
+            alt="Conquista Inovação" 
+            className="h-5 opacity-60 hover:opacity-100 transition-opacity"
+          />
         </div>
       </div>
     </AppLayout>
