@@ -4,14 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, X, Minimize2, Maximize2, CheckCircle } from "lucide-react";
+import { MessageCircle, Send, X, Minimize2, Maximize2, CheckCircle, UserPlus } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Message {
   id: string;
-  sender_type: 'medico' | 'financeiro';
+  sender_type: 'medico' | 'financeiro' | 'sistema';
   message: string;
   created_at: string;
   read: boolean;
@@ -23,6 +25,7 @@ interface ChatWithFinanceiroProps {
   isGestor?: boolean;
   fullscreen?: boolean;
   gestorNome?: string;
+  gestorId?: string;
   ticketId?: string;
   ticketStatus?: 'aberto' | 'em_atendimento' | 'finalizado';
   onTicketUpdate?: () => void;
@@ -34,6 +37,7 @@ export default function ChatWithFinanceiro({
   isGestor = false, 
   fullscreen = false, 
   gestorNome,
+  gestorId,
   ticketId,
   ticketStatus,
   onTicketUpdate 
@@ -47,8 +51,13 @@ export default function ChatWithFinanceiro({
   const [currentTicketId, setCurrentTicketId] = useState(ticketId);
   const [currentTicketStatus, setCurrentTicketStatus] = useState(ticketStatus);
   const [closingTicket, setClosingTicket] = useState(false);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [availableGestores, setAvailableGestores] = useState<Array<{id: string; name: string}>>([]);
+  const [selectedTransferGestor, setSelectedTransferGestor] = useState("");
+  const [transferring, setTransferring] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const lastMessageCountRef = useRef(0);
 
   useEffect(() => {
     if (isOpen || fullscreen) {
@@ -91,7 +100,33 @@ export default function ChatWithFinanceiro({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+    
+    // Notificação de nova mensagem
+    if (messages.length > lastMessageCountRef.current && lastMessageCountRef.current > 0) {
+      const lastMessage = messages[messages.length - 1];
+      const isFromOther = isGestor ? lastMessage.sender_type === 'medico' : lastMessage.sender_type === 'financeiro';
+      
+      if (isFromOther && (!isOpen && !fullscreen)) {
+        // Notificação sonora suave
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2i68ee');
+        audio.volume = 0.3;
+        audio.play().catch(() => {});
+        
+        // Notificação visual
+        if (!document.hasFocus()) {
+          try {
+            new Notification('Nova mensagem', {
+              body: `${isGestor ? medicoNome : gestorNome || 'Financeiro'}: ${lastMessage.message.substring(0, 50)}...`,
+              icon: '/favicon.png'
+            });
+          } catch (e) {
+            // Notificações bloqueadas
+          }
+        }
+      }
+    }
+    lastMessageCountRef.current = messages.length;
+  }, [messages, isGestor, medicoNome, gestorNome, isOpen, fullscreen]);
 
   const loadMessages = async () => {
     try {
@@ -114,6 +149,20 @@ export default function ChatWithFinanceiro({
     }
   };
 
+  const sendSystemMessage = async (message: string) => {
+    try {
+      await supabase
+        .from('chat_messages')
+        .insert({
+          medico_id: medicoId,
+          sender_type: 'sistema',
+          message: message,
+        });
+    } catch (error) {
+      console.error('Erro ao enviar mensagem do sistema:', error);
+    }
+  };
+
   const claimTicket = async () => {
     try {
       if (!isGestor) return;
@@ -123,7 +172,7 @@ export default function ChatWithFinanceiro({
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, name')
         .eq('user_id', user.id)
         .single();
 
@@ -154,6 +203,9 @@ export default function ChatWithFinanceiro({
             setCurrentTicketId(data.id);
             setCurrentTicketStatus('em_atendimento');
             onTicketUpdate?.();
+            
+            // Enviar mensagem de saudação
+            await sendSystemMessage(`🤝 ${profile.name} iniciou o atendimento. Olá Dr(a). ${medicoNome}, como posso ajudá-lo(a) hoje?`);
           }
         } else {
           // Já está em atendimento
@@ -176,6 +228,9 @@ export default function ChatWithFinanceiro({
           setCurrentTicketId(data.id);
           setCurrentTicketStatus('em_atendimento');
           onTicketUpdate?.();
+          
+          // Enviar mensagem de saudação
+          await sendSystemMessage(`🤝 ${profile.name} iniciou o atendimento. Olá Dr(a). ${medicoNome}, como posso ajudá-lo(a) hoje?`);
         }
       }
     } catch (error) {
@@ -206,6 +261,10 @@ export default function ChatWithFinanceiro({
       if (!currentTicketId) return;
 
       setClosingTicket(true);
+      
+      // Enviar mensagem de encerramento
+      await sendSystemMessage(`✅ Atendimento finalizado por ${gestorNome}. Obrigado pelo contato!`);
+      
       const { error } = await supabase
         .from('chat_tickets')
         .update({
@@ -232,6 +291,58 @@ export default function ChatWithFinanceiro({
       });
     } finally {
       setClosingTicket(false);
+    }
+  };
+
+  const loadAvailableGestores = async () => {
+    try {
+      const { data: gestores } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .eq('role', 'gestor')
+        .neq('id', gestorId || '');
+
+      setAvailableGestores(gestores || []);
+    } catch (error) {
+      console.error('Erro ao carregar gestores:', error);
+    }
+  };
+
+  const handleTransferTicket = async () => {
+    if (!selectedTransferGestor || !currentTicketId) return;
+
+    setTransferring(true);
+    try {
+      const newGestor = availableGestores.find(g => g.id === selectedTransferGestor);
+      if (!newGestor) return;
+
+      // Atualizar ticket
+      const { error } = await supabase
+        .from('chat_tickets')
+        .update({ gestor_id: selectedTransferGestor })
+        .eq('id', currentTicketId);
+
+      if (error) throw error;
+
+      // Enviar mensagem de transferência
+      await sendSystemMessage(`🔄 Atendimento transferido de ${gestorNome} para ${newGestor.name}`);
+
+      toast({
+        title: "Ticket Transferido",
+        description: `Atendimento transferido para ${newGestor.name}`,
+      });
+
+      setShowTransferDialog(false);
+      onTicketUpdate?.();
+    } catch (error: any) {
+      console.error('Erro ao transferir ticket:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao transferir ticket",
+        variant: "destructive",
+      });
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -376,16 +487,30 @@ export default function ChatWithFinanceiro({
                   </div>
                   <div className="flex items-center gap-1">
                     {isGestor && currentTicketStatus === 'em_atendimento' && fullscreen && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCloseTicket}
-                        disabled={closingTicket}
-                        className="gap-2"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        Finalizar
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            loadAvailableGestores();
+                            setShowTransferDialog(true);
+                          }}
+                          className="gap-2"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          Transferir
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCloseTicket}
+                          disabled={closingTicket}
+                          className="gap-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Finalizar
+                        </Button>
+                      </>
                     )}
                     {!fullscreen && (
                       <>
@@ -458,10 +583,11 @@ export default function ChatWithFinanceiro({
                   <div className="p-4 border-t border-border/50 flex-shrink-0">
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Digite sua mensagem..."
+                        placeholder={currentTicketStatus === 'finalizado' ? 'Atendimento finalizado' : 'Digite sua mensagem...'}
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyPress={handleKeyPress}
+                        disabled={currentTicketStatus === 'finalizado'}
                         className="glass-effect border-border/50"
                       />
                       <Button
@@ -480,6 +606,45 @@ export default function ChatWithFinanceiro({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Transfer Dialog */}
+      <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transferir Atendimento</DialogTitle>
+            <DialogDescription>
+              Selecione o gestor que continuará este atendimento com {medicoNome}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <Select value={selectedTransferGestor} onValueChange={setSelectedTransferGestor}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um gestor" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableGestores.map((gestor) => (
+                  <SelectItem key={gestor.id} value={gestor.id}>
+                    {gestor.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTransferDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleTransferTicket} 
+              disabled={!selectedTransferGestor || transferring}
+            >
+              {transferring ? 'Transferindo...' : 'Transferir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

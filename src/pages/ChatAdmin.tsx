@@ -26,6 +26,7 @@ export default function ChatAdmin() {
   const [selectedMedico, setSelectedMedico] = useState<MedicoWithUnread | null>(null);
   const [loading, setLoading] = useState(true);
   const [gestorNome, setGestorNome] = useState("");
+  const [gestorId, setGestorId] = useState("");
 
   useEffect(() => {
     loadMedicos();
@@ -58,12 +59,13 @@ export default function ChatAdmin() {
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('name')
+          .select('id, name')
           .eq('user_id', user.id)
           .single();
         
         if (profile) {
           setGestorNome(profile.name);
+          setGestorId(profile.id);
         }
       }
     } catch (error) {
@@ -222,6 +224,7 @@ export default function ChatAdmin() {
                   isGestor={true}
                   fullscreen={true}
                   gestorNome={gestorNome}
+                  gestorId={gestorId}
                   ticketId={selectedMedico.ticketId}
                   ticketStatus={selectedMedico.ticketStatus}
                   onTicketUpdate={loadMedicos}
