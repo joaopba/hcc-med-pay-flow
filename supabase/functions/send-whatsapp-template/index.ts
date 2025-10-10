@@ -262,6 +262,11 @@ serve(async (req) => {
     console.log('Resposta da API WhatsApp:', responseData);
 
     // Verificar se houve erro na resposta (API pode retornar 200 mas com erro na mensagem)
+    // Ignorar erros de contato duplicado que são erros internos da API externa
+    const isDuplicateContactError = responseData.message && 
+      (responseData.message.includes('SequelizeUniqueConstraintError') ||
+       responseData.message.includes('contacts_number_tenantid'));
+    
     const hasError = !response.ok || 
                      responseData.error || 
                      (responseData.message && (
@@ -270,10 +275,14 @@ serve(async (req) => {
                        responseData.message.toLowerCase().includes('sent error')
                      ));
     
-    if (hasError) {
+    if (hasError && !isDuplicateContactError) {
       const errorMsg = responseData.message || responseData.error || JSON.stringify(responseData);
       console.error('Erro ao enviar mensagem WhatsApp:', errorMsg);
       throw new Error(`Erro ao enviar WhatsApp (${response.status}): ${errorMsg}`);
+    }
+    
+    if (isDuplicateContactError) {
+      console.warn('⚠️ Aviso: API retornou erro de contato duplicado, mas mensagem foi enviada. Resposta:', responseData.message);
     }
 
     // Log da mensagem se tiver pagamentoId
