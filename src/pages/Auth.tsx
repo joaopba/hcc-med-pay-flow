@@ -120,7 +120,7 @@ export default function Auth() {
               className="space-y-2"
             >
               <CardTitle className="text-2xl font-bold gradient-text">
-                Gestão de Pagamentos
+                Gestão de Notas Fiscais
               </CardTitle>
             </motion.div>
           </CardHeader>
