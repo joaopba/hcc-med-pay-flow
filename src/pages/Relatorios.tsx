@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileSpreadsheet, Search } from "lucide-react";
+import { Download, FileSpreadsheet, Search, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -16,6 +16,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import logoHcc from "@/assets/logo.png";
+import logoConquista from "@/assets/conquista-inovacao.png";
 
 interface RelatorioItem {
   medico_nome: string;
@@ -123,6 +127,156 @@ export default function Relatorios() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const exportarPDF = async () => {
+    if (dados.length === 0) {
+      toast({
+        title: "Aviso",
+        description: "Nenhum dado para exportar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      
+      // Converter imagens para base64
+      const loadImage = (url: string): Promise<string> => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.src = url;
+        });
+      };
+
+      // Carregar logos
+      const logoHccBase64 = await loadImage(logoHcc);
+      const logoConquistaBase64 = await loadImage(logoConquista);
+
+      // Header com logo HCC
+      doc.addImage(logoHccBase64, 'PNG', 15, 10, 40, 15);
+      
+      // Título
+      doc.setFontSize(20);
+      doc.setTextColor(51, 51, 51);
+      doc.text("Relatório de Pagamentos", pageWidth / 2, 35, { align: 'center' });
+      
+      // Data do relatório
+      doc.setFontSize(10);
+      doc.setTextColor(102, 102, 102);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, 42, { align: 'center' });
+      
+      // Linha decorativa
+      doc.setDrawColor(52, 152, 219);
+      doc.setLineWidth(0.5);
+      doc.line(15, 48, pageWidth - 15, 48);
+
+      // Resumo
+      const totalBruto = dados.reduce((sum, item) => sum + item.valor, 0);
+      const totalLiquido = dados.reduce((sum, item) => sum + item.valor_liquido, 0);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(51, 51, 51);
+      doc.text(`Total de Registros: ${dados.length}`, 15, 58);
+      doc.text(`Valor Total Bruto: ${formatCurrency(totalBruto)}`, 15, 64);
+      doc.text(`Valor Total Líquido: ${formatCurrency(totalLiquido)}`, 15, 70);
+
+      // Tabela com os dados
+      const tableData = dados.map(item => [
+        item.medico_nome,
+        item.mes_competencia,
+        formatCurrency(item.valor),
+        formatCurrency(item.valor_liquido),
+        getStatusLabel(item.status),
+        item.data_solicitacao,
+        item.data_resposta,
+        item.data_pagamento
+      ]);
+
+      autoTable(doc, {
+        startY: 78,
+        head: [['Médico', 'Competência', 'Valor Bruto', 'Valor Líquido', 'Status', 'Dt. Solicitação', 'Dt. Resposta', 'Dt. Pagamento']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [52, 152, 219],
+          textColor: [255, 255, 255],
+          fontSize: 9,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        bodyStyles: {
+          fontSize: 8,
+          textColor: [51, 51, 51]
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245]
+        },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 25, halign: 'right' },
+          3: { cellWidth: 25, halign: 'right' },
+          4: { cellWidth: 25, halign: 'center' },
+          5: { cellWidth: 22, halign: 'center' },
+          6: { cellWidth: 22, halign: 'center' },
+          7: { cellWidth: 22, halign: 'center' }
+        },
+        margin: { left: 15, right: 15 }
+      });
+
+      // Footer com logo Conquista
+      const finalY = (doc as any).lastAutoTable.finalY || 78;
+      const footerY = doc.internal.pageSize.height - 25;
+      
+      // Se a tabela for muito grande, adicionar em nova página
+      if (finalY > footerY - 10) {
+        doc.addPage();
+      }
+      
+      // Linha decorativa antes do footer
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.3);
+      doc.line(15, doc.internal.pageSize.height - 22, pageWidth - 15, doc.internal.pageSize.height - 22);
+      
+      // Texto "Desenvolvido por"
+      doc.setFontSize(9);
+      doc.setTextColor(102, 102, 102);
+      doc.text("Desenvolvido por", pageWidth / 2, doc.internal.pageSize.height - 17, { align: 'center' });
+      
+      // Logo Conquista Inovação
+      doc.addImage(logoConquistaBase64, 'PNG', pageWidth / 2 - 15, doc.internal.pageSize.height - 15, 30, 8);
+
+      // Salvar PDF
+      doc.save(`relatorio_pagamentos_${new Date().toISOString().slice(0, 10)}.pdf`);
+
+      toast({
+        title: "Sucesso",
+        description: "Relatório PDF gerado com sucesso!",
+      });
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao gerar PDF",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -322,9 +476,14 @@ export default function Relatorios() {
               
               {dados.length > 0 && (
                 <>
+                  <Button onClick={exportarPDF} variant="default" disabled={exporting}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    {exporting ? "Gerando..." : "Exportar PDF"}
+                  </Button>
+                  
                   <Button onClick={exportarCSV} variant="outline" disabled={exporting}>
                     <Download className="h-4 w-4 mr-2" />
-                    {exporting ? "Exportando..." : "Exportar CSV"}
+                    Exportar CSV
                   </Button>
                   
                   <Button onClick={exportarGoogleSheets} variant="outline">
