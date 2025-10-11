@@ -411,12 +411,13 @@ export default function Pagamentos() {
         }
       });
 
-      // Atualizar status
+      // Atualizar status - Adicionar horário para evitar problema de timezone
+      const dataComHorario = `${paymentDate}T12:00:00`;
       await supabase
         .from("pagamentos")
         .update({ 
           status: "pago",
-          data_pagamento: paymentDate
+          data_pagamento: dataComHorario
         })
         .eq("id", selectedPaymentId);
 
