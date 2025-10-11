@@ -133,9 +133,10 @@ serve(async (req) => {
         .eq('id', notaId)
         .single();
 
-      // Gerar token simples e direto (encurtado)
-      const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 12);
-      console.log('Token gerado para nota:', notaId, 'token:', token);
+      // Gerar token com created_at normalizado (sem T, mantém formato original)
+      const createdAtStr = String(nota?.created_at || '').replace('T', ' ');
+      const token = btoa(`${notaId}-${createdAtStr}`).substring(0, 12);
+      console.log('Token gerado para nota:', notaId, 'token:', token, 'created_at:', createdAtStr);
       const approveUrl = `https://hcc.chatconquista.com/aprovar?i=${notaId}&t=${token}`;
       const rejectUrl = `https://hcc.chatconquista.com/rejeitar?i=${notaId}&t=${token}`;
 
@@ -267,7 +268,7 @@ serve(async (req) => {
           .eq('id', notaId)
           .single();
 
-        const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 12);
+        const token = btoa(`${notaId}-${String(nota?.created_at || '').replace('T', ' ')}`).substring(0, 12);
         console.log('Token gerado para WhatsApp:', notaId, 'token:', token);
         const approveUrl = `https://hcc.chatconquista.com/aprovar?i=${notaId}&t=${token}`;
         const rejectUrl = `https://hcc.chatconquista.com/rejeitar?i=${notaId}&t=${token}`;
@@ -297,7 +298,14 @@ serve(async (req) => {
               console.log('Links - Aprovar:', approveUrl, 'Rejeitar:', rejectUrl, 'PDF:', shortPdfUrl);
               console.log('🗓️ DEBUG Competência na mensagem:', pagamento.mes_competencia, '->', formatMesCompetencia(pagamento.mes_competencia));
               
-              const caption = `📋 Nova Nota - Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📄 PDF: ${shortPdfUrl}\n\n✅ Aprovar: ${approveUrl}\n❌ Rejeitar: ${rejectUrl}`;
+              const caption = `📋 Nova Nota - Análise
+
+Médico: ${(pagamento.medicos as any)?.nome}
+Competência: ${formatMesCompetencia(pagamento.mes_competencia)}
+Valor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+✅ Aprovar: ${approveUrl}
+❌ Rejeitar: ${rejectUrl}`;
 
               // Chamar função send-notification-gestores via HTTP direto
               const gestorResponse = await fetch(

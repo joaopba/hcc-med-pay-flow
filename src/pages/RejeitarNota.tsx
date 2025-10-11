@@ -124,12 +124,14 @@ export default function RejeitarNota() {
 
     try {
       // Validar token
-      const expected20 = btoa(`${notaId}-${notaInfo.created_at}`).substring(0, 20);
+      // Validar token - normalizar created_at removendo T
+      const createdAtStr = String(notaInfo.created_at).replace('T', ' ');
+      const expected20 = btoa(`${notaId}-${createdAtStr}`).substring(0, 20);
       const expected12 = expected20.substring(0, 12);
       console.log('Token recebido:', token);
       console.log('Token esperado (20/12):', expected20, expected12);
       console.log('Nota ID:', notaId);
-      console.log('Created at:', notaInfo.created_at);
+      console.log('Created at:', createdAtStr);
       
       if (token !== expected20 && token !== expected12) {
         throw new Error('Token inválido ou expirado');

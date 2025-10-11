@@ -64,13 +64,14 @@ export default function AprovarNota() {
       console.log('✅ Nota carregada:', nota);
       console.log('🗓️ Created at da nota:', nota.created_at);
 
-      // Validar token
-      const expected20 = btoa(`${notaId}-${nota.created_at}`).substring(0, 20);
+      // Validar token - normalizar created_at removendo T
+      const createdAtStr = String(nota.created_at).replace('T', ' ');
+      const expected20 = btoa(`${notaId}-${createdAtStr}`).substring(0, 20);
       const expected12 = expected20.substring(0, 12);
       console.log('🔑 Token recebido:', token, `(${token.length} chars)`);
       console.log('🔑 Token esperado 20 chars:', expected20);
       console.log('🔑 Token esperado 12 chars:', expected12);
-      console.log('🔑 String usada para gerar token:', `${notaId}-${nota.created_at}`);
+      console.log('🔑 String usada para gerar token:', `${notaId}-${createdAtStr}`);
       
       if (token !== expected20 && token !== expected12) {
         console.error('❌ Token inválido! Recebido:', token, 'Esperados:', expected20, expected12);
