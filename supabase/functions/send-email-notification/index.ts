@@ -276,13 +276,23 @@ serve(async (req) => {
         if (gestores.length > 0 && pdfBase64) {
           console.log(`📧 Enviando para ${gestores.length} gestor(es) via nova API`);
           
+          // Gerar URL pública do PDF para incluir na mensagem
+          let pdfDownloadUrl = '';
+          if (pdfPath) {
+            const { data: urlData } = await supabase.storage
+              .from('notas')
+              .createSignedUrl(pdfPath, 604800); // 7 dias
+            pdfDownloadUrl = urlData?.signedUrl || '';
+          }
+          
           for (const gestor of gestores) {
             try {
               // Encurtar URLs antes de enviar
               const shortApproveUrl = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(approveUrl)}`).then(r => r.text()).catch(() => approveUrl);
               const shortRejectUrl = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(rejectUrl)}`).then(r => r.text()).catch(() => rejectUrl);
+              const shortPdfUrl = pdfDownloadUrl ? await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(pdfDownloadUrl)}`).then(r => r.text()).catch(() => pdfDownloadUrl) : '';
               
-              const caption = `📋 Nova Nota Fiscal para Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n✅ Aprovar: ${shortApproveUrl}\n❌ Rejeitar: ${shortRejectUrl}`;
+              const caption = `📋 Nova Nota Fiscal para Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📄 Baixar Nota: ${shortPdfUrl}\n\n✅ Aprovar: ${shortApproveUrl}\n❌ Rejeitar: ${shortRejectUrl}`;
 
               // Chamar função send-notification-gestores via HTTP direto
               const gestorResponse = await fetch(
