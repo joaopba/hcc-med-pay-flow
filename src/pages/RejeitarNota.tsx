@@ -116,63 +116,32 @@ export default function RejeitarNota() {
     setError(null);
 
     try {
-      // Validar token
-      // Validar token - normalizar created_at removendo T
-      const createdAtStr = String(notaInfo.created_at).replace('T', ' ');
-      const expected20 = btoa(`${notaId}-${createdAtStr}`).substring(0, 20);
-      const expected12 = expected20.substring(0, 12);
-      console.log('Token recebido:', token);
-      console.log('Token esperado (20/12):', expected20, expected12);
-      console.log('Nota ID:', notaId);
-      console.log('Created at:', createdAtStr);
+      console.log('🔄 Chamando edge function processar-aprovacao para rejeição');
       
-      if (token !== expected20 && token !== expected12) {
-        throw new Error('Token inválido ou expirado');
-      }
+      // Criar FormData para enviar o motivo
+      const formData = new FormData();
+      formData.append('motivo', motivo);
 
-      // Rejeitar nota
-      const { error: updateNotaError } = await supabase
-        .from('notas_medicos')
-        .update({ 
-          status: 'rejeitado',
-          observacoes: motivo
-        })
-        .eq('id', notaId);
+      // Chamar edge function que tem permissões adequadas
+      const response = await fetch(
+        `https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/processar-aprovacao?nota=${notaId}&action=rejeitar&token=${token}`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      );
 
-      if (updateNotaError) throw updateNotaError;
+      console.log('📊 Status da resposta:', response.status);
 
-      // Atualizar pagamento
-      const { error: updatePagamentoError } = await supabase
-        .from('pagamentos')
-        .update({ 
-          status: 'pendente',
-          observacoes: motivo
-        })
-        .eq('id', notaInfo.pagamento_id);
-
-      if (updatePagamentoError) throw updatePagamentoError;
-
-      // Enviar notificação WhatsApp
-      try {
-        await supabase.functions.invoke('send-whatsapp-template', {
-          body: {
-            type: 'nota_rejeitada',
-            medico: {
-              nome: notaInfo.medicos.nome,
-              numero_whatsapp: notaInfo.medicos.numero_whatsapp
-            },
-            competencia: notaInfo.pagamentos.mes_competencia,
-            motivo: motivo,
-            linkPortal: 'https://hcc.chatconquista.com/dashboard-medicos',
-            pagamentoId: notaInfo.pagamento_id
-          }
-        });
-      } catch (whatsappError) {
-        console.warn('Erro ao enviar WhatsApp:', whatsappError);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta:', errorText);
+        throw new Error('Erro ao processar rejeição');
       }
 
       setSuccess(true);
     } catch (err: any) {
+      console.error('❌ Erro ao processar:', err);
       setError(err.message || "Erro ao processar rejeição");
     } finally {
       setSubmitting(false);

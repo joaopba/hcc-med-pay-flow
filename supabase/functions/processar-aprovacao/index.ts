@@ -48,9 +48,12 @@ serve(async (req) => {
       throw new Error('Nota não encontrada');
     }
 
-    // Validar token
-    const expectedToken = btoa(`${notaId}-${nota.created_at}`).substring(0, 20);
-    if (token !== expectedToken) {
+    // Validar token - normalizar created_at removendo T
+    const createdAtStr = String(nota.created_at).replace('T', ' ');
+    const expected20 = btoa(`${notaId}-${createdAtStr}`).substring(0, 20);
+    const expected12 = expected20.substring(0, 12);
+    
+    if (token !== expected20 && token !== expected12) {
       return new Response('Token inválido', { status: 403 });
     }
 
@@ -338,11 +341,11 @@ serve(async (req) => {
           })
           .eq('id', notaId);
 
-        // Atualizar pagamento
+        // Atualizar pagamento - volta para solicitado para permitir nova nota
         await supabase
           .from('pagamentos')
           .update({ 
-            status: 'nota_rejeitada',
+            status: 'solicitado',
             observacoes: motivo
           })
           .eq('id', nota.pagamento_id);
