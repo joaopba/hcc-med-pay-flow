@@ -216,12 +216,12 @@ export default function Medicos() {
 
   return (
     <AppLayout title="Médicos" subtitle="Gerenciar cadastro de médicos do hospital">
-      <div className="p-6 animate-fade-in-up">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex space-x-2">
+      <div className="p-3 sm:p-6 animate-fade-in-up">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 w-full sm:w-auto">
                   <FileSpreadsheet className="h-4 w-4" />
                   Importar Excel
                 </Button>
@@ -245,7 +245,7 @@ export default function Medicos() {
                 <Button onClick={() => {
                   setEditingMedico(null);
                   setFormData({ nome: "", numero_whatsapp: "", especialidade: "", cpf: "" });
-                }} className="btn-gradient-primary gap-2">
+                }} className="btn-gradient-primary gap-2 w-full sm:w-auto">
                   <Plus className="h-4 w-4" />
                   Novo Médico
                 </Button>
@@ -309,26 +309,26 @@ export default function Medicos() {
         </div>
 
         <div className="card-professional table-professional">
-          <div className="table-header-professional p-4">
+          <div className="table-header-professional p-3 sm:p-4">
             <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
               <Input
                 placeholder="Buscar médicos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm bg-transparent border-0 focus:ring-0"
+                className="bg-transparent border-0 focus:ring-0 w-full"
               />
             </div>
           </div>
-          <div className="p-0">
+          <div className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-poppins font-semibold">Nome</TableHead>
-                  <TableHead className="font-poppins font-semibold">WhatsApp</TableHead>
-                  <TableHead className="font-poppins font-semibold">Especialidade</TableHead>
-                  <TableHead className="font-poppins font-semibold">Status</TableHead>
-                  <TableHead className="font-poppins font-semibold">Ações</TableHead>
+                  <TableHead className="font-poppins font-semibold min-w-[180px]">Nome</TableHead>
+                  <TableHead className="font-poppins font-semibold min-w-[140px]">WhatsApp</TableHead>
+                  <TableHead className="font-poppins font-semibold min-w-[140px]">Especialidade</TableHead>
+                  <TableHead className="font-poppins font-semibold min-w-[100px]">Status</TableHead>
+                  <TableHead className="font-poppins font-semibold min-w-[80px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

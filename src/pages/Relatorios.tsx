@@ -405,11 +405,11 @@ export default function Relatorios() {
 
   return (
     <AppLayout>
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-3 sm:p-6">
+        <div className="flex flex-col gap-3 mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Relatórios</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">Relatórios</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Gerar relatórios e exportar dados para análise
             </p>
           </div>
@@ -420,7 +420,7 @@ export default function Relatorios() {
             <CardTitle>Filtros do Relatório</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div className="space-y-2">
                 <Label htmlFor="mes_inicio">Mês Início</Label>
                 <Input
@@ -468,25 +468,25 @@ export default function Relatorios() {
               </div>
             </div>
             
-            <div className="flex space-x-2">
-              <Button onClick={gerarRelatorio} disabled={loading}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={gerarRelatorio} disabled={loading} className="w-full sm:w-auto">
                 <Search className="h-4 w-4 mr-2" />
                 {loading ? "Gerando..." : "Gerar Relatório"}
               </Button>
               
               {dados.length > 0 && (
                 <>
-                  <Button onClick={exportarPDF} variant="default" disabled={exporting}>
+                  <Button onClick={exportarPDF} variant="default" disabled={exporting} className="w-full sm:w-auto">
                     <FileText className="h-4 w-4 mr-2" />
                     {exporting ? "Gerando..." : "Exportar PDF"}
                   </Button>
                   
-                  <Button onClick={exportarCSV} variant="outline" disabled={exporting}>
+                  <Button onClick={exportarCSV} variant="outline" disabled={exporting} className="w-full sm:w-auto">
                     <Download className="h-4 w-4 mr-2" />
                     Exportar CSV
                   </Button>
                   
-                  <Button onClick={exportarGoogleSheets} variant="outline">
+                  <Button onClick={exportarGoogleSheets} variant="outline" className="w-full sm:w-auto">
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
                     Google Sheets
                   </Button>
@@ -501,35 +501,37 @@ export default function Relatorios() {
             <CardHeader>
               <CardTitle>Resultados ({dados.length} registros)</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Médico</TableHead>
-                    <TableHead>Competência</TableHead>
-                    <TableHead>Valor Bruto</TableHead>
-                    <TableHead>Valor Líquido</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data Solicitação</TableHead>
-                    <TableHead>Data Resposta</TableHead>
-                    <TableHead>Data Pagamento</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dados.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{item.medico_nome}</TableCell>
-                      <TableCell>{item.mes_competencia}</TableCell>
-                      <TableCell>{formatCurrency(item.valor)}</TableCell>
-                      <TableCell>{formatCurrency(item.valor_liquido)}</TableCell>
-                      <TableCell>{getStatusLabel(item.status)}</TableCell>
-                      <TableCell>{item.data_solicitacao}</TableCell>
-                      <TableCell>{item.data_resposta}</TableCell>
-                      <TableCell>{item.data_pagamento}</TableCell>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[180px]">Médico</TableHead>
+                      <TableHead className="min-w-[120px]">Competência</TableHead>
+                      <TableHead className="min-w-[120px]">Valor Bruto</TableHead>
+                      <TableHead className="min-w-[120px]">Valor Líquido</TableHead>
+                      <TableHead className="min-w-[130px]">Status</TableHead>
+                      <TableHead className="min-w-[130px]">Data Solicitação</TableHead>
+                      <TableHead className="min-w-[130px]">Data Resposta</TableHead>
+                      <TableHead className="min-w-[130px]">Data Pagamento</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {dados.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{item.medico_nome}</TableCell>
+                        <TableCell>{item.mes_competencia}</TableCell>
+                        <TableCell>{formatCurrency(item.valor)}</TableCell>
+                        <TableCell>{formatCurrency(item.valor_liquido)}</TableCell>
+                        <TableCell>{getStatusLabel(item.status)}</TableCell>
+                        <TableCell>{item.data_solicitacao}</TableCell>
+                        <TableCell>{item.data_resposta}</TableCell>
+                        <TableCell>{item.data_pagamento}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         )}
