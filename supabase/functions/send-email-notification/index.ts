@@ -284,17 +284,26 @@ serve(async (req) => {
               
               const caption = `📋 Nova Nota Fiscal para Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n✅ Aprovar: ${shortApproveUrl}\n❌ Rejeitar: ${shortRejectUrl}`;
 
-              // Chamar função send-notification-gestores
-              const gestorResponse = await supabase.functions.invoke('send-notification-gestores', {
-                body: {
-                  phoneNumber: gestor.numero_whatsapp,
-                  message: caption,
-                  pdf_base64: pdfBase64,
-                  pdf_filename: fileName || 'nota.pdf'
+              // Chamar função send-notification-gestores via HTTP direto
+              const gestorResponse = await fetch(
+                `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-notification-gestores`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
+                  },
+                  body: JSON.stringify({
+                    phoneNumber: gestor.numero_whatsapp,
+                    message: caption,
+                    pdf_base64: pdfBase64,
+                    pdf_filename: fileName || 'nota.pdf'
+                  })
                 }
-              });
+              );
 
-              console.log(`✅ WhatsApp enviado para gestor ${gestor.name}:`, gestorResponse);
+              const gestorResult = await gestorResponse.json();
+              console.log(`✅ WhatsApp enviado para gestor ${gestor.name}:`, gestorResult);
             } catch (gestorError) {
               console.error(`❌ Erro ao enviar WhatsApp para gestor ${gestor.name}:`, gestorError);
             }

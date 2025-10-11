@@ -12,5 +12,8 @@ verify_jwt = false
 [functions.send-email-notification]
 verify_jwt = false
 
+[functions.send-notification-gestores]
+verify_jwt = false
+
 [functions.test-whatsapp-message]
 verify_jwt = false
