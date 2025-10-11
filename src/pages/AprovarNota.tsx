@@ -102,23 +102,34 @@ export default function AprovarNota() {
       console.log('Pagamento:', pagamentoData);
 
       // Aprovar nota
+      console.log('🔄 Atualizando nota para aprovado:', notaId);
       const { error: updateNotaError } = await supabase
         .from('notas_medicos')
         .update({ status: 'aprovado' })
         .eq('id', notaId);
 
-      if (updateNotaError) throw updateNotaError;
+      if (updateNotaError) {
+        console.error('❌ Erro ao atualizar nota:', updateNotaError);
+        throw updateNotaError;
+      }
+      console.log('✅ Nota atualizada com sucesso');
 
       // Atualizar pagamento para aprovado
-      const { error: updatePagamentoError } = await supabase
+      console.log('🔄 Atualizando pagamento para aprovado:', nota.pagamento_id);
+      const { data: pagamentoUpdated, error: updatePagamentoError } = await supabase
         .from('pagamentos')
         .update({ 
           status: 'aprovado',
           data_resposta: new Date().toISOString()
         })
-        .eq('id', nota.pagamento_id);
+        .eq('id', nota.pagamento_id)
+        .select();
 
-      if (updatePagamentoError) throw updatePagamentoError;
+      if (updatePagamentoError) {
+        console.error('❌ Erro ao atualizar pagamento:', updatePagamentoError);
+        throw updatePagamentoError;
+      }
+      console.log('✅ Pagamento atualizado com sucesso:', pagamentoUpdated);
 
       // Enviar notificação WhatsApp
       try {
