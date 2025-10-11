@@ -25,36 +25,36 @@ serve(async (req) => {
 
     console.log('📧 Enviando notificação para gestor:', phoneNumber);
 
-    let payload: any = {
-      number: phoneNumber,
-      body: message,
-      externalKey: `gestor_${phoneNumber}_${Date.now()}`,
-      isClosed: false
-    };
+    // Montar multipart/form-data conforme cURL do cliente
+    const form = new FormData();
+    form.append('number', phoneNumber);
+    form.append('body', message);
+    form.append('externalKey', `gestor_${phoneNumber}_${Date.now()}`);
+    form.append('isClosed', 'false');
 
-    // Se tiver PDF, adicionar ao payload
     if (pdf_base64 && pdf_filename) {
-      payload.mediaData = {
-        mediaBase64: pdf_base64,
-        caption: message,
-        fileName: pdf_filename
-      };
-      payload.file = {
-        data: pdf_base64,
-        fileName: pdf_filename,
-        filename: pdf_filename
-      };
+      try {
+        // Converter base64 para Blob PDF
+        const binary = atob(pdf_base64);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        form.append('media', blob, pdf_filename);
+      } catch (e) {
+        console.warn('Falha ao montar arquivo PDF para multipart:', e);
+      }
     }
 
-    console.log('Payload para API de gestores:', JSON.stringify(payload, null, 2));
+    console.log('Enviando multipart/form-data para API dos gestores...');
 
     const response = await fetch(GESTOR_API_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        // NÃO defina Content-Type manualmente; o fetch define o boundary automaticamente
         'Authorization': `Bearer ${GESTOR_AUTH_TOKEN}`
       },
-      body: JSON.stringify(payload)
+      body: form
     });
 
     console.log('✅ Status da resposta:', response.status);

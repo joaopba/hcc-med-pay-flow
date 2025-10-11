@@ -22,8 +22,8 @@ export default function RejeitarNota() {
   }, []);
 
   const buscarNota = async () => {
-    const notaId = searchParams.get('nota');
-    const token = searchParams.get('token');
+    const notaId = searchParams.get('i') || searchParams.get('nota');
+    const token = searchParams.get('t') || searchParams.get('token');
 
     if (!notaId || !token) {
       setError("Link inválido ou expirado");
@@ -124,13 +124,14 @@ export default function RejeitarNota() {
 
     try {
       // Validar token
-      const expectedToken = btoa(`${notaId}-${notaInfo.created_at}`).substring(0, 20);
+      const expected20 = btoa(`${notaId}-${notaInfo.created_at}`).substring(0, 20);
+      const expected12 = expected20.substring(0, 12);
       console.log('Token recebido:', token);
-      console.log('Token esperado:', expectedToken);
+      console.log('Token esperado (20/12):', expected20, expected12);
       console.log('Nota ID:', notaId);
       console.log('Created at:', notaInfo.created_at);
       
-      if (token !== expectedToken) {
+      if (token !== expected20 && token !== expected12) {
         throw new Error('Token inválido ou expirado');
       }
 

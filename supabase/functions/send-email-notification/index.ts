@@ -131,11 +131,11 @@ serve(async (req) => {
         .eq('id', notaId)
         .single();
 
-      // Gerar token simples e direto
-      const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 20);
+      // Gerar token simples e direto (encurtado)
+      const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 12);
       console.log('Token gerado para nota:', notaId, 'token:', token);
-      const approveUrl = `https://hcc.chatconquista.com/aprovar?nota=${notaId}&token=${token}`;
-      const rejectUrl = `https://hcc.chatconquista.com/rejeitar?nota=${notaId}&token=${token}`;
+      const approveUrl = `https://hcc.chatconquista.com/aprovar?i=${notaId}&t=${token}`;
+      const rejectUrl = `https://hcc.chatconquista.com/rejeitar?i=${notaId}&t=${token}`;
 
       // Gerar URL pública do PDF (válida por 7 dias)
       let pdfDownloadUrl = '';
@@ -265,10 +265,10 @@ serve(async (req) => {
           .eq('id', notaId)
           .single();
 
-        const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 20);
+        const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 12);
         console.log('Token gerado para WhatsApp:', notaId, 'token:', token);
-        const approveUrl = `https://hcc.chatconquista.com/aprovar?nota=${notaId}&token=${token}`;
-        const rejectUrl = `https://hcc.chatconquista.com/rejeitar?nota=${notaId}&token=${token}`;
+        const approveUrl = `https://hcc.chatconquista.com/aprovar?i=${notaId}&t=${token}`;
+        const rejectUrl = `https://hcc.chatconquista.com/rejeitar?i=${notaId}&t=${token}`;
 
         // Separar gestores de outros usuários
         const gestores = usuariosWhatsApp.filter(u => u.role === 'gestor');
