@@ -169,7 +169,7 @@ export default function RejeitarNota() {
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erro
           </h1>
-          <p className="text-muted-foreground mb-6">{error}</p>
+          <p className="text-foreground mb-6">{error}</p>
           <button
             onClick={() => navigate('/')}
             className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
@@ -195,7 +195,7 @@ export default function RejeitarNota() {
             <p className="text-sm text-red-700 dark:text-red-400 mb-2 font-medium">Motivo da Rejeição</p>
             <p className="text-sm text-foreground">{motivo}</p>
           </div>
-          <p className="text-muted-foreground mb-8">
+          <p className="text-foreground mb-8">
             O médico foi notificado via WhatsApp e poderá enviar uma nova nota corrigida.
           </p>
           <button

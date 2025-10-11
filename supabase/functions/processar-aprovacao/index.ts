@@ -107,17 +107,28 @@ serve(async (req) => {
 
     if (action === 'aprovar') {
       // Aprovar nota
-      await supabase
+      const { error: updateNotaError } = await supabase
         .from('notas_medicos')
         .update({ status: 'aprovado' })
         .eq('id', notaId);
 
+      if (updateNotaError) {
+        console.error('Erro ao atualizar nota:', updateNotaError);
+        return new Response('Falha ao aprovar nota', { status: 500, headers: corsHeaders });
+      }
+
       // Atualizar pagamento
-      await supabase
+      const { data: pagamentoAfter, error: updatePagamentoError } = await supabase
         .from('pagamentos')
         .update({ status: 'aprovado', data_resposta: new Date().toISOString() })
-        .eq('id', nota.pagamento_id);
+        .eq('id', nota.pagamento_id)
+        .select();
 
+      if (updatePagamentoError) {
+        console.error('Erro ao atualizar pagamento:', updatePagamentoError);
+        return new Response('Falha ao atualizar pagamento', { status: 500, headers: corsHeaders });
+      }
+      console.log('Pagamento atualizado:', pagamentoAfter);
       // Enviar notificação WhatsApp
       try {
         await supabase.functions.invoke('send-whatsapp-template', {

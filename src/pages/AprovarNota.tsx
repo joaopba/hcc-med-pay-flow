@@ -82,7 +82,7 @@ export default function AprovarNota() {
           <h1 className="text-2xl font-bold text-foreground mb-2">
             Processando aprovação...
           </h1>
-          <p className="text-muted-foreground">Aguarde um momento</p>
+          <p className="text-foreground">Aguarde um momento</p>
         </div>
       </div>
     );
@@ -96,7 +96,7 @@ export default function AprovarNota() {
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erro ao processar
           </h1>
-          <p className="text-muted-foreground mb-6">{error}</p>
+          <p className="text-foreground mb-6">{error}</p>
           <button
             onClick={() => navigate('/')}
             className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
@@ -123,7 +123,7 @@ export default function AprovarNota() {
             <p className="font-semibold text-lg text-foreground">{medicoNome}</p>
           </div>
         )}
-        <p className="text-muted-foreground mb-8">
+        <p className="text-foreground mb-8">
           O pagamento será processado em breve e o médico foi notificado via WhatsApp.
         </p>
         <button
