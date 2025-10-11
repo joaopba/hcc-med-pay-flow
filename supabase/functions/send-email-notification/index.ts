@@ -104,13 +104,13 @@ serve(async (req) => {
 
     // Se for notificação de nova nota, buscar TODOS os usuários do sistema
     let destinatarios = [destinatario];
-    let usuariosWhatsApp: Array<{email: string, numero_whatsapp: string, name: string}> = [];
+    let usuariosWhatsApp: Array<{email: string, numero_whatsapp: string, name: string, role: string}> = [];
     
     if (type === 'nova_nota') {
       try {
         const { data: usuarios } = await supabase
           .from('profiles')
-          .select('email, numero_whatsapp, name');
+          .select('email, numero_whatsapp, name, role');
         
         if (usuarios && usuarios.length > 0) {
           destinatarios = usuarios.map(u => u.email).filter(Boolean);
@@ -254,16 +254,9 @@ serve(async (req) => {
     
     console.log('📊 Resumo de envios:', resultadosEnvio);
 
-    // Enviar WhatsApp com link público do PDF para usuários
+    // Enviar WhatsApp para usuários
     if (type === 'nova_nota' && usuariosWhatsApp.length > 0 && pdfPath) {
       try {
-        // Gerar URL pública temporária do PDF (válida por 7 dias)
-        const { data: urlData } = await supabase.storage
-          .from('notas')
-          .createSignedUrl(pdfPath, 604800); // 7 dias em segundos
-
-        const pdfPublicUrl = urlData?.signedUrl;
-
         // Gerar URLs de aprovação/rejeição
         const { data: nota } = await supabase
           .from('notas_medicos')
@@ -275,101 +268,119 @@ serve(async (req) => {
         const approveUrl = `https://hcc.chatconquista.com/aprovar?nota=${notaId}&token=${token}`;
         const rejectUrl = `https://hcc.chatconquista.com/rejeitar?nota=${notaId}&token=${token}`;
 
-        // Buscar configurações da API WhatsApp
-        const { data: configWpp } = await supabase
-          .from('configuracoes')
-          .select('api_url, auth_token')
-          .single();
+        // Separar gestores de outros usuários
+        const gestores = usuariosWhatsApp.filter(u => u.role === 'gestor');
+        const outrosUsuarios = usuariosWhatsApp.filter(u => u.role !== 'gestor');
 
-        if (configWpp?.api_url && configWpp?.auth_token) {
-          // Enviar para cada usuário com WhatsApp
-          for (const usuario of usuariosWhatsApp) {
+        // Enviar para gestores usando nova API
+        if (gestores.length > 0 && pdfBase64) {
+          console.log(`📧 Enviando para ${gestores.length} gestor(es) via nova API`);
+          
+          for (const gestor of gestores) {
             try {
-              const caption = `📋 Nova Nota Fiscal para Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n✅ Aprovar: ${approveUrl}\n❌ Rejeitar: ${rejectUrl}`;
+              // Encurtar URLs antes de enviar
+              const shortApproveUrl = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(approveUrl)}`).then(r => r.text()).catch(() => approveUrl);
+              const shortRejectUrl = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(rejectUrl)}`).then(r => r.text()).catch(() => rejectUrl);
+              
+              const caption = `📋 Nova Nota Fiscal para Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n✅ Aprovar: ${shortApproveUrl}\n❌ Rejeitar: ${shortRejectUrl}`;
 
-              if (pdfBase64) {
-                const payloadFile = {
-                  number: usuario.numero_whatsapp,
-                  caption,
-                  file: {
-                    data: pdfBase64,
-                    fileName: fileName || 'nota.pdf',
-                    filename: fileName || 'nota.pdf',
-                  },
-                  mediaData: {
-                    mediaBase64: pdfBase64,
-                    caption,
-                    fileName: fileName || 'nota.pdf',
-                  },
-                  externalKey: `nova_nota_usuarios_${notaId}_${usuario.email}_${Date.now()}`,
-                };
+              // Chamar função send-notification-gestores
+              const gestorResponse = await supabase.functions.invoke('send-notification-gestores', {
+                body: {
+                  phoneNumber: gestor.numero_whatsapp,
+                  message: caption,
+                  pdf_base64: pdfBase64,
+                  pdf_filename: fileName || 'nota.pdf'
+                }
+              });
 
-                console.log(`Enviando WhatsApp (arquivo) para ${usuario.name} (${usuario.numero_whatsapp})`);
-                const responseWppFile = await fetch(`${configWpp.api_url}/file`, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${configWpp.auth_token}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(payloadFile),
-                });
+              console.log(`✅ WhatsApp enviado para gestor ${gestor.name}:`, gestorResponse);
+            } catch (gestorError) {
+              console.error(`❌ Erro ao enviar WhatsApp para gestor ${gestor.name}:`, gestorError);
+            }
+          }
+        }
 
-                const dataFile = await responseWppFile.json().catch(() => ({}));
-                console.log(`Resposta API WhatsApp (file) para ${usuario.name}:`, dataFile);
-                console.log(`WhatsApp (file) enviado para ${usuario.name} - Status: ${responseWppFile.status}`);
+        // Enviar para outros usuários usando API antiga
+        if (outrosUsuarios.length > 0) {
+          const { data: configWpp } = await supabase
+            .from('configuracoes')
+            .select('api_url, auth_token')
+            .single();
 
-                if (!responseWppFile.ok) {
-                  // Fallback: enviar texto com link público
-                  const payloadWpp = {
+          if (configWpp?.api_url && configWpp?.auth_token) {
+            // Gerar URL pública temporária do PDF (válida por 7 dias)
+            const { data: urlData } = await supabase.storage
+              .from('notas')
+              .createSignedUrl(pdfPath, 604800);
+
+            const pdfPublicUrl = urlData?.signedUrl;
+
+            // Enviar para cada usuário não-gestor
+            for (const usuario of outrosUsuarios) {
+              try {
+                const caption = `📋 Nova Nota Fiscal para Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n✅ Aprovar: ${approveUrl}\n❌ Rejeitar: ${rejectUrl}`;
+
+                if (pdfBase64) {
+                  const payloadFile = {
                     number: usuario.numero_whatsapp,
-                    body: `${caption}\n\n📎 Baixar PDF: ${pdfPublicUrl ?? ''}`,
-                    externalKey: `nova_nota_usuarios_${notaId}_${usuario.email}_${Date.now()}_fallback`,
-                    isClosed: false,
+                    caption,
+                    file: {
+                      data: pdfBase64,
+                      fileName: fileName || 'nota.pdf',
+                      filename: fileName || 'nota.pdf',
+                    },
+                    mediaData: {
+                      mediaBase64: pdfBase64,
+                      caption,
+                      fileName: fileName || 'nota.pdf',
+                    },
+                    externalKey: `nova_nota_usuarios_${notaId}_${usuario.email}_${Date.now()}`,
                   };
 
-                  console.warn(`Fallback texto para ${usuario.name}`);
-                  const responseWpp = await fetch(configWpp.api_url, {
+                  console.log(`Enviando WhatsApp (arquivo) para ${usuario.name} (${usuario.numero_whatsapp})`);
+                  const responseWppFile = await fetch(`${configWpp.api_url}/file`, {
                     method: 'POST',
                     headers: {
                       'Authorization': `Bearer ${configWpp.auth_token}`,
                       'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(payloadWpp),
+                    body: JSON.stringify(payloadFile),
                   });
 
-                  const responseDataWpp = await responseWpp.json().catch(() => ({}));
-                  console.log(`Resposta API WhatsApp (fallback) para ${usuario.name}:`, responseDataWpp);
-                  console.log(`WhatsApp (fallback) enviado para ${usuario.name} - Status: ${responseWpp.status}`);
+                  const dataFile = await responseWppFile.json().catch(() => ({}));
+                  console.log(`Resposta API WhatsApp (file) para ${usuario.name}:`, dataFile);
+
+                  if (!responseWppFile.ok) {
+                    // Fallback: enviar texto com link público
+                    const payloadWpp = {
+                      number: usuario.numero_whatsapp,
+                      body: `${caption}\n\n📎 Baixar PDF: ${pdfPublicUrl ?? ''}`,
+                      externalKey: `nova_nota_usuarios_${notaId}_${usuario.email}_${Date.now()}_fallback`,
+                      isClosed: false,
+                    };
+
+                    const responseWpp = await fetch(configWpp.api_url, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${configWpp.auth_token}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(payloadWpp),
+                    });
+
+                    const responseDataWpp = await responseWpp.json().catch(() => ({}));
+                    console.log(`Resposta API WhatsApp (fallback) para ${usuario.name}:`, responseDataWpp);
+                  }
                 }
-              } else {
-                console.warn('pdfBase64 ausente, enviando apenas link público');
-                const payloadWpp = {
-                  number: usuario.numero_whatsapp,
-                  body: `📎 Baixar PDF: ${pdfPublicUrl ?? ''}\n\n✅ Aprovar: ${approveUrl}\n❌ Rejeitar: ${rejectUrl}`,
-                  externalKey: `nova_nota_usuarios_${notaId}_${usuario.email}_${Date.now()}`,
-                  isClosed: false,
-                };
-
-                const responseWpp = await fetch(configWpp.api_url, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${configWpp.auth_token}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(payloadWpp),
-                });
-
-                const responseDataWpp = await responseWpp.json().catch(() => ({}));
-                console.log(`Resposta API WhatsApp (sem base64) para ${usuario.name}:`, responseDataWpp);
-                console.log(`WhatsApp (texto) enviado para ${usuario.name} - Status: ${responseWpp.status}`);
+              } catch (wppError) {
+                console.error(`Erro ao enviar WhatsApp para ${usuario.name}:`, wppError);
               }
-            } catch (wppError) {
-              console.error(`Erro ao enviar WhatsApp para ${usuario.name}:`, wppError);
             }
           }
         }
       } catch (wppError) {
-        console.error('Erro ao processar envio de WhatsApp para usuários:', wppError);
+        console.error('Erro ao processar envio de WhatsApp:', wppError);
       }
     }
 

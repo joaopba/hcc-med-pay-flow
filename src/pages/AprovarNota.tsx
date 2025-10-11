@@ -167,9 +167,9 @@ export default function AprovarNota() {
           Nota Fiscal Aprovada!
         </h1>
         {medicoNome && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
-            <p className="text-sm text-muted-foreground mb-1">Médico</p>
-            <p className="font-semibold text-lg">{medicoNome}</p>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6 text-left">
+            <p className="text-sm text-green-700 dark:text-green-400 mb-1">Médico</p>
+            <p className="font-semibold text-lg text-foreground">{medicoNome}</p>
           </div>
         )}
         <p className="text-muted-foreground mb-8">

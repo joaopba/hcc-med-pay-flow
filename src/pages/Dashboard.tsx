@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, FileCheck, DollarSign, Bell, TrendingUp, Activity, ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Users, CreditCard, FileCheck, DollarSign, Bell, TrendingUp, Activity, ArrowUpRight, ArrowDownRight, Clock, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -15,7 +16,7 @@ interface DashboardStats {
   pagamentosPendentes: number;
   notasRecebidas: number;
   valorTotal: number;
-  notasParaPagamento: number;
+  notasParaPagamento: number; // Agora é valor monetário
 }
 
 interface MonthlyPayment {
@@ -35,6 +36,14 @@ interface DailyActivity {
 }
 
 export default function Dashboard() {
+  // Calcular mês anterior como default
+  const getDefaultMonth = () => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    return lastMonth.toISOString().slice(0, 7); // YYYY-MM
+  };
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(getDefaultMonth());
   const [stats, setStats] = useState<DashboardStats>({
     totalMedicos: 0,
     pagamentosPendentes: 0,
@@ -51,7 +60,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [selectedMonth]);
 
   const loadDashboardData = async () => {
     try {
@@ -67,11 +76,17 @@ export default function Dashboard() {
         .select("id, valor")
         .eq("status", "pendente");
 
-      // Notas recebidas (aguardando pagamento)
-      const { data: notasRecebidas } = await supabase
+      // Notas fiscais validadas (aprovadas)
+      const { data: notasValidadas } = await supabase
+        .from("notas_medicos")
+        .select("id")
+        .eq("status", "aprovado");
+
+      // Valor total pendente (validadas ou aprovadas mas não pagas)
+      const { data: pagamentosPendentes } = await supabase
         .from("pagamentos")
-        .select("id, valor")
-        .eq("status", "nota_recebida");
+        .select("valor")
+        .in("status", ["nota_recebida", "aprovado"]);
 
       // Valor total do mês atual
       const currentMonth = new Date().toISOString().slice(0, 7);
@@ -82,12 +97,14 @@ export default function Dashboard() {
 
       const valorTotal = pagamentosAtual?.reduce((sum, p) => sum + Number(p.valor), 0) || 0;
 
+      const valorPendente = pagamentosPendentes?.reduce((sum, p) => sum + Number(p.valor), 0) || 0;
+
       setStats({
         totalMedicos: medicos?.length || 0,
         pagamentosPendentes: pendentes?.length || 0,
-        notasRecebidas: notasRecebidas?.length || 0,
+        notasRecebidas: notasValidadas?.length || 0,
         valorTotal,
-        notasParaPagamento: notasRecebidas?.length || 0,
+        notasParaPagamento: valorPendente,
       });
 
       // Buscar pagamentos dos últimos 6 meses agrupados por mês
@@ -185,10 +202,10 @@ export default function Dashboard() {
       }
 
       // Mostrar notificação se houver notas para pagamento
-      if (notasRecebidas && notasRecebidas.length > 0) {
+      if (pagamentosPendentes && pagamentosPendentes.length > 0) {
         toast({
           title: "📋 Novas notas recebidas!",
-          description: `Você tem ${notasRecebidas.length} nota(s) aguardando pagamento.`,
+          description: `Você tem ${pagamentosPendentes.length} nota(s) aguardando pagamento.`,
         });
       }
     } catch (error) {
@@ -229,6 +246,26 @@ export default function Dashboard() {
     return null;
   };
 
+  // Gerar lista de meses para o seletor
+  const generateMonthOptions = () => {
+    const options = [{ value: 'all', label: 'Ver Tudo' }];
+    const currentDate = new Date();
+    
+    // Últimos 12 meses
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(currentDate);
+      date.setMonth(date.getMonth() - i);
+      const yearMonth = date.toISOString().slice(0, 7);
+      const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      options.push({
+        value: yearMonth,
+        label: label.charAt(0).toUpperCase() + label.slice(1)
+      });
+    }
+    
+    return options;
+  };
+
   return (
     <AppLayout title="Dashboard Executivo" subtitle="Análise completa do sistema de pagamentos">
       {loading ? (
@@ -263,6 +300,33 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="p-6 space-y-6">
+        {/* Filtro de Competência */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-4"
+        >
+          <div className="flex items-center gap-4">
+            <Calendar className="h-5 w-5 text-primary" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground mb-1">Filtrar por Competência</h3>
+              <p className="text-sm text-muted-foreground">Selecione o período para análise</p>
+            </div>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[250px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {generateMonthOptions().map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </motion.div>
+
         {/* Alert Banner */}
         {stats.notasParaPagamento > 0 && (
           <motion.div
@@ -420,6 +484,38 @@ export default function Dashboard() {
               <h3 className="text-sm font-medium text-muted-foreground mb-1">Valor Total</h3>
               <p className="text-2xl font-bold text-success mb-1">{formatCurrency(stats.valorTotal)}</p>
               <p className="text-xs text-muted-foreground">Volume do mês atual</p>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="card-premium group cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              navigate('/pagamentos');
+              toast({ description: "Navegando para Pagamentos Pendentes..." });
+            }}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <motion.div 
+                  className="p-3 bg-gradient-to-br from-warning to-warning/60 rounded-xl group-hover:scale-110 transition-transform"
+                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <Clock className="h-6 w-6 text-warning-foreground" />
+                </motion.div>
+                <div className="flex items-center gap-1 text-destructive text-sm font-semibold">
+                  <Activity className="h-4 w-4" />
+                  Pendente
+                </div>
+              </div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">Valor Total Pendente</h3>
+              <p className="text-2xl font-bold text-warning mb-1">{formatCurrency(stats.notasParaPagamento)}</p>
+              <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
             </div>
           </motion.div>
         </div>

@@ -32,6 +32,36 @@ interface WhatsAppRequest {
   financeiro_numero?: string;
 }
 
+// Função auxiliar para encurtar URL
+async function shortenUrl(url: string): Promise<string> {
+  try {
+    const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
+    if (response.ok) {
+      const shortUrl = await response.text();
+      return shortUrl.trim();
+    }
+  } catch (error) {
+    console.warn('Erro ao encurtar URL, usando original:', error);
+  }
+  return url;
+}
+
+// Função para verificar janela de 24h
+async function checkLast24Hours(supabase: any, medicoId: string): Promise<boolean> {
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  
+  const { data: recentMessages } = await supabase
+    .from('chat_messages')
+    .select('created_at')
+    .eq('medico_id', medicoId)
+    .eq('sender_type', 'medico')
+    .gte('created_at', oneDayAgo)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  
+  return recentMessages && recentMessages.length > 0;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -134,13 +164,47 @@ serve(async (req) => {
         break;
       
       case 'pagamento':
-        message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
-        payload = {
-          body: message,
-          number: phoneNumber,
-          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-          isClosed: false
-        };
+        // Verificar janela de 24h antes de enviar
+        const within24Hours = medico_id ? await checkLast24Hours(supabase, medico_id) : false;
+        
+        if (within24Hours) {
+          // Dentro da janela - enviar mensagem livre
+          console.log('✅ Dentro da janela de 24h - enviando mensagem livre');
+          message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
+          payload = {
+            body: message,
+            number: phoneNumber,
+            externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+            isClosed: false
+          };
+        } else {
+          // Fora da janela - usar template "pagamento"
+          console.log('⏰ Fora da janela de 24h - usando template "pagamento"');
+          payload = {
+            number: phoneNumber,
+            isClosed: false,
+            templateData: {
+              messaging_product: "whatsapp",
+              to: phoneNumber,
+              type: "template",
+              template: {
+                name: "pagamento",
+                language: { code: "pt_BR" },
+                components: [
+                  { 
+                    type: "body", 
+                    parameters: [
+                      { type: "text", text: nome }, // nome do médico
+                      { type: "text", text: dataPagamento || new Date().toLocaleDateString('pt-BR') } // data de pagamento
+                    ]
+                  }
+                ]
+              }
+            }
+          };
+          // Usar endpoint /template para templates
+          apiUrl = config.api_url + '/template';
+        }
         break;
       
       case 'nota_recebida':
@@ -157,7 +221,11 @@ serve(async (req) => {
         // Enviar PDF com botões de aprovação/rejeição para o financeiro
         phoneNumber = financeiro_numero;
         
-        const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${link_aprovar}\n\n❌ Rejeitar:\n${link_rejeitar}`;
+        // Encurtar URLs antes de incluir na mensagem
+        const shortAprovar = await shortenUrl(link_aprovar || '');
+        const shortRejeitar = await shortenUrl(link_rejeitar || '');
+        
+        const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
         const derivedFileName = (pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`);
         
         // Payload incluindo ambos formatos suportados
@@ -199,7 +267,7 @@ serve(async (req) => {
       
       case 'nova_mensagem_chat':
         phoneNumber = numero_destino;
-        const linkResposta = `https://hcc.chatconquista.com/chat?medico=${medico_id || ''}&responder=true`;
+        const linkResposta = await shortenUrl(`https://hcc.chatconquista.com/chat?medico=${medico_id || ''}&responder=true`);
         message = `💬 *Nova Mensagem no Chat*\n\n*De:* ${medico_nome}\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Responder agora:\n${linkResposta}\n\nOu acesse o sistema para visualizar o histórico completo.`;
         payload = {
           body: message,
@@ -211,7 +279,7 @@ serve(async (req) => {
       
       case 'resposta_financeiro':
         phoneNumber = numero_destino;
-        const linkChatMedico = `https://hcc.chatconquista.com/dashboard-medicos`;
+        const linkChatMedico = await shortenUrl(`https://hcc.chatconquista.com/dashboard-medicos`);
         message = `💬 *Nova Resposta do Financeiro*\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Ver conversa:\n${linkChatMedico}\n\nAcesse seu painel para continuar a conversa.`;
         payload = {
           body: message,
