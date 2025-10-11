@@ -27,9 +27,34 @@ export default function AprovarNota() {
     }
 
     try {
+      console.log('🔄 Buscando dados da nota antes de aprovar');
+      
+      // Buscar informações do médico ANTES de processar a aprovação
+      const { data: nota, error: notaError } = await supabase
+        .from('notas_medicos')
+        .select(`
+          medico_id,
+          pagamento_id
+        `)
+        .eq('id', notaId)
+        .maybeSingle();
+
+      if (notaError || !nota) {
+        throw new Error('Nota não encontrada');
+      }
+
+      // Buscar nome do médico
+      const { data: medico } = await supabase
+        .from('medicos')
+        .select('nome')
+        .eq('id', nota.medico_id)
+        .maybeSingle();
+
+      if (medico?.nome) {
+        setMedicoNome(medico.nome);
+      }
+
       console.log('🔄 Chamando edge function processar-aprovacao');
-      console.log('Nota ID:', notaId);
-      console.log('Token:', token);
       
       // Chamar edge function que tem permissões adequadas
       const response = await fetch(
@@ -48,21 +73,6 @@ export default function AprovarNota() {
         const errorText = await response.text();
         console.error('❌ Erro na resposta:', errorText);
         throw new Error('Erro ao processar aprovação');
-      }
-
-      // Buscar informações do médico para exibição
-      const { data: nota } = await supabase
-        .from('notas_medicos')
-        .select(`
-          medico_id,
-          medicos!inner(nome)
-        `)
-        .eq('id', notaId)
-        .maybeSingle();
-
-      if (nota?.medicos) {
-        const medicoData = Array.isArray(nota.medicos) ? nota.medicos[0] : nota.medicos;
-        setMedicoNome(medicoData?.nome || '');
       }
 
       setSuccess(true);

@@ -62,37 +62,26 @@ export default function RejeitarNota() {
         return;
       }
 
-      // Preparar dados relacionados (sem depender de joins)
-      let medicoData: { nome: string; numero_whatsapp: string } | null = null;
-      let pagamentoData: { mes_competencia: string } | null = null;
+      // Buscar dados relacionados
+      const { data: medicoData } = await supabase
+        .from('medicos')
+        .select('nome, numero_whatsapp')
+        .eq('id', nota.medico_id)
+        .maybeSingle();
 
-      if (!medicoData && nota.medico_id) {
-        const { data: medicoRow, error: medicoErr } = await supabase
-          .from('medicos')
-          .select('nome, numero_whatsapp')
-          .eq('id', nota.medico_id)
-          .maybeSingle();
-        if (medicoErr) console.warn('Fallback medicos erro:', medicoErr);
-        medicoData = medicoRow || medicoData;
-      }
-
-      if (!pagamentoData && nota.pagamento_id) {
-        const { data: pagamentoRow, error: pagErr } = await supabase
-          .from('pagamentos')
-          .select('mes_competencia')
-          .eq('id', nota.pagamento_id)
-          .maybeSingle();
-        if (pagErr) console.warn('Fallback pagamentos erro:', pagErr);
-        pagamentoData = pagamentoRow || pagamentoData;
-      }
+      const { data: pagamentoData } = await supabase
+        .from('pagamentos')
+        .select('mes_competencia')
+        .eq('id', nota.pagamento_id)
+        .maybeSingle();
       
       console.log('Médico:', medicoData);
       console.log('Pagamento:', pagamentoData);
 
       setNotaInfo({
         ...nota,
-        medicos: medicoData,
-        pagamentos: pagamentoData
+        medicos: medicoData || { nome: 'N/A', numero_whatsapp: '' },
+        pagamentos: pagamentoData || { mes_competencia: 'N/A' }
       });
     } catch (err: any) {
       setError(err.message || "Erro ao carregar nota");
