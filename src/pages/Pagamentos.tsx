@@ -140,8 +140,35 @@ export default function Pagamentos() {
       if (medicosError) throw medicosError;
 
       const medicosMap = new Map((medicosData || []).map(m => [m.id, m]));
+
+      // Verificar notas aprovadas e corrigir status inconsistentes
+      const pagamentoIds = (pagamentosData || []).map((p: any) => p.id);
+      let aprovadosSet = new Set<string>();
+      if (pagamentoIds.length > 0) {
+        const { data: notasAprovadas } = await supabase
+          .from('notas_medicos')
+          .select('pagamento_id, status')
+          .in('pagamento_id', pagamentoIds)
+          .eq('status', 'aprovado');
+
+        aprovadosSet = new Set((notasAprovadas || []).map((n: any) => n.pagamento_id));
+
+        // Corrigir banco se houver pagamentos marcados como 'nota_recebida' mas com nota aprovada
+        const idsParaAtualizar = (pagamentosData || [])
+          .filter((p: any) => aprovadosSet.has(p.id) && p.status !== 'aprovado')
+          .map((p: any) => p.id);
+
+        if (idsParaAtualizar.length > 0) {
+          await supabase
+            .from('pagamentos')
+            .update({ status: 'aprovado' })
+            .in('id', idsParaAtualizar);
+        }
+      }
+
       const pagamentosComMedico = (pagamentosData || []).map((p: any) => ({
         ...p,
+        status: aprovadosSet.has(p.id) ? 'aprovado' : p.status,
         medicos: medicosMap.get(p.medico_id) || null,
       }));
 
