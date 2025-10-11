@@ -178,7 +178,7 @@ serve(async (req) => {
             isClosed: false
           };
         } else {
-          // Fora da janela - usar template "pagamento"
+          // Fora da janela - usar template "pagamento" com variáveis {{1}} e {{2}}
           console.log('⏰ Fora da janela de 24h - usando template "pagamento"');
           payload = {
             number: phoneNumber,
@@ -194,8 +194,8 @@ serve(async (req) => {
                   { 
                     type: "body", 
                     parameters: [
-                      { type: "text", text: nome }, // nome do médico
-                      { type: "text", text: dataPagamento || new Date().toLocaleDateString('pt-BR') } // data de pagamento
+                      { type: "text", text: nome }, // {{1}} = nome do médico
+                      { type: "text", text: dataPagamento || new Date().toLocaleDateString('pt-BR') } // {{2}} = data de pagamento
                     ]
                   }
                 ]

@@ -59,7 +59,15 @@ export default function Pagamentos() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
-  const [mesFilter, setMesFilter] = useState("todos");
+  
+  // Definir mês anterior como filtro padrão
+  const getDefaultMonth = () => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    return lastMonth.toISOString().slice(0, 7); // YYYY-MM
+  };
+  
+  const [mesFilter, setMesFilter] = useState(getDefaultMonth());
   const [showDialog, setShowDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedPagamentos, setSelectedPagamentos] = useState<string[]>([]);

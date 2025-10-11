@@ -176,7 +176,8 @@ export default function Medicos() {
       const medicosData = data.map(row => ({
         nome: row.nome || row.Nome,
         numero_whatsapp: row.numero_whatsapp || row.WhatsApp || row.whatsapp,
-        especialidade: row.especialidade || row.Especialidade || ""
+        especialidade: row.especialidade || row.Especialidade || "",
+        cpf: row.cpf || row.CPF || ""
       }));
 
       const { error } = await supabase
@@ -197,12 +198,14 @@ export default function Medicos() {
     {
       nome: "Dr. João Silva",
       numero_whatsapp: "5511999999999",
-      especialidade: "Cardiologia"
+      especialidade: "Cardiologia",
+      cpf: "12345678900"
     },
     {
       nome: "Dra. Maria Santos",
       numero_whatsapp: "5511888888888", 
-      especialidade: "Pediatria"
+      especialidade: "Pediatria",
+      cpf: "98765432100"
     }
   ];
 
@@ -231,7 +234,7 @@ export default function Medicos() {
                   onImport={handleExcelImport}
                   templateData={getTemplateData()}
                   templateFilename="modelo-medicos.xlsx"
-                  expectedColumns={["nome", "numero_whatsapp"]}
+                  expectedColumns={["nome", "numero_whatsapp", "cpf"]}
                   title="Importação de Médicos"
                 />
               </DialogContent>
