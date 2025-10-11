@@ -296,7 +296,9 @@ serve(async (req) => {
               const shortRejectUrl = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(rejectUrl)}`).then(r => r.text()).catch(() => rejectUrl);
               const shortPdfUrl = pdfDownloadUrl ? await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(pdfDownloadUrl)}`).then(r => r.text()).catch(() => pdfDownloadUrl) : '';
               
-              const caption = `📋 Nova Nota Fiscal para Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📄 Baixar Nota: ${shortPdfUrl}\n\n✅ Aprovar: ${shortApproveUrl}\n❌ Rejeitar: ${shortRejectUrl}`;
+              console.log('Links encurtados - Aprovar:', shortApproveUrl, 'Rejeitar:', shortRejectUrl, 'PDF:', shortPdfUrl);
+              
+              const caption = `📋 Nova Nota Fiscal para Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📄 Link do PDF: ${shortPdfUrl}\n\n✅ Aprovar: ${shortApproveUrl}\n❌ Rejeitar: ${shortRejectUrl}`;
 
               // Chamar função send-notification-gestores via HTTP direto
               const gestorResponse = await fetch(
