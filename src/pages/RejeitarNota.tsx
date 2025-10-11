@@ -40,14 +40,7 @@ export default function RejeitarNota() {
           status,
           created_at,
           pagamento_id,
-          medico_id,
-          pagamentos!inner(
-            mes_competencia
-          ),
-          medicos!inner(
-            nome,
-            numero_whatsapp
-          )
+          medico_id
         `)
         .eq('id', notaId)
         .maybeSingle();
@@ -69,9 +62,9 @@ export default function RejeitarNota() {
         return;
       }
 
-      // Extrair dados dos joins (podem vir como array) e aplicar fallback por consulta direta
-      let medicoData = Array.isArray(nota.medicos) ? nota.medicos[0] : nota.medicos;
-      let pagamentoData = Array.isArray(nota.pagamentos) ? nota.pagamentos[0] : nota.pagamentos;
+      // Preparar dados relacionados (sem depender de joins)
+      let medicoData: { nome: string; numero_whatsapp: string } | null = null;
+      let pagamentoData: { mes_competencia: string } | null = null;
 
       if (!medicoData && nota.medico_id) {
         const { data: medicoRow, error: medicoErr } = await supabase
@@ -116,8 +109,8 @@ export default function RejeitarNota() {
       return;
     }
 
-    const notaId = searchParams.get('nota');
-    const token = searchParams.get('token');
+    const notaId = searchParams.get('i') || searchParams.get('nota');
+    const token = searchParams.get('t') || searchParams.get('token');
 
     setSubmitting(true);
     setError(null);
