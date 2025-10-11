@@ -55,30 +55,47 @@ export default function AprovarNota() {
       }
 
       console.log('🔄 Chamando edge function processar-aprovacao');
+      console.log('URL:', `https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/processar-aprovacao?nota=${notaId}&action=aprovar&token=${token}`);
       
-      // Chamar edge function que tem permissões adequadas
-      const response = await fetch(
-        `https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/processar-aprovacao?nota=${notaId}&action=aprovar&token=${token}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
+      // Criar AbortController para timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+
+      try {
+        const response = await fetch(
+          `https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/processar-aprovacao?nota=${notaId}&action=aprovar&token=${token}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            signal: controller.signal
           }
+        );
+
+        clearTimeout(timeoutId);
+        console.log('📊 Status da resposta:', response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ Erro na resposta:', errorText);
+          throw new Error(`Erro ao processar aprovação: ${response.status}`);
         }
-      );
 
-      console.log('📊 Status da resposta:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro na resposta:', errorText);
-        throw new Error('Erro ao processar aprovação');
+        setSuccess(true);
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+        
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('Tempo limite excedido. Tente novamente.');
+        }
+        
+        console.error('❌ Erro na requisição:', fetchErr);
+        throw new Error(`Erro de conexão: ${fetchErr.message}`);
       }
-
-      setSuccess(true);
     } catch (err: any) {
       console.error('❌ Erro ao processar:', err);
-      setError(err.message || "Erro ao processar aprovação");
+      setError(err.message || "Erro ao processar aprovação. Verifique sua conexão e tente novamente.");
     } finally {
       setLoading(false);
     }
