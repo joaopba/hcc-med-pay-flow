@@ -58,8 +58,12 @@ export default function AprovarNota() {
 
       console.log('Nota carregada:', nota);
 
-      // Validar token
-      const expectedToken = btoa(`${notaId}-${nota.created_at}`).substring(0, 20);
+      // Validar token (usando mesmo formato URL-safe)
+      const tokenBase = btoa(`${notaId}-${nota.created_at}`).replace(/[+/=]/g, (m) => ({'+': '-', '/': '_', '=': ''}[m as '+' | '/' | '='] || ''));
+      const expectedToken = tokenBase.substring(0, 20);
+      console.log('Token recebido:', token);
+      console.log('Token esperado:', expectedToken);
+      
       if (token !== expectedToken) {
         throw new Error('Token inválido ou expirado');
       }

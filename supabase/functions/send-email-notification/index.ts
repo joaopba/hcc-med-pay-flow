@@ -131,8 +131,10 @@ serve(async (req) => {
         .eq('id', notaId)
         .single();
 
-      // Gerar token igual ao da função processar-aprovacao
-      const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 20);
+      // Gerar token URL-safe (sem caracteres especiais que podem dar problema ao encurtar)
+      const tokenBase = btoa(`${notaId}-${nota?.created_at}`).replace(/[+/=]/g, (m) => ({'+': '-', '/': '_', '=': ''}[m] || ''));
+      const token = tokenBase.substring(0, 20);
+      console.log('Token gerado para nota:', notaId, 'token:', token);
       const approveUrl = `https://hcc.chatconquista.com/aprovar?nota=${notaId}&token=${token}`;
       const rejectUrl = `https://hcc.chatconquista.com/rejeitar?nota=${notaId}&token=${token}`;
 
@@ -264,7 +266,9 @@ serve(async (req) => {
           .eq('id', notaId)
           .single();
 
-        const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 20);
+        const tokenBase = btoa(`${notaId}-${nota?.created_at}`).replace(/[+/=]/g, (m) => ({'+': '-', '/': '_', '=': ''}[m] || ''));
+        const token = tokenBase.substring(0, 20);
+        console.log('Token gerado para WhatsApp:', notaId, 'token:', token);
         const approveUrl = `https://hcc.chatconquista.com/aprovar?nota=${notaId}&token=${token}`;
         const rejectUrl = `https://hcc.chatconquista.com/rejeitar?nota=${notaId}&token=${token}`;
 
