@@ -79,17 +79,27 @@ export default function Relatorios() {
       if (error) throw error;
 
       // Transformar dados para o formato do relatório
-      const dadosFormatados = data?.map(item => ({
-        medico_nome: item.medicos.nome,
-        numero_whatsapp: item.medicos.numero_whatsapp,
-        mes_competencia: item.mes_competencia,
-        valor: item.valor,
-        valor_liquido: item.valor_liquido || 0,
-        status: item.status,
-        data_solicitacao: item.data_solicitacao ? new Date(item.data_solicitacao).toLocaleDateString('pt-BR') : '',
-        data_resposta: item.data_resposta ? new Date(item.data_resposta).toLocaleDateString('pt-BR') : '',
-        data_pagamento: item.data_pagamento ? new Date(item.data_pagamento).toLocaleDateString('pt-BR') : '',
-      })) || [];
+      const dadosFormatados = data?.map(item => {
+        // Função para formatar data evitando timezone
+        const formatarData = (dataStr: string | null) => {
+          if (!dataStr) return '';
+          const data = dataStr.split('T')[0]; // Pega apenas a parte da data
+          const [ano, mes, dia] = data.split('-');
+          return `${dia}/${mes}/${ano}`;
+        };
+
+        return {
+          medico_nome: item.medicos.nome,
+          numero_whatsapp: item.medicos.numero_whatsapp,
+          mes_competencia: item.mes_competencia,
+          valor: item.valor,
+          valor_liquido: item.valor_liquido || 0,
+          status: item.status,
+          data_solicitacao: formatarData(item.data_solicitacao),
+          data_resposta: formatarData(item.data_resposta),
+          data_pagamento: formatarData(item.data_pagamento),
+        };
+      }) || [];
 
       // Filtrar por médico se especificado
       const dadosFiltrados = filtros.medico 
