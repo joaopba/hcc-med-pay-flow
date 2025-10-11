@@ -47,28 +47,37 @@ export default function AprovarNota() {
         .eq('id', notaId)
         .maybeSingle();
 
+      console.log('🔍 DEBUG - Nota ID recebido:', notaId);
+      console.log('🔍 DEBUG - Token recebido:', token);
+      console.log('🔍 DEBUG - Nota encontrada:', nota);
+
       if (notaError) {
-        console.error('Erro ao buscar nota:', notaError);
+        console.error('❌ Erro ao buscar nota:', notaError);
         throw new Error('Erro ao buscar nota no banco de dados');
       }
 
       if (!nota) {
+        console.error('❌ Nota não encontrada no banco - ID:', notaId);
         throw new Error('Nota não encontrada');
       }
 
-      console.log('Nota carregada:', nota);
+      console.log('✅ Nota carregada:', nota);
+      console.log('🗓️ Created at da nota:', nota.created_at);
 
       // Validar token
       const expected20 = btoa(`${notaId}-${nota.created_at}`).substring(0, 20);
       const expected12 = expected20.substring(0, 12);
-      console.log('Token recebido:', token);
-      console.log('Token esperado (20/12):', expected20, expected12);
-      console.log('Nota ID:', notaId);
-      console.log('Created at:', nota.created_at);
+      console.log('🔑 Token recebido:', token, `(${token.length} chars)`);
+      console.log('🔑 Token esperado 20 chars:', expected20);
+      console.log('🔑 Token esperado 12 chars:', expected12);
+      console.log('🔑 String usada para gerar token:', `${notaId}-${nota.created_at}`);
       
       if (token !== expected20 && token !== expected12) {
+        console.error('❌ Token inválido! Recebido:', token, 'Esperados:', expected20, expected12);
         throw new Error('Token inválido ou expirado');
       }
+
+      console.log('✅ Token validado com sucesso!');
 
       // Verificar se já foi processada
       if (nota.status !== 'pendente') {
