@@ -106,10 +106,10 @@ export default function AprovarNota() {
       <div className="min-h-screen bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto mb-6" />
-          <h1 className="text-2xl font-bold text-foreground mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Processando aprovação...
           </h1>
-          <p className="text-foreground">Aguarde um momento</p>
+          <p className="text-gray-800">Aguarde um momento</p>
         </div>
       </div>
     );
@@ -123,7 +123,7 @@ export default function AprovarNota() {
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erro ao processar
           </h1>
-          <p className="text-foreground mb-6">{error}</p>
+          <p className="text-gray-800 mb-6">{error}</p>
           <button
             onClick={() => navigate('/')}
             className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
@@ -147,10 +147,10 @@ export default function AprovarNota() {
         {medicoNome && (
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6 text-left">
             <p className="text-sm text-green-700 dark:text-green-400 mb-1">Médico</p>
-            <p className="font-semibold text-lg text-foreground">{medicoNome}</p>
+            <p className="font-semibold text-lg text-gray-900">{medicoNome}</p>
           </div>
         )}
-        <p className="text-foreground mb-8">
+        <p className="text-gray-800 mb-8">
           O pagamento será processado em breve e o médico foi notificado via WhatsApp.
         </p>
         <button
@@ -162,7 +162,7 @@ export default function AprovarNota() {
         
         {/* Footer with Conquista Logo */}
         <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
-          <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+          <span className="text-xs text-gray-600">Desenvolvido por</span>
           <img 
             src={conquistaLogo} 
             alt="Conquista Inovação" 

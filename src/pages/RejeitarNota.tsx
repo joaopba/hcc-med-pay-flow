@@ -140,9 +140,9 @@ export default function RejeitarNota() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center text-foreground">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto mb-6" />
-          <h1 className="text-2xl font-bold text-foreground mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Carregando informações...
           </h1>
         </div>
@@ -153,12 +153,12 @@ export default function RejeitarNota() {
   if (error && !notaInfo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-destructive to-red-700 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center text-foreground">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center">
           <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-6" />
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erro
           </h1>
-          <p className="text-foreground mb-6">{error}</p>
+          <p className="text-gray-800 mb-6">{error}</p>
           <button
             onClick={() => navigate('/')}
             className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
@@ -173,18 +173,18 @@ export default function RejeitarNota() {
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center text-foreground animate-in fade-in duration-500">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center animate-in fade-in duration-500">
           <XCircle className="h-20 w-20 text-red-600 mx-auto mb-6" />
           <h1 className="text-3xl font-bold text-red-600 mb-4">
             Nota Fiscal Rejeitada
           </h1>
           <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-4 mb-6 text-left border-l-4 border-red-500">
             <p className="text-sm text-red-700 dark:text-red-400 mb-2 font-medium">Médico</p>
-            <p className="font-semibold text-foreground mb-3">{notaInfo?.medicos?.nome}</p>
+            <p className="font-semibold text-gray-900 mb-3">{notaInfo?.medicos?.nome}</p>
             <p className="text-sm text-red-700 dark:text-red-400 mb-2 font-medium">Motivo da Rejeição</p>
-            <p className="text-sm text-foreground">{motivo}</p>
+            <p className="text-sm text-gray-900">{motivo}</p>
           </div>
-          <p className="text-foreground mb-8">
+          <p className="text-gray-800 mb-8">
             O médico foi notificado via WhatsApp e poderá enviar uma nova nota corrigida.
           </p>
           <button
@@ -196,7 +196,7 @@ export default function RejeitarNota() {
           
           {/* Footer with Conquista Logo */}
           <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
-            <span className="text-xs text-foreground">Desenvolvido por</span>
+            <span className="text-xs text-gray-600">Desenvolvido por</span>
             <img 
               src={conquistaLogo} 
               alt="Conquista Inovação" 
@@ -210,7 +210,7 @@ export default function RejeitarNota() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full text-foreground">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
         <div className="text-center mb-8">
           <XCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-red-600 mb-2">
@@ -222,15 +222,15 @@ export default function RejeitarNota() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-amber-700 dark:text-amber-400 mb-1 font-medium">Médico</p>
-              <p className="font-semibold text-foreground">{notaInfo?.medicos?.nome || 'Carregando...'}</p>
+              <p className="font-semibold text-gray-900">{notaInfo?.medicos?.nome || 'Carregando...'}</p>
             </div>
             <div>
               <p className="text-amber-700 dark:text-amber-400 mb-1 font-medium">Competência</p>
-              <p className="font-semibold text-foreground">{notaInfo?.pagamentos?.mes_competencia || 'Carregando...'}</p>
+              <p className="font-semibold text-gray-900">{notaInfo?.pagamentos?.mes_competencia || 'Carregando...'}</p>
             </div>
             <div className="col-span-2">
               <p className="text-amber-700 dark:text-amber-400 mb-1 font-medium">Arquivo</p>
-              <p className="font-semibold text-sm text-foreground break-all">{notaInfo?.nome_arquivo || 'Carregando...'}</p>
+              <p className="font-semibold text-sm text-gray-900 break-all">{notaInfo?.nome_arquivo || 'Carregando...'}</p>
             </div>
           </div>
         </div>
@@ -274,7 +274,7 @@ export default function RejeitarNota() {
         
         {/* Footer with Conquista Logo */}
         <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
-          <span className="text-xs text-foreground">Desenvolvido por</span>
+          <span className="text-xs text-gray-600">Desenvolvido por</span>
           <img 
             src={conquistaLogo} 
             alt="Conquista Inovação" 
