@@ -30,20 +30,7 @@ export default function AprovarNota() {
       // Buscar nota completa
       const { data: nota, error: notaError } = await supabase
         .from('notas_medicos')
-        .select(`
-          id,
-          created_at,
-          status,
-          pagamento_id,
-          medico_id,
-          pagamentos!inner(
-            mes_competencia
-          ),
-          medicos!inner(
-            nome,
-            numero_whatsapp
-          )
-        `)
+        .select('id, created_at, status, pagamento_id, medico_id')
         .eq('id', notaId)
         .maybeSingle();
 
@@ -87,9 +74,29 @@ export default function AprovarNota() {
         return;
       }
 
-      // Extrair dados dos joins (podem vir como array)
-      const medicoData = Array.isArray(nota.medicos) ? nota.medicos[0] : nota.medicos;
-      const pagamentoData = Array.isArray(nota.pagamentos) ? nota.pagamentos[0] : nota.pagamentos;
+      // Buscar dados relacionados (sem dependência de relacionamento no SELECT)
+      let medicoData: { nome: string; numero_whatsapp: string } | null = null;
+      let pagamentoData: { mes_competencia: string } | null = null;
+
+      if (nota.medico_id) {
+        const { data: medicoRow, error: medicoErr } = await supabase
+          .from('medicos')
+          .select('nome, numero_whatsapp')
+          .eq('id', nota.medico_id)
+          .maybeSingle();
+        if (medicoErr) console.warn('Fallback medicos erro:', medicoErr);
+        medicoData = medicoRow;
+      }
+
+      if (nota.pagamento_id) {
+        const { data: pagamentoRow, error: pagErr } = await supabase
+          .from('pagamentos')
+          .select('mes_competencia')
+          .eq('id', nota.pagamento_id)
+          .maybeSingle();
+        if (pagErr) console.warn('Fallback pagamentos erro:', pagErr);
+        pagamentoData = pagamentoRow;
+      }
       
       console.log('Médico:', medicoData);
       console.log('Pagamento:', pagamentoData);
@@ -119,10 +126,10 @@ export default function AprovarNota() {
           body: {
             type: 'nota_aprovada',
             medico: {
-              nome: medicoData.nome,
-              numero_whatsapp: medicoData.numero_whatsapp
+              nome: medicoData?.nome || '',
+              numero_whatsapp: medicoData?.numero_whatsapp || ''
             },
-            competencia: pagamentoData.mes_competencia,
+            competencia: pagamentoData?.mes_competencia || '',
             pagamentoId: nota.pagamento_id
           }
         });
@@ -130,7 +137,7 @@ export default function AprovarNota() {
         console.warn('Erro ao enviar WhatsApp:', whatsappError);
       }
 
-      setMedicoNome(medicoData.nome);
+      setMedicoNome(medicoData?.nome || '');
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Erro ao processar aprovação");
