@@ -47,13 +47,20 @@ interface NotaMedico {
 }
 
 export default function NotasAprovacao() {
+  // Definir mês anterior como filtro padrão
+  const getDefaultMonth = () => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    return lastMonth.toISOString().slice(0, 7); // YYYY-MM
+  };
+
   const [notas, setNotas] = useState<NotaMedico[]>([]);
   const [notasFiltradas, setNotasFiltradas] = useState<NotaMedico[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [observacoes, setObservacoes] = useState("");
   const [selectedNota, setSelectedNota] = useState<NotaMedico | null>(null);
-  const [filtroMes, setFiltroMes] = useState<string>("todos");
+  const [filtroMes, setFiltroMes] = useState<string>(getDefaultMonth());
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const { toast } = useToast();
 
