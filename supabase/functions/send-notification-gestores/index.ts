@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { decode as decodeBase64 } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,19 +35,27 @@ serve(async (req) => {
 
     if (pdf_base64 && pdf_filename) {
       try {
-        // Converter base64 para Blob PDF
-        const binary = atob(pdf_base64);
-        const len = binary.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-        const blob = new Blob([bytes], { type: 'application/pdf' });
+        console.log(`📎 Anexando PDF: ${pdf_filename} (${pdf_base64.length} chars base64)`);
+        // Converter base64 para Uint8Array usando decode do Deno
+        const pdfBytes = decodeBase64(pdf_base64);
+        console.log(`✅ PDF decodificado: ${pdfBytes.length} bytes`);
+        
+        // Criar Blob do PDF - Uint8Array é BlobPart válido
+        const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+        console.log(`✅ Blob criado: ${blob.size} bytes`);
+        
+        // Adicionar ao FormData com nome 'media'
         form.append('media', blob, pdf_filename);
-      } catch (e) {
-        console.warn('Falha ao montar arquivo PDF para multipart:', e);
+        console.log(`✅ PDF anexado ao FormData como 'media'`);
+      } catch (e: any) {
+        console.error('❌ Falha ao montar arquivo PDF para multipart:', e);
+        throw new Error(`Erro ao processar PDF: ${e?.message || String(e)}`);
       }
+    } else {
+      console.log('⚠️ Nenhum PDF para anexar');
     }
 
-    console.log('Enviando multipart/form-data para API dos gestores...');
+    console.log('📤 Enviando multipart/form-data para API dos gestores...');
 
     const response = await fetch(GESTOR_API_URL, {
       method: 'POST',

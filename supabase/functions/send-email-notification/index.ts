@@ -78,6 +78,8 @@ serve(async (req) => {
     }
 
     console.log('Pagamento encontrado:', pagamento);
+    console.log('🗓️ DEBUG Competência - Original:', pagamento.mes_competencia);
+    console.log('🗓️ DEBUG Competência - Formatada:', formatMesCompetencia(pagamento.mes_competencia));
 
     // Buscar configurações para verificar se emails estão habilitados
     const { data: config } = await supabase
@@ -293,6 +295,7 @@ serve(async (req) => {
               const shortPdfUrl = pdfDownloadUrl || '';
               
               console.log('Links - Aprovar:', approveUrl, 'Rejeitar:', rejectUrl, 'PDF:', shortPdfUrl);
+              console.log('🗓️ DEBUG Competência na mensagem:', pagamento.mes_competencia, '->', formatMesCompetencia(pagamento.mes_competencia));
               
               const caption = `📋 Nova Nota - Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📄 PDF: ${shortPdfUrl}\n\n✅ Aprovar: ${approveUrl}\n❌ Rejeitar: ${rejectUrl}`;
 
