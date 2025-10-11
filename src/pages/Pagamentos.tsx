@@ -592,17 +592,17 @@ export default function Pagamentos() {
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Pagamentos</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">Pagamentos</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
               Gerenciar pagamentos e solicitações de notas
             </p>
           </div>
           
-          <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {selectedPagamentos.length > 0 && (
-              <Button onClick={handleSolicitarNotas} data-solicitar-notas>
+              <Button onClick={handleSolicitarNotas} data-solicitar-notas className="w-full sm:w-auto">
                 <Send className="h-4 w-4 mr-2" />
                 Solicitar Notas ({selectedPagamentos.length})
               </Button>
@@ -610,7 +610,7 @@ export default function Pagamentos() {
 
             <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
               <DialogTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" className="w-full sm:w-auto">
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
                   Importar Excel
                 </Button>
@@ -631,7 +631,7 @@ export default function Pagamentos() {
             
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   Novo Pagamento
                 </Button>
@@ -700,19 +700,19 @@ export default function Pagamentos() {
 
           <Card className="mb-4">
           <CardHeader>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Search className="h-4 w-4" />
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+              <div className="flex items-center space-x-2 flex-1 min-w-full sm:min-w-[200px]">
+                <Search className="h-4 w-4 shrink-0" />
                 <Input
                   placeholder="Buscar médicos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-48"
+                  className="w-full"
                 />
               </div>
               
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -727,7 +727,7 @@ export default function Pagamentos() {
               </Select>
               
               <Select value={mesFilter} onValueChange={setMesFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Filtrar por mês" />
                 </SelectTrigger>
                 <SelectContent>
@@ -744,96 +744,99 @@ export default function Pagamentos() {
                 type="month"
                 value={mesFilter === 'todos' ? '' : mesFilter}
                 onChange={(e) => setMesFilter(e.target.value || 'todos')}
-                className="w-48"
+                className="w-full sm:w-[200px]"
               />
             </div>
           </CardHeader>
         </Card>
 
         <Card>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <Checkbox
-                      checked={selectedPagamentos.length === filteredPagamentos.length && filteredPagamentos.length > 0}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedPagamentos(filteredPagamentos.filter(p => p.status === "pendente").map(p => p.id));
-                        } else {
-                          setSelectedPagamentos([]);
-                        }
-                      }}
-                    />
-                  </TableHead>
-                  <TableHead>Médico</TableHead>
-                  <TableHead>Competência</TableHead>
-                  <TableHead>Valor Bruto</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Valor Líquido</TableHead>
-                  <TableHead>Data Pagamento</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPagamentos.map((pagamento) => (
-                  <TableRow key={pagamento.id}>
-                    <TableCell>
-                       <Checkbox
-                        checked={selectedPagamentos.includes(pagamento.id)}
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={selectedPagamentos.length === filteredPagamentos.length && filteredPagamentos.length > 0}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setSelectedPagamentos([...selectedPagamentos, pagamento.id]);
+                            setSelectedPagamentos(filteredPagamentos.filter(p => p.status === "pendente").map(p => p.id));
                           } else {
-                            setSelectedPagamentos(selectedPagamentos.filter(id => id !== pagamento.id));
+                            setSelectedPagamentos([]);
                           }
                         }}
-                        disabled={pagamento.status === "pago" || pagamento.status === "nota_recebida"}
                       />
-                    </TableCell>
-                    <TableCell className="font-medium">{pagamento.medicos?.nome || '—'}</TableCell>
-                    <TableCell>{pagamento.mes_competencia}</TableCell>
-                    <TableCell>{formatCurrency(pagamento.valor)}</TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusColor(pagamento.status)}>
-                        {getStatusLabel(pagamento.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {pagamento.valor_liquido ? formatCurrency(pagamento.valor_liquido) : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {pagamento.data_pagamento ? 
-                        new Date(pagamento.data_pagamento).toLocaleDateString('pt-BR') : 
-                        '-'
-                      }
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        {pagamento.status === "aprovado" && (
-                          <>
-                            {pagamento.nota_pdf_url && (
-                              <Button size="sm" variant="outline">
-                                <Download className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button 
-                              size="sm"
-                              onClick={() => openPaymentDialog(pagamento.id)}
-                              disabled={isProcessingPayment}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Pagar
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
+                    </TableHead>
+                    <TableHead className="min-w-[150px]">Médico</TableHead>
+                    <TableHead className="min-w-[100px]">Competência</TableHead>
+                    <TableHead className="min-w-[100px]">Valor Bruto</TableHead>
+                    <TableHead className="min-w-[120px]">Status</TableHead>
+                    <TableHead className="min-w-[100px]">Valor Líquido</TableHead>
+                    <TableHead className="min-w-[120px]">Data Pagamento</TableHead>
+                    <TableHead className="min-w-[120px]">Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredPagamentos.map((pagamento) => (
+                    <TableRow key={pagamento.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedPagamentos.includes(pagamento.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedPagamentos([...selectedPagamentos, pagamento.id]);
+                            } else {
+                              setSelectedPagamentos(selectedPagamentos.filter(id => id !== pagamento.id));
+                            }
+                          }}
+                          disabled={pagamento.status === "pago" || pagamento.status === "nota_recebida"}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{pagamento.medicos?.nome || '—'}</TableCell>
+                      <TableCell>{pagamento.mes_competencia}</TableCell>
+                      <TableCell>{formatCurrency(pagamento.valor)}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusColor(pagamento.status)}>
+                          {getStatusLabel(pagamento.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {pagamento.valor_liquido ? formatCurrency(pagamento.valor_liquido) : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {pagamento.data_pagamento ? 
+                          new Date(pagamento.data_pagamento).toLocaleDateString('pt-BR') : 
+                          '-'
+                        }
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          {pagamento.status === "aprovado" && (
+                            <>
+                              {pagamento.nota_pdf_url && (
+                                <Button size="sm" variant="outline" className="w-full sm:w-auto">
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button 
+                                size="sm"
+                                onClick={() => openPaymentDialog(pagamento.id)}
+                                disabled={isProcessingPayment}
+                                className="w-full sm:w-auto"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Pagar
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
         {/* Dialog para Data de Pagamento */}

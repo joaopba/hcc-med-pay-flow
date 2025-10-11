@@ -70,11 +70,21 @@ export default function Dashboard() {
         .select("id")
         .eq("ativo", true);
 
-      // Pagamentos pendentes de solicitação
-      const { data: pendentes } = await supabase
-        .from("pagamentos")
-        .select("id, valor")
-        .eq("status", "pendente");
+      // Criar query base para pagamentos com filtro de mês
+      const createFilteredQuery = () => {
+        let query = supabase.from("pagamentos");
+        
+        // Aplicar filtro de mês se não for "all"
+        if (selectedMonth !== 'all') {
+          return query.select("*").eq("mes_competencia", selectedMonth);
+        }
+        return query.select("*");
+      };
+
+      // Pagamentos pendentes de solicitação (com filtro)
+      let pendenteQuery = supabase.from("pagamentos").select("id, valor").eq("status", "pendente");
+      if (selectedMonth !== 'all') pendenteQuery = pendenteQuery.eq("mes_competencia", selectedMonth);
+      const { data: pendentes } = await pendenteQuery;
 
       // Notas fiscais validadas (aprovadas)
       const { data: notasValidadas } = await supabase
@@ -82,18 +92,21 @@ export default function Dashboard() {
         .select("id")
         .eq("status", "aprovado");
 
-      // Valor total pendente (validadas ou aprovadas mas não pagas)
-      const { data: pagamentosPendentes } = await supabase
-        .from("pagamentos")
-        .select("valor")
-        .in("status", ["nota_recebida", "aprovado"]);
+      // Valor total pendente (validadas ou aprovadas mas não pagas) (com filtro)
+      let pendentesQuery = supabase.from("pagamentos").select("valor").in("status", ["nota_recebida", "aprovado"]);
+      if (selectedMonth !== 'all') pendentesQuery = pendentesQuery.eq("mes_competencia", selectedMonth);
+      const { data: pagamentosPendentes } = await pendentesQuery;
 
-      // Valor total do mês atual
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      const { data: pagamentosAtual } = await supabase
-        .from("pagamentos")
-        .select("valor")
-        .eq("mes_competencia", currentMonth);
+      // Valor total do período selecionado
+      let valorQuery = supabase.from("pagamentos").select("valor");
+      if (selectedMonth !== 'all') {
+        valorQuery = valorQuery.eq("mes_competencia", selectedMonth);
+      } else {
+        // Se "Ver Tudo", pega o mês atual como referência para o card
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        valorQuery = valorQuery.eq("mes_competencia", currentMonth);
+      }
+      const { data: pagamentosAtual } = await valorQuery;
 
       const valorTotal = pagamentosAtual?.reduce((sum, p) => sum + Number(p.valor), 0) || 0;
 
@@ -306,14 +319,14 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="glass-card p-4"
         >
-          <div className="flex items-center gap-4">
-            <Calendar className="h-5 w-5 text-primary" />
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+            <Calendar className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-foreground mb-1">Filtrar por Competência</h3>
               <p className="text-sm text-muted-foreground">Selecione o período para análise</p>
             </div>
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[250px]">
+              <SelectTrigger className="w-full sm:w-[250px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -335,21 +348,21 @@ export default function Dashboard() {
             className="glass-card border-warning/50 bg-gradient-to-r from-warning/10 to-warning/5 cursor-pointer hover:scale-[1.01] transition-all"
             onClick={() => navigate('/pagamentos')}
           >
-            <div className="flex items-center gap-4 p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4">
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="p-3 bg-warning/20 rounded-xl"
+                className="p-3 bg-warning/20 rounded-xl shrink-0"
               >
                 <Bell className="h-5 w-5 text-warning" />
               </motion.div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h4 className="font-semibold text-foreground">Atenção Necessária</h4>
                 <p className="text-sm text-muted-foreground">
                   {stats.notasParaPagamento} nota(s) fiscal aguardando processamento e pagamento
                 </p>
               </div>
-              <Button className="btn-premium-primary">
+              <Button className="btn-premium-primary w-full sm:w-auto">
                 Ver Detalhes
                 <ArrowUpRight className="ml-2 h-4 w-4" />
               </Button>
