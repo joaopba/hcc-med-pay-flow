@@ -154,8 +154,9 @@ export default function Pagamentos() {
         aprovadosSet = new Set((notasAprovadas || []).map((n: any) => n.pagamento_id));
 
         // Corrigir banco se houver pagamentos marcados como 'nota_recebida' mas com nota aprovada
+        // MAS NÃO SOBRESCREVER se já estiver como 'pago'
         const idsParaAtualizar = (pagamentosData || [])
-          .filter((p: any) => aprovadosSet.has(p.id) && p.status !== 'aprovado')
+          .filter((p: any) => aprovadosSet.has(p.id) && p.status !== 'aprovado' && p.status !== 'pago')
           .map((p: any) => p.id);
 
         if (idsParaAtualizar.length > 0) {
@@ -168,7 +169,8 @@ export default function Pagamentos() {
 
       const pagamentosComMedico = (pagamentosData || []).map((p: any) => ({
         ...p,
-        status: aprovadosSet.has(p.id) ? 'aprovado' : p.status,
+        // Só sobrescrever para 'aprovado' se não estiver como 'pago'
+        status: (aprovadosSet.has(p.id) && p.status !== 'pago') ? 'aprovado' : p.status,
         medicos: medicosMap.get(p.medico_id) || null,
       }));
 
