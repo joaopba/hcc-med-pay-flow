@@ -406,7 +406,7 @@ export default function Pagamentos() {
           type: 'pagamento',
           numero: pagamento.medicos.numero_whatsapp,
           nome: pagamento.medicos.nome,
-          dataPagamento: new Date(paymentDate).toLocaleDateString('pt-BR'),
+          dataPagamento: (() => { const [y,m,d] = paymentDate.split('-'); return `${d}/${m}/${y}`; })(),
           pagamentoId: selectedPaymentId
         }
       });
