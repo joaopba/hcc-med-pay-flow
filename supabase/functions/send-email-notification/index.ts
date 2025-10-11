@@ -131,9 +131,8 @@ serve(async (req) => {
         .eq('id', notaId)
         .single();
 
-      // Gerar token URL-safe (sem caracteres especiais que podem dar problema ao encurtar)
-      const tokenBase = btoa(`${notaId}-${nota?.created_at}`).replace(/[+/=]/g, (m) => ({'+': '-', '/': '_', '=': ''}[m] || ''));
-      const token = tokenBase.substring(0, 20);
+      // Gerar token simples e direto
+      const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 20);
       console.log('Token gerado para nota:', notaId, 'token:', token);
       const approveUrl = `https://hcc.chatconquista.com/aprovar?nota=${notaId}&token=${token}`;
       const rejectUrl = `https://hcc.chatconquista.com/rejeitar?nota=${notaId}&token=${token}`;
@@ -266,8 +265,7 @@ serve(async (req) => {
           .eq('id', notaId)
           .single();
 
-        const tokenBase = btoa(`${notaId}-${nota?.created_at}`).replace(/[+/=]/g, (m) => ({'+': '-', '/': '_', '=': ''}[m] || ''));
-        const token = tokenBase.substring(0, 20);
+        const token = btoa(`${notaId}-${nota?.created_at}`).substring(0, 20);
         console.log('Token gerado para WhatsApp:', notaId, 'token:', token);
         const approveUrl = `https://hcc.chatconquista.com/aprovar?nota=${notaId}&token=${token}`;
         const rejectUrl = `https://hcc.chatconquista.com/rejeitar?nota=${notaId}&token=${token}`;
@@ -291,14 +289,12 @@ serve(async (req) => {
           
           for (const gestor of gestores) {
             try {
-              // Encurtar URLs antes de enviar
-              const shortApproveUrl = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(approveUrl)}`).then(r => r.text()).catch(() => approveUrl);
-              const shortRejectUrl = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(rejectUrl)}`).then(r => r.text()).catch(() => rejectUrl);
-              const shortPdfUrl = pdfDownloadUrl ? await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(pdfDownloadUrl)}`).then(r => r.text()).catch(() => pdfDownloadUrl) : '';
+              // Gerar URL pública do PDF para incluir na mensagem
+              const shortPdfUrl = pdfDownloadUrl || '';
               
-              console.log('Links encurtados - Aprovar:', shortApproveUrl, 'Rejeitar:', shortRejectUrl, 'PDF:', shortPdfUrl);
+              console.log('Links - Aprovar:', approveUrl, 'Rejeitar:', rejectUrl, 'PDF:', shortPdfUrl);
               
-              const caption = `📋 Nova Nota Fiscal para Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📄 Link do PDF: ${shortPdfUrl}\n\n✅ Aprovar: ${shortApproveUrl}\n❌ Rejeitar: ${shortRejectUrl}`;
+              const caption = `📋 Nova Nota - Análise\n\nMédico: ${(pagamento.medicos as any)?.nome}\nCompetência: ${formatMesCompetencia(pagamento.mes_competencia)}\nValor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n📄 PDF: ${shortPdfUrl}\n\n✅ Aprovar: ${approveUrl}\n❌ Rejeitar: ${rejectUrl}`;
 
               // Chamar função send-notification-gestores via HTTP direto
               const gestorResponse = await fetch(
