@@ -140,7 +140,7 @@ export default function RejeitarNota() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center text-foreground">
           <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto mb-6" />
           <h1 className="text-2xl font-bold text-foreground mb-2">
             Carregando informações...
@@ -153,7 +153,7 @@ export default function RejeitarNota() {
   if (error && !notaInfo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-destructive to-red-700 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center text-foreground">
           <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-6" />
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erro
@@ -173,7 +173,7 @@ export default function RejeitarNota() {
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center animate-in fade-in duration-500">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center text-foreground animate-in fade-in duration-500">
           <XCircle className="h-20 w-20 text-red-600 mx-auto mb-6" />
           <h1 className="text-3xl font-bold text-red-600 mb-4">
             Nota Fiscal Rejeitada
@@ -196,7 +196,7 @@ export default function RejeitarNota() {
           
           {/* Footer with Conquista Logo */}
           <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
-            <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+            <span className="text-xs text-foreground">Desenvolvido por</span>
             <img 
               src={conquistaLogo} 
               alt="Conquista Inovação" 
@@ -210,7 +210,7 @@ export default function RejeitarNota() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full text-foreground">
         <div className="text-center mb-8">
           <XCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-red-600 mb-2">
@@ -274,7 +274,7 @@ export default function RejeitarNota() {
         
         {/* Footer with Conquista Logo */}
         <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
-          <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+          <span className="text-xs text-foreground">Desenvolvido por</span>
           <img 
             src={conquistaLogo} 
             alt="Conquista Inovação" 

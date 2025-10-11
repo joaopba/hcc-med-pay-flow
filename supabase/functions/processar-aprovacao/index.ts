@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 serve(async (req) => {
@@ -18,7 +19,7 @@ serve(async (req) => {
     const token = url.searchParams.get('token');
 
     if (!notaId || !action || !token) {
-      return new Response('Parâmetros inválidos', { status: 400 });
+      return new Response('Parâmetros inválidos', { status: 400, headers: corsHeaders });
     }
 
     const supabase = createClient(
@@ -54,7 +55,7 @@ serve(async (req) => {
     const expected12 = expected20.substring(0, 12);
     
     if (token !== expected20 && token !== expected12) {
-      return new Response('Token inválido', { status: 403 });
+      return new Response('Token inválido', { status: 403, headers: corsHeaders });
     }
 
     // Verificar se já foi processada
@@ -101,7 +102,7 @@ serve(async (req) => {
         </body>
         </html>
       `, {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+        headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders }
       });
     }
 
@@ -241,7 +242,7 @@ serve(async (req) => {
         </body>
         </html>
       `, {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+        headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders }
       });
 
     } else if (action === 'rejeitar') {
@@ -333,14 +334,14 @@ serve(async (req) => {
           </body>
           </html>
         `, {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
+          headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders }
         });
       } else if (req.method === 'POST') {
         const formData = await req.formData();
         const motivo = formData.get('motivo') as string;
 
         if (!motivo) {
-          return new Response('Motivo é obrigatório', { status: 400 });
+          return new Response('Motivo é obrigatório', { status: 400, headers: corsHeaders });
         }
 
         // Rejeitar nota
@@ -429,12 +430,12 @@ serve(async (req) => {
           </body>
           </html>
         `, {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
+          headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders }
         });
       }
     }
 
-    return new Response('Ação inválida', { status: 400 });
+    return new Response('Ação inválida', { status: 400, headers: corsHeaders });
 
   } catch (error: any) {
     console.error('Erro ao processar aprovação:', error);
