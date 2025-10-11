@@ -143,8 +143,27 @@ export default function Relatorios() {
     setExporting(true);
 
     try {
-      const doc = new jsPDF();
+      // Criar PDF em modo paisagem
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
       const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      
+      // Buscar usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      let userName = 'Sistema';
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (profile?.name) userName = profile.name;
+      }
       
       // Converter imagens para base64
       const loadImage = (url: string): Promise<string> => {
@@ -163,39 +182,128 @@ export default function Relatorios() {
         });
       };
 
-      // Carregar logos
       const logoHccBase64 = await loadImage(logoHcc);
       const logoConquistaBase64 = await loadImage(logoConquista);
 
-      // Header com logo HCC
-      doc.addImage(logoHccBase64, 'PNG', 15, 10, 40, 15);
+      // ========== HEADER PREMIUM ==========
+      // Fundo degradê no header
+      doc.setFillColor(41, 128, 185); // Azul principal
+      doc.rect(0, 0, pageWidth, 35, 'F');
       
-      // Título
-      doc.setFontSize(20);
-      doc.setTextColor(51, 51, 51);
-      doc.text("Relatório de Pagamentos", pageWidth / 2, 35, { align: 'center' });
+      // Logo HCC
+      doc.addImage(logoHccBase64, 'PNG', 15, 8, 50, 19);
       
-      // Data do relatório
-      doc.setFontSize(10);
-      doc.setTextColor(102, 102, 102);
-      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, 42, { align: 'center' });
+      // Título principal
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(26);
+      doc.setFont('helvetica', 'bold');
+      doc.text("RELATÓRIO DE PAGAMENTOS", pageWidth / 2, 20, { align: 'center' });
       
-      // Linha decorativa
+      // Subtítulo
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text("Sistema de Gestão Médica - HCC Hospital", pageWidth / 2, 28, { align: 'center' });
+
+      // ========== INFO BOX ==========
+      const infoBoxY = 42;
+      
+      // Box com fundo suave
+      doc.setFillColor(236, 240, 241);
+      doc.roundedRect(15, infoBoxY, pageWidth - 30, 22, 2, 2, 'F');
+      
+      // Borda colorida
       doc.setDrawColor(52, 152, 219);
       doc.setLineWidth(0.5);
-      doc.line(15, 48, pageWidth - 15, 48);
+      doc.roundedRect(15, infoBoxY, pageWidth - 30, 22, 2, 2, 'S');
+      
+      // Informações em colunas
+      doc.setTextColor(52, 73, 94);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      
+      const col1X = 20;
+      const col2X = 100;
+      const col3X = 180;
+      const col4X = 235;
+      const infoY = infoBoxY + 8;
+      
+      // Coluna 1 - Data
+      doc.text("DATA DE GERAÇÃO:", col1X, infoY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(new Date().toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: 'long', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }), col1X, infoY + 5);
+      
+      // Coluna 2 - Usuário
+      doc.setFont('helvetica', 'bold');
+      doc.text("GERADO POR:", col2X, infoY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(userName, col2X, infoY + 5);
+      
+      // Coluna 3 - Período
+      doc.setFont('helvetica', 'bold');
+      doc.text("PERÍODO:", col3X, infoY);
+      doc.setFont('helvetica', 'normal');
+      const periodoText = filtros.mes_inicio && filtros.mes_fim 
+        ? `${filtros.mes_inicio} a ${filtros.mes_fim}`
+        : "Todos os períodos";
+      doc.text(periodoText, col3X, infoY + 5);
+      
+      // Coluna 4 - Total de registros
+      doc.setFont('helvetica', 'bold');
+      doc.text("REGISTROS:", col4X, infoY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(dados.length.toString(), col4X, infoY + 5);
 
-      // Resumo
+      // ========== CARDS DE RESUMO ==========
+      const cardsY = 70;
+      const cardWidth = 65;
+      const cardHeight = 20;
+      const cardSpacing = 8;
+      
       const totalBruto = dados.reduce((sum, item) => sum + item.valor, 0);
       const totalLiquido = dados.reduce((sum, item) => sum + item.valor_liquido, 0);
+      const totalPagos = dados.filter(item => item.status === 'pago').length;
       
-      doc.setFontSize(11);
-      doc.setTextColor(51, 51, 51);
-      doc.text(`Total de Registros: ${dados.length}`, 15, 58);
-      doc.text(`Valor Total Bruto: ${formatCurrency(totalBruto)}`, 15, 64);
-      doc.text(`Valor Total Líquido: ${formatCurrency(totalLiquido)}`, 15, 70);
+      // Card 1 - Valor Bruto
+      doc.setFillColor(46, 204, 113);
+      doc.roundedRect(15, cardsY, cardWidth, cardHeight, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.text("VALOR TOTAL BRUTO", 15 + cardWidth/2, cardsY + 6, { align: 'center' });
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatCurrency(totalBruto), 15 + cardWidth/2, cardsY + 14, { align: 'center' });
+      
+      // Card 2 - Valor Líquido
+      doc.setFillColor(52, 152, 219);
+      doc.roundedRect(15 + cardWidth + cardSpacing, cardsY, cardWidth, cardHeight, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.text("VALOR TOTAL LÍQUIDO", 15 + cardWidth + cardSpacing + cardWidth/2, cardsY + 6, { align: 'center' });
+      doc.setFontSize(14);
+      doc.text(formatCurrency(totalLiquido), 15 + cardWidth + cardSpacing + cardWidth/2, cardsY + 14, { align: 'center' });
+      
+      // Card 3 - Total de Pagamentos
+      doc.setFillColor(155, 89, 182);
+      doc.roundedRect(15 + (cardWidth + cardSpacing) * 2, cardsY, cardWidth, cardHeight, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.text("TOTAL DE REGISTROS", 15 + (cardWidth + cardSpacing) * 2 + cardWidth/2, cardsY + 6, { align: 'center' });
+      doc.setFontSize(14);
+      doc.text(dados.length.toString(), 15 + (cardWidth + cardSpacing) * 2 + cardWidth/2, cardsY + 14, { align: 'center' });
+      
+      // Card 4 - Pagamentos Efetuados
+      doc.setFillColor(230, 126, 34);
+      doc.roundedRect(15 + (cardWidth + cardSpacing) * 3, cardsY, cardWidth, cardHeight, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.text("PAGAMENTOS EFETUADOS", 15 + (cardWidth + cardSpacing) * 3 + cardWidth/2, cardsY + 6, { align: 'center' });
+      doc.setFontSize(14);
+      doc.text(totalPagos.toString(), 15 + (cardWidth + cardSpacing) * 3 + cardWidth/2, cardsY + 14, { align: 'center' });
 
-      // Tabela com os dados
+      // ========== TABELA DE DADOS ==========
       const tableData = dados.map(item => [
         item.medico_nome,
         item.mes_competencia,
@@ -203,63 +311,67 @@ export default function Relatorios() {
         formatCurrency(item.valor_liquido),
         getStatusLabel(item.status),
         item.data_solicitacao,
-        item.data_resposta,
         item.data_pagamento
       ]);
 
       autoTable(doc, {
-        startY: 78,
-        head: [['Médico', 'Competência', 'Valor Bruto', 'Valor Líquido', 'Status', 'Dt. Solicitação', 'Dt. Resposta', 'Dt. Pagamento']],
+        startY: 98,
+        head: [['Médico', 'Competência', 'Vlr. Bruto', 'Vlr. Líquido', 'Status', 'Dt. Solicitação', 'Dt. Pagamento']],
         body: tableData,
-        theme: 'striped',
+        theme: 'grid',
         headStyles: {
-          fillColor: [52, 152, 219],
+          fillColor: [52, 73, 94],
           textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          cellPadding: 3
         },
         bodyStyles: {
           fontSize: 8,
-          textColor: [51, 51, 51]
+          textColor: [52, 73, 94],
+          cellPadding: 2.5
         },
         alternateRowStyles: {
-          fillColor: [245, 245, 245]
+          fillColor: [249, 249, 249]
         },
         columnStyles: {
-          0: { cellWidth: 35 },
-          1: { cellWidth: 25, halign: 'center' },
-          2: { cellWidth: 25, halign: 'right' },
-          3: { cellWidth: 25, halign: 'right' },
-          4: { cellWidth: 25, halign: 'center' },
-          5: { cellWidth: 22, halign: 'center' },
-          6: { cellWidth: 22, halign: 'center' },
-          7: { cellWidth: 22, halign: 'center' }
+          0: { cellWidth: 60, halign: 'left' },
+          1: { cellWidth: 28, halign: 'center' },
+          2: { cellWidth: 30, halign: 'right' },
+          3: { cellWidth: 30, halign: 'right' },
+          4: { cellWidth: 28, halign: 'center' },
+          5: { cellWidth: 32, halign: 'center' },
+          6: { cellWidth: 32, halign: 'center' }
         },
-        margin: { left: 15, right: 15 }
+        margin: { left: 15, right: 15 },
+        styles: {
+          lineColor: [189, 195, 199],
+          lineWidth: 0.1
+        }
       });
 
-      // Footer com logo Conquista
-      const finalY = (doc as any).lastAutoTable.finalY || 78;
-      const footerY = doc.internal.pageSize.height - 25;
+      // ========== FOOTER DISCRETO ==========
+      const finalY = (doc as any).lastAutoTable.finalY || 98;
       
-      // Se a tabela for muito grande, adicionar em nova página
-      if (finalY > footerY - 10) {
+      // Se ultrapassar a página, adicionar nova
+      if (finalY > pageHeight - 25) {
         doc.addPage();
       }
       
-      // Linha decorativa antes do footer
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.3);
-      doc.line(15, doc.internal.pageSize.height - 22, pageWidth - 15, doc.internal.pageSize.height - 22);
+      // Linha sutil
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.2);
+      doc.line(15, pageHeight - 12, pageWidth - 15, pageHeight - 12);
       
-      // Texto "Desenvolvido por"
-      doc.setFontSize(9);
-      doc.setTextColor(102, 102, 102);
-      doc.text("Desenvolvido por", pageWidth / 2, doc.internal.pageSize.height - 17, { align: 'center' });
+      // Texto pequeno e discreto
+      doc.setTextColor(150, 150, 150);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'italic');
+      doc.text("Desenvolvido por", pageWidth - 32, pageHeight - 8);
       
-      // Logo Conquista Inovação
-      doc.addImage(logoConquistaBase64, 'PNG', pageWidth / 2 - 15, doc.internal.pageSize.height - 15, 30, 8);
+      // Logo Conquista bem pequena
+      doc.addImage(logoConquistaBase64, 'PNG', pageWidth - 28, pageHeight - 7, 20, 5);
 
       // Salvar PDF
       doc.save(`relatorio_pagamentos_${new Date().toISOString().slice(0, 10)}.pdf`);
