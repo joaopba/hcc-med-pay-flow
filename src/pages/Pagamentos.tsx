@@ -314,13 +314,15 @@ export default function Pagamentos() {
         return;
       }
 
-      for (const pagamento of pagamentosSemNota) {
+      // Enviar todas as solicitações em paralelo para melhor performance
+      const envios = pagamentosSemNota.map(async (pagamento) => {
         if (!pagamento?.medicos) {
           console.warn('Pagamento sem médico vinculado:', pagamento?.id);
-          continue;
+          return null;
         }
         
-        await supabase.functions.invoke('send-whatsapp-template', {
+        // Enviar WhatsApp
+        const whatsappPromise = supabase.functions.invoke('send-whatsapp-template', {
           body: {
             type: 'nota',
             numero: pagamento.medicos.numero_whatsapp,
@@ -331,15 +333,22 @@ export default function Pagamentos() {
           }
         });
 
-        // Atualizar status apenas dos que não tinham nota
-        await supabase
+        // Atualizar status
+        const updatePromise = supabase
           .from("pagamentos")
           .update({ 
             status: "solicitado",
             data_solicitacao: new Date().toISOString()
           })
           .eq("id", pagamento.id);
-      }
+
+        // Executar ambos em paralelo
+        await Promise.all([whatsappPromise, updatePromise]);
+        return pagamento.id;
+      });
+
+      // Aguardar todas as operações
+      await Promise.all(envios);
 
       toast({
         title: "Sucesso",

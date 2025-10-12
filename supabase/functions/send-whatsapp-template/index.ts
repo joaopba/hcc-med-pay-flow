@@ -76,310 +76,303 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero, valorBruto, valorLiquido }: WhatsAppRequest = await req.json();
+    const requestData: WhatsAppRequest = await req.json();
+    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero, valorBruto, valorLiquido } = requestData;
 
-    // Buscar configurações da API
-    const { data: config, error: configError } = await supabase
-      .from('configuracoes')
-      .select('api_url, auth_token')
-      .single();
+    // Função para processar o envio em background
+    async function processarEnvio() {
+      try {
+        console.log(`[Background] Processando envio tipo: ${type}`);
+        
+        // Buscar configurações da API
+        const { data: config, error: configError } = await supabase
+          .from('configuracoes')
+          .select('api_url, auth_token')
+          .maybeSingle();
 
-    if (configError || !config) {
-      throw new Error('Configurações não encontradas');
-    }
+        if (configError || !config) {
+          throw new Error('Configurações não encontradas');
+        }
 
-    let message = '';
-    let phoneNumber = numero;
+        let message = '';
+        let phoneNumber = numero;
 
-    // Para tipos que usam o objeto médico
-    if (medico?.numero_whatsapp) {
-      phoneNumber = medico.numero_whatsapp;
-    }
+        // Para tipos que usam o objeto médico
+        if (medico?.numero_whatsapp) {
+          phoneNumber = medico.numero_whatsapp;
+        }
 
-    let payload: any;
-    let apiUrl = config.api_url;
+        let payload: any;
+        let apiUrl = config.api_url;
 
-    // Idempotência: evitar mensagens duplicadas em curto intervalo
-    if (pagamentoId) {
-      const since = new Date(Date.now() - 20000).toISOString(); // 20s
-      const { data: recent, error: recentError } = await supabase
-        .from('message_logs')
-        .select('id, created_at')
-        .eq('pagamento_id', pagamentoId)
-        .eq('tipo', `whatsapp_${type}`)
-        .gte('created_at', since)
-        .order('created_at', { ascending: false })
-        .limit(1);
+        // Idempotência: evitar mensagens duplicadas em curto intervalo
+        if (pagamentoId) {
+          const since = new Date(Date.now() - 20000).toISOString(); // 20s
+          const { data: recent } = await supabase
+            .from('message_logs')
+            .select('id, created_at')
+            .eq('pagamento_id', pagamentoId)
+            .eq('tipo', `whatsapp_${type}`)
+            .gte('created_at', since)
+            .order('created_at', { ascending: false })
+            .limit(1);
 
-      if (!recentError && recent && recent.length > 0) {
-        return new Response(JSON.stringify({
-          success: true,
-          data: { skipped: true },
-          message: 'Mensagem já enviada recentemente (idempotência)'
-        }), {
-          headers: { 
-            'Content-Type': 'application/json',
-            ...corsHeaders 
-          },
-        });
-      }
-    }
+          if (recent && recent.length > 0) {
+            console.log('[Background] Mensagem já enviada recentemente (idempotência)');
+            return;
+          }
+        }
 
-    switch (type) {
-      case 'nota':
-        // Usar template estruturado para solicitação de nota
-        payload = {
-          number: phoneNumber,
-          isClosed: false,
-          templateData: {
-            messaging_product: "whatsapp",
-            to: phoneNumber,
-            type: "template",
-            template: {
-              name: "nota",
-              language: { code: "pt_BR" },
-              components: [
-                { 
-                  type: "body", 
-                  parameters: [
-                    { type: "text", text: nome }, // nome do médico
-                    { type: "text", text: valor }, // valor da solicitação
-                    { type: "text", text: competencia } // Competência de pagamento
+        switch (type) {
+          case 'nota':
+            payload = {
+              number: phoneNumber,
+              isClosed: false,
+              templateData: {
+                messaging_product: "whatsapp",
+                to: phoneNumber,
+                type: "template",
+                template: {
+                  name: "nota",
+                  language: { code: "pt_BR" },
+                  components: [
+                    { 
+                      type: "body", 
+                      parameters: [
+                        { type: "text", text: nome },
+                        { type: "text", text: valor },
+                        { type: "text", text: competencia }
+                      ]
+                    }
                   ]
                 }
-              ]
-            }
-          }
-        };
-        // Usar endpoint /template para templates
-        apiUrl = config.api_url + '/template';
-        break;
-      
-      case 'encaminhar_nota':
-        message = `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá, ${nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`;
-        payload = {
-          body: message,
-          number: phoneNumber,
-          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-          isClosed: false
-        };
-        break;
-      
-      case 'pagamento':
-        // Verificar janela de 24h antes de enviar
-        const within24Hours = medico_id ? await checkLast24Hours(supabase, medico_id) : false;
-        
-        if (within24Hours) {
-          // Dentro da janela - enviar mensagem livre
-          console.log('✅ Dentro da janela de 24h - enviando mensagem livre');
-          message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
-          payload = {
-            body: message,
-            number: phoneNumber,
-            externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-            isClosed: false
-          };
-        } else {
-          // Fora da janela - usar template "pagamento" com variáveis {{1}} e {{2}}
-          console.log('⏰ Fora da janela de 24h - usando template "pagamento"');
-          payload = {
-            number: phoneNumber,
-            isClosed: false,
-            templateData: {
-              messaging_product: "whatsapp",
-              to: phoneNumber,
-              type: "template",
-              template: {
-                name: "pagamento",
-                language: { code: "pt_BR" },
-                components: [
-                  { 
-                    type: "body", 
-                    parameters: [
-                      { type: "text", text: nome }, // {{1}} = nome do médico
-                      { type: "text", text: dataPagamento || new Date().toLocaleDateString('pt-BR') } // {{2}} = data de pagamento
+              }
+            };
+            apiUrl = config.api_url + '/template';
+            break;
+          
+          case 'encaminhar_nota':
+            message = `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá, ${nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`;
+            payload = {
+              body: message,
+              number: phoneNumber,
+              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+              isClosed: false
+            };
+            break;
+          
+          case 'pagamento':
+            const within24Hours = medico_id ? await checkLast24Hours(supabase, medico_id) : false;
+            
+            if (within24Hours) {
+              console.log('[Background] Dentro da janela de 24h - enviando mensagem livre');
+              message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
+              payload = {
+                body: message,
+                number: phoneNumber,
+                externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+                isClosed: false
+              };
+            } else {
+              console.log('[Background] Fora da janela de 24h - usando template "pagamento"');
+              payload = {
+                number: phoneNumber,
+                isClosed: false,
+                templateData: {
+                  messaging_product: "whatsapp",
+                  to: phoneNumber,
+                  type: "template",
+                  template: {
+                    name: "pagamento",
+                    language: { code: "pt_BR" },
+                    components: [
+                      { 
+                        type: "body", 
+                        parameters: [
+                          { type: "text", text: nome },
+                          { type: "text", text: dataPagamento || new Date().toLocaleDateString('pt-BR') }
+                        ]
+                      }
                     ]
                   }
-                ]
-              }
+                }
+              };
+              apiUrl = config.api_url + '/template';
             }
-          };
-          // Usar endpoint /template para templates
-          apiUrl = config.api_url + '/template';
+            break;
+          
+          case 'nota_recebida':
+            message = `✅ *Nota Fiscal Recebida*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi recebida com sucesso.\n\n📋 Status: Em análise\n⏱️ Prazo: Até 24h úteis\n\nVocê será notificado assim que a análise for concluída.\n\nObrigado!`;
+            payload = {
+              body: message,
+              number: phoneNumber,
+              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+              isClosed: false
+            };
+            break;
+          
+          case 'nota_aprovacao':
+            phoneNumber = financeiro_numero;
+            const shortAprovar = await shortenUrl(link_aprovar || '');
+            const shortRejeitar = await shortenUrl(link_rejeitar || '');
+            const valorBrutoFormatado = valorBruto ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorBruto) : valor;
+            const valorLiquidoFormatado = valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado';
+            
+            const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
+            const derivedFileName = (pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`);
+            
+            payload = {
+              number: phoneNumber,
+              body: caption,
+              mediaData: {
+                mediaBase64: pdf_base64,
+                caption,
+                fileName: derivedFileName
+              },
+              file: {
+                data: pdf_base64,
+                fileName: derivedFileName,
+                filename: derivedFileName
+              }
+            };
+            break;
+          
+          case 'nota_aprovada':
+            message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
+            payload = {
+              body: message,
+              number: phoneNumber,
+              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+              isClosed: false
+            };
+            break;
+          
+          case 'nota_rejeitada':
+            message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal:\n\n🔗 ${linkPortal || 'https://hcc.chatconquista.com/dashboard-medicos'}\n\nPrecisa de ajuda? Entre em contato conosco.`;
+            payload = {
+              body: message,
+              number: phoneNumber,
+              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+              isClosed: false
+            };
+            break;
+          
+          case 'nova_mensagem_chat':
+            phoneNumber = numero_destino;
+            const linkResposta = await shortenUrl(`https://hcc.chatconquista.com/chat?medico=${medico_id || ''}&responder=true`);
+            message = `💬 *Nova Mensagem no Chat*\n\n*De:* ${medico_nome}\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Responder agora:\n${linkResposta}\n\nOu acesse o sistema para visualizar o histórico completo.`;
+            payload = {
+              body: message,
+              number: phoneNumber,
+              externalKey: `chat_${medico_id}_${Date.now()}`,
+              isClosed: false
+            };
+            break;
+          
+          case 'resposta_financeiro':
+            phoneNumber = numero_destino;
+            const linkChatMedico = await shortenUrl(`https://hcc.chatconquista.com/dashboard-medicos`);
+            message = `💬 *Nova Resposta do Financeiro*\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Ver conversa:\n${linkChatMedico}\n\nAcesse seu painel para continuar a conversa.`;
+            payload = {
+              body: message,
+              number: phoneNumber,
+              externalKey: `chat_resp_${Date.now()}`,
+              isClosed: false
+            };
+            break;
+          
+          default:
+            throw new Error('Tipo de mensagem inválido');
         }
-        break;
-      
-      case 'nota_recebida':
-        message = `✅ *Nota Fiscal Recebida*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi recebida com sucesso.\n\n📋 Status: Em análise\n⏱️ Prazo: Até 24h úteis\n\nVocê será notificado assim que a análise for concluída.\n\nObrigado!`;
-        payload = {
-          body: message,
-          number: phoneNumber,
-          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-          isClosed: false
-        };
-        break;
-      
-      case 'nota_aprovacao':
-        // Enviar PDF com botões de aprovação/rejeição para o financeiro
-        phoneNumber = financeiro_numero;
-        
-        // Encurtar URLs antes de incluir na mensagem
-        const shortAprovar = await shortenUrl(link_aprovar || '');
-        const shortRejeitar = await shortenUrl(link_rejeitar || '');
-        
-        // Formatar valores
-        const valorBrutoFormatado = valorBruto ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorBruto) : valor;
-        const valorLiquidoFormatado = valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado';
-        
-        const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
-        const derivedFileName = (pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`);
-        
-        // Payload incluindo ambos formatos suportados
-        payload = {
-          number: phoneNumber,
-          body: caption,
-          mediaData: {
-            mediaBase64: pdf_base64,
-            caption,
-            fileName: derivedFileName
+
+        console.log('[Background] Enviando para API WhatsApp:', apiUrl);
+
+        // Enviar mensagem
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.auth_token}`
           },
-          file: {
-            data: pdf_base64,
-            fileName: derivedFileName,
-            filename: derivedFileName
+          body: JSON.stringify(payload)
+        });
+
+        console.log('[Background] Status da resposta:', response.status);
+
+        const contentType = response.headers.get('content-type');
+        let responseData: any;
+        
+        if (contentType?.includes('application/json')) {
+          responseData = await response.json();
+        } else {
+          const textResponse = await response.text();
+          console.error('[Background] Resposta não é JSON:', textResponse.substring(0, 500));
+          throw new Error(`API retornou resposta não-JSON (${response.status})`);
+        }
+        
+        console.log('[Background] Resposta da API:', responseData);
+
+        // Verificar erros
+        const isDuplicateContactError = responseData.message && 
+          (responseData.message.includes('SequelizeUniqueConstraintError') ||
+           responseData.message.includes('contacts_number_tenantid'));
+        
+        const hasError = !response.ok || 
+                         responseData.error || 
+                         (responseData.message && (
+                           responseData.message.includes('error') ||
+                           responseData.message.includes('Error') ||
+                           responseData.message.toLowerCase().includes('sent error')
+                         ));
+        
+        if (hasError && !isDuplicateContactError) {
+          const errorMsg = responseData.message || responseData.error || JSON.stringify(responseData);
+          console.error('[Background] Erro ao enviar:', errorMsg);
+          throw new Error(`Erro ao enviar WhatsApp: ${errorMsg}`);
+        }
+        
+        if (isDuplicateContactError) {
+          console.warn('[Background] Contato duplicado ignorado');
+        }
+
+        // Log da mensagem
+        if (pagamentoId) {
+          try {
+            await supabase
+              .from('message_logs')
+              .insert([{
+                pagamento_id: pagamentoId,
+                tipo: `whatsapp_${type}`,
+                payload: payload,
+                success: true,
+                response: responseData
+              }]);
+          } catch (logError) {
+            console.warn('[Background] Erro ao registrar log:', logError);
           }
-        };
-        break;
-      
-      case 'nota_aprovada':
-        message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
-        payload = {
-          body: message,
-          number: phoneNumber,
-          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-          isClosed: false
-        };
-        break;
-      
-      case 'nota_rejeitada':
-        message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal:\n\n🔗 ${linkPortal || 'https://hcc.chatconquista.com/dashboard-medicos'}\n\nPrecisa de ajuda? Entre em contato conosco.`;
-        payload = {
-          body: message,
-          number: phoneNumber,
-          externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-          isClosed: false
-        };
-        break;
-      
-      case 'nova_mensagem_chat':
-        phoneNumber = numero_destino;
-        const linkResposta = await shortenUrl(`https://hcc.chatconquista.com/chat?medico=${medico_id || ''}&responder=true`);
-        message = `💬 *Nova Mensagem no Chat*\n\n*De:* ${medico_nome}\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Responder agora:\n${linkResposta}\n\nOu acesse o sistema para visualizar o histórico completo.`;
-        payload = {
-          body: message,
-          number: phoneNumber,
-          externalKey: `chat_${medico_id}_${Date.now()}`,
-          isClosed: false
-        };
-        break;
-      
-      case 'resposta_financeiro':
-        phoneNumber = numero_destino;
-        const linkChatMedico = await shortenUrl(`https://hcc.chatconquista.com/dashboard-medicos`);
-        message = `💬 *Nova Resposta do Financeiro*\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Ver conversa:\n${linkChatMedico}\n\nAcesse seu painel para continuar a conversa.`;
-        payload = {
-          body: message,
-          number: phoneNumber,
-          externalKey: `chat_resp_${Date.now()}`,
-          isClosed: false
-        };
-        break;
-      
-      default:
-        throw new Error('Tipo de mensagem inválido');
-    }
+        }
 
-    console.log('Enviando mensagem WhatsApp diretamente:', payload);
-    console.log('Tipo:', type);
-
-    // Usar sempre o endpoint base - a API identifica pelo payload
-    const endpoint = apiUrl;
-
-    console.log('Endpoint da API:', endpoint);
-    console.log('Payload enviado:', JSON.stringify(payload, null, 2));
-
-    // Enviar mensagem diretamente
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.auth_token}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    console.log('Status da resposta:', response.status, response.statusText);
-    console.log('Content-Type da resposta:', response.headers.get('content-type'));
-
-    // Verificar se a resposta é JSON antes de tentar parsear
-    const contentType = response.headers.get('content-type');
-    let responseData: any;
-    
-    if (contentType?.includes('application/json')) {
-      responseData = await response.json();
-    } else {
-      const textResponse = await response.text();
-      console.error('Resposta não é JSON:', textResponse.substring(0, 500));
-      throw new Error(`API retornou resposta não-JSON (${response.status}): ${textResponse.substring(0, 200)}`);
-    }
-    
-    console.log('Resposta da API WhatsApp:', responseData);
-
-    // Verificar se houve erro na resposta (API pode retornar 200 mas com erro na mensagem)
-    // Ignorar erros de contato duplicado que são erros internos da API externa
-    const isDuplicateContactError = responseData.message && 
-      (responseData.message.includes('SequelizeUniqueConstraintError') ||
-       responseData.message.includes('contacts_number_tenantid'));
-    
-    const hasError = !response.ok || 
-                     responseData.error || 
-                     (responseData.message && (
-                       responseData.message.includes('error') ||
-                       responseData.message.includes('Error') ||
-                       responseData.message.toLowerCase().includes('sent error')
-                     ));
-    
-    if (hasError && !isDuplicateContactError) {
-      const errorMsg = responseData.message || responseData.error || JSON.stringify(responseData);
-      console.error('Erro ao enviar mensagem WhatsApp:', errorMsg);
-      throw new Error(`Erro ao enviar WhatsApp (${response.status}): ${errorMsg}`);
-    }
-    
-    if (isDuplicateContactError) {
-      console.warn('⚠️ Aviso: API retornou erro de contato duplicado, mas mensagem foi enviada. Resposta:', responseData.message);
-    }
-
-    // Log da mensagem se tiver pagamentoId
-    if (pagamentoId) {
-      try {
-        await supabase
-          .from('message_logs')
-          .insert([{
-            pagamento_id: pagamentoId,
-            tipo: `whatsapp_${type}`,
-            payload: payload,
-            success: true,
-            response: responseData
-          }]);
-      } catch (logError) {
-        console.warn('Erro ao registrar log:', logError);
+        console.log('[Background] Envio concluído com sucesso');
+      } catch (error: any) {
+        console.error('[Background] Erro no processamento:', error);
       }
     }
 
+    // Iniciar processamento em background
+    // @ts-ignore - EdgeRuntime.waitUntil exists in Deno Deploy
+    if (typeof EdgeRuntime !== 'undefined') {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(processarEnvio());
+    } else {
+      // Fallback para desenvolvimento local
+      processarEnvio();
+    }
+
+    // Retornar resposta imediata
     return new Response(JSON.stringify({
       success: true,
-      data: responseData,
-      message: `Mensagem ${type} enviada com sucesso`
+      message: `Mensagem ${type} está sendo processada em segundo plano`,
+      queued: true
     }), {
       headers: { 
         'Content-Type': 'application/json',
@@ -388,7 +381,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error('Erro no envio da mensagem:', error);
+    console.error('Erro ao processar requisição:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error.message
