@@ -106,6 +106,7 @@ export default function DashboardMedicos() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [pendingTicket, setPendingTicket] = useState<any>(null);
+  const [valorLiquido, setValorLiquido] = useState("");
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -411,6 +412,15 @@ export default function DashboardMedicos() {
   const handleConfirmUpload = async () => {
     if (!selectedFile || !selectedPagamento) return;
 
+    if (!valorLiquido || parseFloat(valorLiquido) <= 0) {
+      toast({
+        title: "Erro",
+        description: "Por favor, informe o valor líquido da nota",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUploading(true);
     setShowConfirmUpload(false);
     
@@ -425,6 +435,19 @@ export default function DashboardMedicos() {
         .upload(filePath, selectedFile);
 
       if (uploadError) throw uploadError;
+
+      // Atualizar o pagamento com o valor líquido
+      const { error: valorLiquidoError } = await supabase
+        .from("pagamentos")
+        .update({
+          valor_liquido: parseFloat(valorLiquido)
+        })
+        .eq("id", selectedPagamento.id)
+        .eq("medico_id", medico.id);
+
+      if (valorLiquidoError) {
+        console.error('Erro ao atualizar valor líquido:', valorLiquidoError);
+      }
 
       // Registrar na tabela notas_medicos - GARANTIR que é do médico correto
       const { data: notaData, error: insertError } = await supabase
@@ -465,7 +488,9 @@ export default function DashboardMedicos() {
               numero_whatsapp: medico.numero_whatsapp
             },
             competencia: competencia,
-            pagamentoId: selectedPagamento.id
+            pagamentoId: selectedPagamento.id,
+            valorBruto: selectedPagamento.valor,
+            valorLiquido: parseFloat(valorLiquido)
           }
         });
         console.log('Resposta da notificação WhatsApp:', whatsappResponse);
@@ -530,6 +555,7 @@ export default function DashboardMedicos() {
       setShowUploadModal(false);
       setSelectedPagamento(null);
       setSelectedFile(null);
+      setValorLiquido("");
       buscarDados();
 
       // Mostrar mensagem de sucesso mais específica
@@ -704,10 +730,11 @@ export default function DashboardMedicos() {
                             </Badge>
                           )}
                         </div>
-                        <Button
+                         <Button
                           onClick={() => {
                             setSelectedPagamento(pagamento);
                             setSelectedFile(null);
+                            setValorLiquido("");
                             setShowUploadModal(true);
                           }}
                           size="sm"
@@ -1138,37 +1165,63 @@ export default function DashboardMedicos() {
             
             <div className="space-y-4">
               <div className="p-4 bg-muted/50 rounded-lg">
-                <h4 className="font-medium mb-2">Arquivo selecionado:</h4>
-                <p className="text-sm text-muted-foreground">{selectedFile?.name}</p>
+                <h4 className="font-medium mb-2 text-sm sm:text-base">Arquivo selecionado:</h4>
+                <p className="text-sm text-muted-foreground break-words overflow-hidden">
+                  {selectedFile?.name}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Tamanho: {selectedFile ? (selectedFile.size / 1024 / 1024).toFixed(2) : 0} MB
                 </p>
               </div>
 
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
+              <div className="space-y-2">
+                <Label htmlFor="valorLiquido" className="text-sm font-medium">
+                  Valor Líquido da Nota *
+                </Label>
+                <Input
+                  id="valorLiquido"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0,00"
+                  value={valorLiquido}
+                  onChange={(e) => setValorLiquido(e.target.value)}
+                  className="text-base"
+                  disabled={uploading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Informe o valor líquido que consta na nota fiscal
+                </p>
+              </div>
+
+              <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <p className="text-sm font-medium text-foreground">
                   <strong>Confirme antes de enviar:</strong>
                 </p>
-                <ul className="text-xs text-blue-700 mt-1 space-y-1">
+                <ul className="text-xs text-muted-foreground mt-2 space-y-1">
                   <li>• O arquivo está correto e completo?</li>
+                  <li>• O valor líquido informado está correto?</li>
                   <li>• Os dados conferem com o pagamento?</li>
                   <li>• O PDF não possui problemas de visualização?</li>
                 </ul>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2">
                 <Button 
                   variant="outline" 
                   onClick={() => {
                     setShowConfirmUpload(false);
                     setSelectedFile(null);
+                    setValorLiquido("");
                   }}
+                  className="w-full sm:w-auto"
                 >
                   Cancelar
                 </Button>
                 <Button 
                   onClick={handleConfirmUpload}
-                  disabled={uploading}
+                  disabled={uploading || !valorLiquido || parseFloat(valorLiquido) <= 0}
+                  className="w-full sm:w-auto"
                 >
                   {uploading ? "Enviando..." : "Confirmar e Enviar"}
                 </Button>

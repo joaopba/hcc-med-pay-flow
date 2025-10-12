@@ -30,6 +30,8 @@ interface WhatsAppRequest {
   link_aprovar?: string;
   link_rejeitar?: string;
   financeiro_numero?: string;
+  valorBruto?: number;
+  valorLiquido?: number;
 }
 
 // Função auxiliar para encurtar URL
@@ -74,7 +76,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero }: WhatsAppRequest = await req.json();
+    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero, valorBruto, valorLiquido }: WhatsAppRequest = await req.json();
 
     // Buscar configurações da API
     const { data: config, error: configError } = await supabase
@@ -225,7 +227,11 @@ serve(async (req) => {
         const shortAprovar = await shortenUrl(link_aprovar || '');
         const shortRejeitar = await shortenUrl(link_rejeitar || '');
         
-        const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
+        // Formatar valores
+        const valorBrutoFormatado = valorBruto ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorBruto) : valor;
+        const valorLiquidoFormatado = valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado';
+        
+        const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
         const derivedFileName = (pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`);
         
         // Payload incluindo ambos formatos suportados

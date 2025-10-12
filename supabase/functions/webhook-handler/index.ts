@@ -631,7 +631,9 @@ serve(async (req) => {
                       link_aprovar: linkAprovar,
                       link_rejeitar: linkRejeitar,
                       financeiro_numero: configFinanceiro.numero_whatsapp,
-                      pagamentoId: pagamento.id
+                      pagamentoId: pagamento.id,
+                      valorBruto: pagamento.valor,
+                      valorLiquido: pagamento.valor_liquido
                     }
                   });
                   console.log('Notificação de aprovação enviada ao financeiro com PDF');
