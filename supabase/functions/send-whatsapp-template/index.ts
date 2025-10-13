@@ -125,89 +125,128 @@ serve(async (req) => {
 
         switch (type) {
           case 'nota':
-            payload = {
-              number: phoneNumber,
-              isClosed: false,
-              templateData: {
-                messaging_product: "whatsapp",
-                to: phoneNumber,
-                type: "template",
-                template: {
-                  name: "nota",
-                  language: { code: "pt_BR" },
-                  components: [
-                    { 
-                      type: "body", 
-                      parameters: [
-                        { type: "text", text: nome },
-                        { type: "text", text: valor },
-                        { type: "text", text: competencia }
-                      ]
-                    }
-                  ]
-                }
-              }
-            };
-            apiUrl = config.api_url + '/template';
+            // Para o tipo 'nota', enviar o template COM o vídeo anexado na mesma mensagem
+            const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
+            const videoBlob = await videoResponse.blob();
             
-            // Enviar vídeo tutorial após o template usando multipart/form-data
-            try {
-              const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
-              const videoBlob = await videoResponse.blob();
-              
-              const form = new FormData();
-              form.append('number', phoneNumber || '');
-              form.append('body', '🎥 Vídeo Tutorial - Como Anexar Nota Fiscal');
-              form.append('externalKey', `video_tutorial_${Date.now()}`);
-              form.append('isClosed', 'false');
-              form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
-              
-              await fetch(config.api_url, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${config.auth_token}`
-                },
-                body: form
-              });
-              console.log('[Background] Vídeo tutorial enviado após template');
-            } catch (videoError) {
-              console.warn('[Background] Erro ao enviar vídeo:', videoError);
+            const form = new FormData();
+            form.append('number', phoneNumber || '');
+            form.append('body', `🏥 *Solicitação de Nota Fiscal - HCC Hospital*\n\nOlá, ${nome}!\n\nPara darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`);
+            form.append('externalKey', `nota_${pagamentoId || Date.now()}_${Date.now()}`);
+            form.append('isClosed', 'false');
+            form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
+            
+            // Enviar mensagem com vídeo anexado
+            const response = await fetch(config.api_url, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${config.auth_token}`
+              },
+              body: form
+            });
+            
+            console.log('[Background] Mensagem de solicitação com vídeo enviada:', response.status);
+            
+            const contentType = response.headers.get('content-type');
+            let responseData: any;
+            
+            if (contentType?.includes('application/json')) {
+              responseData = await response.json();
+            } else {
+              const textResponse = await response.text();
+              console.error('[Background] Resposta não é JSON:', textResponse.substring(0, 500));
+              throw new Error(`API retornou resposta não-JSON (${response.status})`);
             }
+            
+            console.log('[Background] Resposta da API:', responseData);
+            
+            // Verificar erros
+            const isDuplicateContactError = responseData.message && 
+              (responseData.message.includes('SequelizeUniqueConstraintError') ||
+               responseData.message.includes('contacts_number_tenantid'));
+            
+            const hasError = !response.ok || 
+                             responseData.error || 
+                             (responseData.message && (
+                               responseData.message.includes('error') ||
+                               responseData.message.includes('Error') ||
+                               responseData.message.toLowerCase().includes('sent error')
+                             ));
+            
+            if (hasError && !isDuplicateContactError) {
+              const errorMsg = responseData.message || responseData.error || JSON.stringify(responseData);
+              console.error('[Background] Erro ao enviar:', errorMsg);
+              throw new Error(`Erro ao enviar WhatsApp: ${errorMsg}`);
+            }
+            
+            if (isDuplicateContactError) {
+              console.warn('[Background] Contato duplicado ignorado');
+            }
+            
+            // Log da mensagem
+            if (pagamentoId) {
+              try {
+                await supabase
+                  .from('message_logs')
+                  .insert([{
+                    pagamento_id: pagamentoId,
+                    tipo: `whatsapp_${type}`,
+                    payload: { number: phoneNumber, hasVideo: true },
+                    success: true,
+                    response: responseData
+                  }]);
+              } catch (logError) {
+                console.warn('[Background] Erro ao registrar log:', logError);
+              }
+            }
+            
+            console.log('[Background] Envio concluído com sucesso');
+            
+            // Retornar para pular o envio padrão no final
+            return;
             break;
           
           case 'encaminhar_nota':
-            message = `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá, ${nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Enviamos um vídeo explicativo mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`;
+            // Enviar mensagem com vídeo anexado
+            const videoRespEnc = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
+            const videoBlobEnc = await videoRespEnc.blob();
             
-            // Primeiro enviar o vídeo usando multipart/form-data
-            try {
-              const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
-              const videoBlob = await videoResponse.blob();
-              
-              const form = new FormData();
-              form.append('number', phoneNumber || '');
-              form.append('body', '🎥 Vídeo Tutorial - Como Anexar Nota Fiscal');
-              form.append('externalKey', `video_tutorial_${Date.now()}`);
-              form.append('isClosed', 'false');
-              form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
-              
-              await fetch(config.api_url, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${config.auth_token}`
-                },
-                body: form
-              });
-              console.log('[Background] Vídeo tutorial enviado');
-            } catch (videoError) {
-              console.warn('[Background] Erro ao enviar vídeo:', videoError);
+            const formEnc = new FormData();
+            formEnc.append('number', phoneNumber || '');
+            formEnc.append('body', `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá, ${nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`);
+            formEnc.append('externalKey', `encaminhar_nota_${pagamentoId || Date.now()}_${Date.now()}`);
+            formEnc.append('isClosed', 'false');
+            formEnc.append('media', videoBlobEnc, 'tutorial-anexar-nota.mp4');
+            
+            const responseEnc = await fetch(config.api_url, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${config.auth_token}`
+              },
+              body: formEnc
+            });
+            
+            const responseDataEnc = await responseEnc.json();
+            console.log('[Background] Mensagem de encaminhamento com vídeo enviada:', responseDataEnc);
+            
+            // Log da mensagem
+            if (pagamentoId) {
+              try {
+                await supabase
+                  .from('message_logs')
+                  .insert([{
+                    pagamento_id: pagamentoId,
+                    tipo: `whatsapp_${type}`,
+                    payload: { number: phoneNumber, hasVideo: true },
+                    success: responseEnc.ok,
+                    response: responseDataEnc
+                  }]);
+              } catch (logError) {
+                console.warn('[Background] Erro ao registrar log:', logError);
+              }
             }
             
-            payload = {
-              body: message,
-              number: phoneNumber,
-              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-              isClosed: false
-            };
+            return;
             break;
           
           case 'pagamento':

@@ -371,7 +371,7 @@ export default function Configuracoes() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Versão:</p>
-                  <p className="font-medium">1.0.0</p>
+                  <p className="font-medium">1.3.2</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Último backup:</p>
