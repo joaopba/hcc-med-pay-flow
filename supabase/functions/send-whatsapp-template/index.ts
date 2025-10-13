@@ -150,24 +150,24 @@ serve(async (req) => {
             };
             apiUrl = config.api_url + '/template';
             
-            // Enviar vídeo tutorial após o template
+            // Enviar vídeo tutorial após o template usando multipart/form-data
             try {
-              const videoPayload = {
-                number: phoneNumber,
-                body: "🎥 Vídeo Tutorial - Como Anexar Nota Fiscal",
-                mediaData: {
-                  mediaUrl: "https://hcc.chatconquista.com/videos/tutorial-anexar-nota.MOV",
-                  caption: "📹 Tutorial: Como anexar sua nota fiscal no portal"
-                }
-              };
+              const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
+              const videoBlob = await videoResponse.blob();
+              
+              const form = new FormData();
+              form.append('number', phoneNumber || '');
+              form.append('body', '🎥 Vídeo Tutorial - Como Anexar Nota Fiscal');
+              form.append('externalKey', `video_tutorial_${Date.now()}`);
+              form.append('isClosed', 'false');
+              form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
               
               await fetch(config.api_url, {
                 method: 'POST',
                 headers: {
-                  'Content-Type': 'application/json',
                   'Authorization': `Bearer ${config.auth_token}`
                 },
-                body: JSON.stringify(videoPayload)
+                body: form
               });
               console.log('[Background] Vídeo tutorial enviado após template');
             } catch (videoError) {
@@ -178,24 +178,24 @@ serve(async (req) => {
           case 'encaminhar_nota':
             message = `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá, ${nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Enviamos um vídeo explicativo mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`;
             
-            // Primeiro enviar o vídeo
-            const videoPayload = {
-              number: phoneNumber,
-              body: "🎥 Vídeo Tutorial - Como Anexar Nota Fiscal",
-              mediaData: {
-                mediaUrl: "https://hcc.chatconquista.com/videos/tutorial-anexar-nota.MOV",
-                caption: "📹 Tutorial: Como anexar sua nota fiscal no portal"
-              }
-            };
-            
+            // Primeiro enviar o vídeo usando multipart/form-data
             try {
-              await fetch(apiUrl, {
+              const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
+              const videoBlob = await videoResponse.blob();
+              
+              const form = new FormData();
+              form.append('number', phoneNumber || '');
+              form.append('body', '🎥 Vídeo Tutorial - Como Anexar Nota Fiscal');
+              form.append('externalKey', `video_tutorial_${Date.now()}`);
+              form.append('isClosed', 'false');
+              form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
+              
+              await fetch(config.api_url, {
                 method: 'POST',
                 headers: {
-                  'Content-Type': 'application/json',
                   'Authorization': `Bearer ${config.auth_token}`
                 },
-                body: JSON.stringify(videoPayload)
+                body: form
               });
               console.log('[Background] Vídeo tutorial enviado');
             } catch (videoError) {

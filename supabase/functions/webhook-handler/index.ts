@@ -131,26 +131,30 @@ serve(async (req) => {
           throw new Error('Configurações não encontradas');
         }
 
-        // Primeiro enviar o vídeo tutorial
-        const videoPayload = {
-          number: from,
-          body: "🎥 Vídeo Tutorial - Como Anexar Nota Fiscal",
-          mediaData: {
-            mediaUrl: "https://hcc.chatconquista.com/videos/tutorial-anexar-nota.MOV",
-            caption: "📹 Tutorial: Como anexar sua nota fiscal no portal"
-          }
-        };
+        // Primeiro enviar o vídeo tutorial usando multipart/form-data
+        try {
+          const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
+          const videoBlob = await videoResponse.blob();
+          
+          const form = new FormData();
+          form.append('number', from);
+          form.append('body', '🎥 Vídeo Tutorial - Como Anexar Nota Fiscal');
+          form.append('externalKey', `video_tutorial_${Date.now()}`);
+          form.append('isClosed', 'false');
+          form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
 
-        console.log('Enviando vídeo tutorial:', videoPayload);
+          console.log('Enviando vídeo tutorial via multipart/form-data');
 
-        await fetch(config.api_url, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${config.auth_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(videoPayload),
-        });
+          await fetch(config.api_url, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${config.auth_token}`
+            },
+            body: form
+          });
+        } catch (videoError) {
+          console.warn('Erro ao enviar vídeo:', videoError);
+        }
 
         const messagePayload = {
           body: "🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá! Para agilizar seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal: https://hcc.chatconquista.com/dashboard-medicos\n\nPasso a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Faça upload do PDF (máx. 10MB)\n\nDicas:\n• Envie o documento legível e completo\n• Confira os dados antes de enviar\n\n📹 Enviamos um vídeo explicativo mostrando como anexar sua nota passo a passo!\n\nApós o envio, você receberá confirmação e será avisado sobre a análise.",
@@ -295,26 +299,30 @@ serve(async (req) => {
           throw new Error('Configurações não encontradas');
         }
 
-        // Primeiro enviar o vídeo tutorial
-        const videoPayload = {
-          number: from,
-          body: "🎥 Vídeo Tutorial - Como Anexar Nota Fiscal",
-          mediaData: {
-            mediaUrl: "https://hcc.chatconquista.com/videos/tutorial-anexar-nota.MOV",
-            caption: "📹 Tutorial: Como anexar sua nota fiscal no portal"
-          }
-        };
+        // Primeiro enviar o vídeo tutorial usando multipart/form-data
+        try {
+          const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
+          const videoBlob = await videoResponse.blob();
+          
+          const form = new FormData();
+          form.append('number', from);
+          form.append('body', '🎥 Vídeo Tutorial - Como Anexar Nota Fiscal');
+          form.append('externalKey', `video_tutorial_${Date.now()}`);
+          form.append('isClosed', 'false');
+          form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
 
-        console.log('Enviando vídeo tutorial:', videoPayload);
+          console.log('Enviando vídeo tutorial via multipart/form-data');
 
-        await fetch(config.api_url, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${config.auth_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(videoPayload),
-        });
+          await fetch(config.api_url, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${config.auth_token}`
+            },
+            body: form
+          });
+        } catch (videoError) {
+          console.warn('Erro ao enviar vídeo:', videoError);
+        }
 
         // Enviar mensagem com o link do portal
         const linkPayload = {
