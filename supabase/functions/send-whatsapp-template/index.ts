@@ -149,10 +149,59 @@ serve(async (req) => {
               }
             };
             apiUrl = config.api_url + '/template';
+            
+            // Enviar vídeo tutorial após o template
+            try {
+              const videoPayload = {
+                number: phoneNumber,
+                body: "🎥 Vídeo Tutorial - Como Anexar Nota Fiscal",
+                mediaData: {
+                  mediaUrl: "https://hcc.chatconquista.com/videos/tutorial-anexar-nota.MOV",
+                  caption: "📹 Tutorial: Como anexar sua nota fiscal no portal"
+                }
+              };
+              
+              await fetch(config.api_url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${config.auth_token}`
+                },
+                body: JSON.stringify(videoPayload)
+              });
+              console.log('[Background] Vídeo tutorial enviado após template');
+            } catch (videoError) {
+              console.warn('[Background] Erro ao enviar vídeo:', videoError);
+            }
             break;
           
           case 'encaminhar_nota':
-            message = `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá, ${nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`;
+            message = `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá, ${nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Enviamos um vídeo explicativo mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`;
+            
+            // Primeiro enviar o vídeo
+            const videoPayload = {
+              number: phoneNumber,
+              body: "🎥 Vídeo Tutorial - Como Anexar Nota Fiscal",
+              mediaData: {
+                mediaUrl: "https://hcc.chatconquista.com/videos/tutorial-anexar-nota.MOV",
+                caption: "📹 Tutorial: Como anexar sua nota fiscal no portal"
+              }
+            };
+            
+            try {
+              await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${config.auth_token}`
+                },
+                body: JSON.stringify(videoPayload)
+              });
+              console.log('[Background] Vídeo tutorial enviado');
+            } catch (videoError) {
+              console.warn('[Background] Erro ao enviar vídeo:', videoError);
+            }
+            
             payload = {
               body: message,
               number: phoneNumber,

@@ -421,6 +421,18 @@ export default function DashboardMedicos() {
       return;
     }
 
+    const valorLiquidoNum = parseFloat(valorLiquido);
+    const valorBrutoNum = selectedPagamento.valor;
+
+    if (valorLiquidoNum > valorBrutoNum) {
+      toast({
+        title: "Erro",
+        description: "O valor líquido não pode ser maior que o valor bruto",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUploading(true);
     setShowConfirmUpload(false);
     

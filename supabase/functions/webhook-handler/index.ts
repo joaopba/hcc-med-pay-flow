@@ -131,8 +131,29 @@ serve(async (req) => {
           throw new Error('Configurações não encontradas');
         }
 
+        // Primeiro enviar o vídeo tutorial
+        const videoPayload = {
+          number: from,
+          body: "🎥 Vídeo Tutorial - Como Anexar Nota Fiscal",
+          mediaData: {
+            mediaUrl: "https://hcc.chatconquista.com/videos/tutorial-anexar-nota.MOV",
+            caption: "📹 Tutorial: Como anexar sua nota fiscal no portal"
+          }
+        };
+
+        console.log('Enviando vídeo tutorial:', videoPayload);
+
+        await fetch(config.api_url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${config.auth_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(videoPayload),
+        });
+
         const messagePayload = {
-          body: "🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá! Para agilizar seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal: https://hcc.chatconquista.com/dashboard-medicos\n\nPasso a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Faça upload do PDF (máx. 10MB)\n\nDicas:\n• Envie o documento legível e completo\n• Confira os dados antes de enviar\n\nApós o envio, você receberá confirmação e será avisado sobre a análise.",
+          body: "🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá! Para agilizar seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal: https://hcc.chatconquista.com/dashboard-medicos\n\nPasso a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Faça upload do PDF (máx. 10MB)\n\nDicas:\n• Envie o documento legível e completo\n• Confira os dados antes de enviar\n\n📹 Enviamos um vídeo explicativo mostrando como anexar sua nota passo a passo!\n\nApós o envio, você receberá confirmação e será avisado sobre a análise.",
           number: from,
           externalKey: `nota_request_button_${Date.now()}`,
           isClosed: false
@@ -274,9 +295,30 @@ serve(async (req) => {
           throw new Error('Configurações não encontradas');
         }
 
+        // Primeiro enviar o vídeo tutorial
+        const videoPayload = {
+          number: from,
+          body: "🎥 Vídeo Tutorial - Como Anexar Nota Fiscal",
+          mediaData: {
+            mediaUrl: "https://hcc.chatconquista.com/videos/tutorial-anexar-nota.MOV",
+            caption: "📹 Tutorial: Como anexar sua nota fiscal no portal"
+          }
+        };
+
+        console.log('Enviando vídeo tutorial:', videoPayload);
+
+        await fetch(config.api_url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${config.auth_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(videoPayload),
+        });
+
         // Enviar mensagem com o link do portal
         const linkPayload = {
-          body: `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá ${medico.nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Envie o arquivo PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Envie o documento completo e sem senha\n• Revise os dados antes de enviar\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`,
+          body: `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá ${medico.nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Envie o arquivo PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Envie o documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Enviamos um vídeo explicativo mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`,
           number: from,
           externalKey: `encaminhar_nota_${Date.now()}`,
           isClosed: false
