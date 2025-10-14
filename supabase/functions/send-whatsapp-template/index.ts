@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface WhatsAppRequest {
-  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'encaminhar_nota' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro' | 'nota_aprovacao';
+  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro' | 'nota_aprovacao';
   numero?: string;
   nome?: string;
   valor?: string;
@@ -125,134 +125,51 @@ serve(async (req) => {
 
         switch (type) {
           case 'nota':
-            // Para o tipo 'nota', enviar o template COM o vídeo anexado na mesma mensagem
-            const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
-            const videoBlob = await videoResponse.blob();
-            
-            const form = new FormData();
-            form.append('number', phoneNumber || '');
-            form.append('body', `🏥 *Solicitação de Nota Fiscal - HCC Hospital*\n\nOlá, ${nome}!\n\nPara darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`);
-            form.append('externalKey', `nota_${pagamentoId || Date.now()}_${Date.now()}`);
-            form.append('isClosed', 'false');
-            form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
-            
-            // Enviar mensagem com vídeo anexado
-            const response = await fetch(config.api_url, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${config.auth_token}`
-              },
-              body: form
-            });
-            
-            console.log('[Background] Mensagem de solicitação com vídeo enviada:', response.status);
-            
-            const contentType = response.headers.get('content-type');
-            let responseData: any;
-            
-            if (contentType?.includes('application/json')) {
-              responseData = await response.json();
-            } else {
-              const textResponse = await response.text();
-              console.error('[Background] Resposta não é JSON:', textResponse.substring(0, 500));
-              throw new Error(`API retornou resposta não-JSON (${response.status})`);
-            }
-            
-            console.log('[Background] Resposta da API:', responseData);
-            
-            // Verificar erros
-            const isDuplicateContactError = responseData.message && 
-              (responseData.message.includes('SequelizeUniqueConstraintError') ||
-               responseData.message.includes('contacts_number_tenantid'));
-            
-            const hasError = !response.ok || 
-                             responseData.error || 
-                             (responseData.message && (
-                               responseData.message.includes('error') ||
-                               responseData.message.includes('Error') ||
-                               responseData.message.toLowerCase().includes('sent error')
-                             ));
-            
-            if (hasError && !isDuplicateContactError) {
-              const errorMsg = responseData.message || responseData.error || JSON.stringify(responseData);
-              console.error('[Background] Erro ao enviar:', errorMsg);
-              throw new Error(`Erro ao enviar WhatsApp: ${errorMsg}`);
-            }
-            
-            if (isDuplicateContactError) {
-              console.warn('[Background] Contato duplicado ignorado');
-            }
-            
-            // Log da mensagem
-            if (pagamentoId) {
-              try {
-                await supabase
-                  .from('message_logs')
-                  .insert([{
-                    pagamento_id: pagamentoId,
-                    tipo: `whatsapp_${type}`,
-                    payload: { number: phoneNumber, hasVideo: true },
-                    success: true,
-                    response: responseData
-                  }]);
-              } catch (logError) {
-                console.warn('[Background] Erro ao registrar log:', logError);
-              }
-            }
-            
-            console.log('[Background] Envio concluído com sucesso');
-            
-            // Retornar para pular o envio padrão no final
-            return;
-            break;
-          
-          case 'encaminhar_nota':
-            // Enviar mensagem com vídeo anexado
-            const videoRespEnc = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
-            const videoBlobEnc = await videoRespEnc.blob();
-            
-            const formEnc = new FormData();
-            formEnc.append('number', phoneNumber || '');
-            formEnc.append('body', `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá, ${nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: R$ ${valor}\n📅 Competência: ${competencia}\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em "Anexar Nota Fiscal"\n4) Envie o PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`);
-            formEnc.append('externalKey', `encaminhar_nota_${pagamentoId || Date.now()}_${Date.now()}`);
-            formEnc.append('isClosed', 'false');
-            formEnc.append('media', videoBlobEnc, 'tutorial-anexar-nota.mp4');
-            
-            const responseEnc = await fetch(config.api_url, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${config.auth_token}`
-              },
-              body: formEnc
-            });
-            
-            const responseDataEnc = await responseEnc.json();
-            console.log('[Background] Mensagem de encaminhamento com vídeo enviada:', responseDataEnc);
-            
-            // Log da mensagem
-            if (pagamentoId) {
-              try {
-                await supabase
-                  .from('message_logs')
-                  .insert([{
-                    pagamento_id: pagamentoId,
-                    tipo: `whatsapp_${type}`,
-                    payload: { number: phoneNumber, hasVideo: true },
-                    success: responseEnc.ok,
-                    response: responseDataEnc
-                  }]);
-              } catch (logError) {
-                console.warn('[Background] Erro ao registrar log:', logError);
-              }
-            }
-            
-            return;
-            break;
-          
-          case 'pagamento':
+            // Enviar apenas o template do Facebook com botões
             const within24Hours = medico_id ? await checkLast24Hours(supabase, medico_id) : false;
             
             if (within24Hours) {
+              console.log('[Background] Dentro da janela de 24h - enviando mensagem livre');
+              message = `🏥 *Solicitação de Nota Fiscal - HCC Hospital*\n\nOlá, ${nome}!\n\nPara darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: ${valor}\n📅 Competência: ${competencia}\n\nClique no botão abaixo para receber as instruções de como enviar.`;
+              payload = {
+                body: message,
+                number: phoneNumber,
+                externalKey: `${type}_${pagamentoId || Date.now()}_${Date.now()}`,
+                isClosed: false
+              };
+            } else {
+              console.log('[Background] Fora da janela de 24h - usando template "nota"');
+              payload = {
+                number: phoneNumber,
+                isClosed: false,
+                templateData: {
+                  messaging_product: "whatsapp",
+                  to: phoneNumber,
+                  type: "template",
+                  template: {
+                    name: "nota",
+                    language: { code: "pt_BR" },
+                    components: [
+                      { 
+                        type: "body", 
+                        parameters: [
+                          { type: "text", text: nome },
+                          { type: "text", text: valor },
+                          { type: "text", text: competencia }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              };
+              apiUrl = config.api_url + '/template';
+            }
+            break;
+          
+          case 'pagamento':
+            const within24HoursPagamento = medico_id ? await checkLast24Hours(supabase, medico_id) : false;
+            
+            if (within24HoursPagamento) {
               console.log('[Background] Dentro da janela de 24h - enviando mensagem livre');
               message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
               payload = {
@@ -306,7 +223,7 @@ serve(async (req) => {
             const valorBrutoFormatado = valorBruto ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorBruto) : valor;
             const valorLiquidoFormatado = valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado';
             
-            const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n📅 Competência: ${competencia}\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
+            const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n   ⚠️ *Valor informado pelo médico - VERIFICAR*\n📅 Competência: ${competencia}\n\n⚡ *IMPORTANTE:* Confira se o valor líquido está correto antes de aprovar!\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
             const derivedFileName = (pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`);
             
             payload = {
