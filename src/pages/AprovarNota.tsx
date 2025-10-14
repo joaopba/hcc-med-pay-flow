@@ -208,16 +208,16 @@ export default function AprovarNota() {
           <Card className="p-6 mb-6 bg-blue-50 border-blue-200">
             <div className="space-y-4">
               <div>
-                <Label className="text-sm text-blue-700 mb-1">Médico</Label>
-                <p className="font-semibold text-lg">{medicoNome}</p>
+                <Label className="text-sm text-blue-900 mb-1">Médico</Label>
+                <p className="font-semibold text-lg text-gray-900">{medicoNome}</p>
               </div>
               <div>
-                <Label className="text-sm text-blue-700 mb-1">Competência</Label>
-                <p className="font-semibold text-lg">{notaData.mes_competencia}</p>
+                <Label className="text-sm text-blue-900 mb-1">Competência</Label>
+                <p className="font-semibold text-lg text-gray-900">{notaData.mes_competencia}</p>
               </div>
               <div>
-                <Label className="text-sm text-blue-700 mb-1">Valor Bruto</Label>
-                <p className="font-semibold text-lg">
+                <Label className="text-sm text-blue-900 mb-1">Valor Bruto</Label>
+                <p className="font-semibold text-lg text-gray-900">
                   R$ {notaData.valor ? parseFloat(notaData.valor).toFixed(2).replace('.', ',') : '0,00'}
                 </p>
               </div>
@@ -248,12 +248,12 @@ export default function AprovarNota() {
               href={notaData.arquivo_url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 underline font-medium text-sm flex items-center justify-center gap-2 mb-4"
+              className="text-blue-900 hover:text-blue-800 underline font-medium text-sm flex items-center justify-center gap-2 mb-4"
             >
-              📄 Abrir Nota Fiscal para Conferência
+              📄 <span className="text-blue-900">Abrir Nota Fiscal para Conferência</span>
             </a>
 
-            <Label htmlFor="valorDigitado" className="block mb-2 font-semibold">
+            <Label htmlFor="valorDigitado" className="block mb-2 font-semibold text-gray-900">
               Digite o valor líquido que você vê na nota fiscal:
             </Label>
             <Input
@@ -265,7 +265,7 @@ export default function AprovarNota() {
                 setValorDigitado(e.target.value);
                 setValorError(false);
               }}
-              className={`text-lg ${valorError ? 'border-red-500 bg-red-50' : ''}`}
+              className={`text-lg text-gray-900 ${valorError ? 'border-red-500 bg-red-50' : ''}`}
             />
             {valorError && (
               <p className="text-red-600 text-sm mt-2 font-semibold">
