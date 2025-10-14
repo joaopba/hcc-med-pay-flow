@@ -205,19 +205,20 @@ export default function AprovarNota() {
             <p className="text-gray-800">Verifique o valor líquido antes de aprovar</p>
           </div>
 
-          <Card className="p-6 mb-6 bg-blue-50 border-blue-200">
+          {/* CORRIGIDO: Força o texto escuro no Card principal */}
+          <Card className="p-6 mb-6 bg-blue-50 border-blue-200 text-gray-900">
             <div className="space-y-4">
               <div>
                 <Label className="text-sm text-blue-900 mb-1">Médico</Label>
-                <p className="font-semibold text-lg text-gray-900">{medicoNome}</p>
+                <p className="font-semibold text-lg">{medicoNome}</p>
               </div>
               <div>
                 <Label className="text-sm text-blue-900 mb-1">Competência</Label>
-                <p className="font-semibold text-lg text-gray-900">{notaData.mes_competencia}</p>
+                <p className="font-semibold text-lg">{notaData.mes_competencia}</p>
               </div>
               <div>
                 <Label className="text-sm text-blue-900 mb-1">Valor Bruto</Label>
-                <p className="font-semibold text-lg text-gray-900">
+                <p className="font-semibold text-lg">
                   R$ {notaData.valor ? parseFloat(notaData.valor).toFixed(2).replace('.', ',') : '0,00'}
                 </p>
               </div>
