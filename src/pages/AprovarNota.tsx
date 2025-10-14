@@ -167,7 +167,7 @@ export default function AprovarNota() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Carregando dados...
           </h1>
-          <p className="text-gray-800">Aguarde um momento</p>
+          <p className="text-gray-900">Aguarde um momento</p>
         </div>
       </div>
     );
@@ -181,7 +181,7 @@ export default function AprovarNota() {
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erro ao processar
           </h1>
-          <p className="text-gray-800 mb-6">{error}</p>
+          <p className="text-gray-900 mb-6">{error}</p>
           <button
             onClick={() => navigate('/')}
             className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
@@ -202,7 +202,7 @@ export default function AprovarNota() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Confirmar Aprovação da Nota
             </h1>
-            <p className="text-gray-600">Verifique o valor líquido antes de aprovar</p>
+            <p className="text-gray-800">Verifique o valor líquido antes de aprovar</p>
           </div>
 
           <Card className="p-6 mb-6 bg-blue-50 border-blue-200">
@@ -229,14 +229,14 @@ export default function AprovarNota() {
               <AlertCircle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-1" />
               <div>
                 <h3 className="font-bold text-amber-900 mb-1">Atenção: Verificação Obrigatória</h3>
-                <p className="text-sm text-amber-800">
+                <p className="text-sm text-amber-900">
                   O médico informou o valor líquido abaixo. Por favor, <strong>confira na nota fiscal</strong> se o valor está correto e digite-o no campo abaixo para confirmar.
                 </p>
               </div>
             </div>
             
             <div className="bg-white p-4 rounded-lg border-2 border-amber-400">
-              <Label className="text-sm text-amber-700 mb-1">Valor Líquido Informado pelo Médico</Label>
+              <Label className="text-sm text-amber-900 mb-1">Valor Líquido Informado pelo Médico</Label>
               <p className="text-3xl font-bold text-amber-900">
                 R$ {notaData.valor_liquido ? parseFloat(notaData.valor_liquido).toFixed(2).replace('.', ',') : '0,00'}
               </p>
@@ -304,7 +304,7 @@ export default function AprovarNota() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
-            <span className="text-xs text-gray-600">Desenvolvido por</span>
+            <span className="text-xs text-gray-800">Desenvolvido por</span>
             <img 
               src={conquistaLogo} 
               alt="Conquista Inovação" 
@@ -328,11 +328,11 @@ export default function AprovarNota() {
           </h1>
           {medicoNome && (
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 mb-6 text-left border border-green-200 dark:border-green-800">
-              <p className="text-sm text-green-700 dark:text-green-400 mb-1">Médico</p>
-              <p className="font-semibold text-lg text-gray-900 dark:text-gray-100">{medicoNome}</p>
+              <p className="text-sm text-green-700 dark:text-green-800 mb-1">Médico</p>
+              <p className="font-semibold text-lg text-gray-900 dark:text-gray-900">{medicoNome}</p>
             </div>
           )}
-          <p className="text-gray-800 mb-8">
+          <p className="text-gray-900 mb-8">
             O pagamento será processado em breve e o médico foi notificado via WhatsApp.
           </p>
           <button
@@ -343,7 +343,7 @@ export default function AprovarNota() {
           </button>
           
           <div className="mt-8 pt-6 border-t border-border/30 flex flex-col items-center gap-2">
-            <span className="text-xs text-gray-600">Desenvolvido por</span>
+            <span className="text-xs text-gray-800">Desenvolvido por</span>
             <img 
               src={conquistaLogo} 
               alt="Conquista Inovação" 
