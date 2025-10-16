@@ -36,13 +36,16 @@ interface NotaMedico {
   observacoes: string;
   created_at: string;
   updated_at: string;
+  valor_ajustado?: number;
+  motivo_ajuste?: string;
   medicos: {
     nome: string;
-    cpf: string;
+    documento: string;
   };
   pagamentos: {
     mes_competencia: string;
     valor: number;
+    valor_liquido?: number;
   };
 }
 
@@ -62,6 +65,9 @@ export default function NotasAprovacao() {
   const [selectedNota, setSelectedNota] = useState<NotaMedico | null>(null);
   const [filtroMes, setFiltroMes] = useState<string>(getDefaultMonth());
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [editingValor, setEditingValor] = useState(false);
+  const [novoValorLiquido, setNovoValorLiquido] = useState("");
+  const [motivoAjuste, setMotivoAjuste] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -124,10 +130,10 @@ export default function NotasAprovacao() {
       // 2) Buscar médicos e pagamentos necessários
       const [medicosRes, pagamentosRes] = await Promise.all([
         medicoIds.length
-          ? supabase.from("medicos").select("id, nome, cpf").in("id", medicoIds)
+          ? supabase.from("medicos").select("id, nome, documento").in("id", medicoIds)
           : Promise.resolve({ data: [], error: null } as any),
         pagamentoIds.length
-          ? supabase.from("pagamentos").select("id, mes_competencia, valor").in("id", pagamentoIds)
+          ? supabase.from("pagamentos").select("id, mes_competencia, valor, valor_liquido").in("id", pagamentoIds)
           : Promise.resolve({ data: [], error: null } as any),
       ]);
 
@@ -142,11 +148,12 @@ export default function NotasAprovacao() {
         ...n,
         medicos: {
           nome: medicosMap.get(n.medico_id)?.nome || '—',
-          cpf: medicosMap.get(n.medico_id)?.cpf || ''
+          documento: medicosMap.get(n.medico_id)?.documento || ''
         },
         pagamentos: {
           mes_competencia: pagamentosMap.get(n.pagamento_id)?.mes_competencia || '',
-          valor: pagamentosMap.get(n.pagamento_id)?.valor || 0
+          valor: pagamentosMap.get(n.pagamento_id)?.valor || 0,
+          valor_liquido: pagamentosMap.get(n.pagamento_id)?.valor_liquido
         }
       }));
 
@@ -161,6 +168,109 @@ export default function NotasAprovacao() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAjustarValor = async (notaId: string) => {
+    if (!novoValorLiquido || !motivoAjuste.trim()) {
+      toast({
+        title: "Erro",
+        description: "Informe o novo valor líquido e o motivo do ajuste",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const nota = notas.find(n => n.id === notaId);
+      if (!nota) return;
+
+      const valorAjustadoNum = parseFloat(novoValorLiquido);
+
+      if (isNaN(valorAjustadoNum) || valorAjustadoNum <= 0) {
+        toast({
+          title: "Erro",
+          description: "Informe um valor válido",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (valorAjustadoNum > nota.pagamentos.valor) {
+        toast({
+          title: "Erro",
+          description: "O valor líquido não pode ser maior que o valor bruto",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Buscar o profile do usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single();
+
+      // Atualizar nota com ajuste
+      const { error: notaError } = await supabase
+        .from("notas_medicos")
+        .update({ 
+          valor_ajustado: valorAjustadoNum,
+          motivo_ajuste: motivoAjuste,
+          ajustado_por: profile?.id,
+          ajustado_em: new Date().toISOString()
+        })
+        .eq("id", notaId);
+
+      if (notaError) throw notaError;
+
+      // Atualizar pagamento com novo valor líquido
+      const { error: pagamentoError } = await supabase
+        .from("pagamentos")
+        .update({ valor_liquido: valorAjustadoNum })
+        .eq("id", nota.pagamento_id);
+
+      if (pagamentoError) throw pagamentoError;
+
+      // Buscar dados do médico
+      const { data: medicoData } = await supabase
+        .from("medicos")
+        .select("*")
+        .eq("id", nota.medico_id)
+        .single();
+
+      // Notificar médico sobre ajuste
+      await supabase.functions.invoke('send-whatsapp-template', {
+        body: {
+          type: 'nota_recebida',
+          medico: {
+            nome: nota.medicos.nome,
+            numero_whatsapp: medicoData?.numero_whatsapp
+          },
+          competencia: nota.pagamentos.mes_competencia,
+          valor: nota.pagamentos.valor,
+          pagamentoId: nota.pagamento_id
+        }
+      });
+
+      toast({
+        title: "Sucesso",
+        description: "Valor ajustado e médico notificado!",
+      });
+
+      setEditingValor(false);
+      setNovoValorLiquido("");
+      setMotivoAjuste("");
+      loadNotas();
+    } catch (error) {
+      console.error("Erro ao ajustar valor:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao ajustar valor",
+        variant: "destructive",
+      });
     }
   };
 
@@ -424,9 +534,10 @@ export default function NotasAprovacao() {
           <TableHeader>
             <TableRow>
               <TableHead>Médico</TableHead>
-              <TableHead>CPF</TableHead>
+              <TableHead>CPF/CNPJ</TableHead>
               <TableHead>Competência</TableHead>
-              <TableHead>Valor</TableHead>
+              <TableHead>Valor Bruto</TableHead>
+              <TableHead>Valor Líquido</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Data Envio</TableHead>
               <TableHead>Ações</TableHead>
@@ -437,8 +548,10 @@ export default function NotasAprovacao() {
               <TableRow key={nota.id}>
                 <TableCell className="font-medium">{nota.medicos.nome}</TableCell>
                 <TableCell>
-                  {nota.medicos.cpf ? 
-                    nota.medicos.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') 
+                  {nota.medicos.documento ? 
+                    nota.medicos.documento.length === 11
+                      ? nota.medicos.documento.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+                      : nota.medicos.documento.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
                     : 'N/A'
                   }
                 </TableCell>
@@ -446,6 +559,14 @@ export default function NotasAprovacao() {
                   {formatMesCompetencia(nota.pagamentos.mes_competencia)}
                 </TableCell>
                 <TableCell>{formatCurrency(nota.pagamentos.valor)}</TableCell>
+                <TableCell>
+                  {nota.valor_ajustado 
+                    ? <span className="text-warning">{formatCurrency(nota.valor_ajustado)} *</span>
+                    : nota.pagamentos.valor_liquido 
+                      ? formatCurrency(nota.pagamentos.valor_liquido)
+                      : 'Não informado'
+                  }
+                </TableCell>
                 <TableCell>{getStatusBadge(nota.status)}</TableCell>
                 <TableCell>
                   {new Date(nota.created_at).toLocaleDateString('pt-BR')}
@@ -479,9 +600,66 @@ export default function NotasAprovacao() {
                             <div>
                               <p><strong>Médico:</strong> {nota.medicos.nome}</p>
                               <p><strong>Competência:</strong> {formatMesCompetencia(nota.pagamentos.mes_competencia)}</p>
-                              <p><strong>Valor:</strong> {formatCurrency(nota.pagamentos.valor)}</p>
+                              <p><strong>Valor Bruto:</strong> {formatCurrency(nota.pagamentos.valor)}</p>
+                              <p><strong>Valor Líquido:</strong> {nota.valor_ajustado ? formatCurrency(nota.valor_ajustado) + ' (Ajustado)' : nota.pagamentos.valor_liquido ? formatCurrency(nota.pagamentos.valor_liquido) : 'Não informado'}</p>
                               <p><strong>Arquivo:</strong> {nota.nome_arquivo}</p>
+                              {nota.valor_ajustado && nota.motivo_ajuste && (
+                                <div className="mt-2 p-2 bg-warning/10 rounded">
+                                  <p><strong>Motivo do Ajuste:</strong> {nota.motivo_ajuste}</p>
+                                </div>
+                              )}
                             </div>
+
+                            {editingValor && (
+                              <div className="space-y-2 p-3 border rounded">
+                                <Label htmlFor="novoValorLiquido">Novo Valor Líquido</Label>
+                                <Input
+                                  id="novoValorLiquido"
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={novoValorLiquido}
+                                  onChange={(e) => setNovoValorLiquido(e.target.value)}
+                                />
+                                <Label htmlFor="motivoAjuste">Motivo do Ajuste</Label>
+                                <Textarea
+                                  id="motivoAjuste"
+                                  placeholder="Descreva o motivo do ajuste..."
+                                  value={motivoAjuste}
+                                  onChange={(e) => setMotivoAjuste(e.target.value)}
+                                  rows={2}
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAjustarValor(nota.id)}
+                                  >
+                                    Confirmar Ajuste
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingValor(false);
+                                      setNovoValorLiquido("");
+                                      setMotivoAjuste("");
+                                    }}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+
+                            {!editingValor && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingValor(true)}
+                              >
+                                Ajustar Valor Líquido
+                              </Button>
+                            )}
 
                             <div className="space-y-2">
                               <Label htmlFor="observacoes">Observações</Label>

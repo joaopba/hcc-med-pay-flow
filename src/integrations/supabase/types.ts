@@ -166,32 +166,38 @@ export type Database = {
       medicos: {
         Row: {
           ativo: boolean
-          cpf: string | null
           created_at: string
+          documento: string | null
           especialidade: string | null
           id: string
           nome: string
           numero_whatsapp: string
+          numero_whatsapp_contador: string | null
+          tipo_pessoa: string | null
           updated_at: string
         }
         Insert: {
           ativo?: boolean
-          cpf?: string | null
           created_at?: string
+          documento?: string | null
           especialidade?: string | null
           id?: string
           nome: string
           numero_whatsapp: string
+          numero_whatsapp_contador?: string | null
+          tipo_pessoa?: string | null
           updated_at?: string
         }
         Update: {
           ativo?: boolean
-          cpf?: string | null
           created_at?: string
+          documento?: string | null
           especialidade?: string | null
           id?: string
           nome?: string
           numero_whatsapp?: string
+          numero_whatsapp_contador?: string | null
+          tipo_pessoa?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -260,39 +266,58 @@ export type Database = {
       }
       notas_medicos: {
         Row: {
+          ajustado_em: string | null
+          ajustado_por: string | null
           arquivo_url: string
           created_at: string
           id: string
           medico_id: string
+          motivo_ajuste: string | null
           nome_arquivo: string
           observacoes: string | null
           pagamento_id: string
           status: string
           updated_at: string
+          valor_ajustado: number | null
         }
         Insert: {
+          ajustado_em?: string | null
+          ajustado_por?: string | null
           arquivo_url: string
           created_at?: string
           id?: string
           medico_id: string
+          motivo_ajuste?: string | null
           nome_arquivo: string
           observacoes?: string | null
           pagamento_id: string
           status?: string
           updated_at?: string
+          valor_ajustado?: number | null
         }
         Update: {
+          ajustado_em?: string | null
+          ajustado_por?: string | null
           arquivo_url?: string
           created_at?: string
           id?: string
           medico_id?: string
+          motivo_ajuste?: string | null
           nome_arquivo?: string
           observacoes?: string | null
           pagamento_id?: string
           status?: string
           updated_at?: string
+          valor_ajustado?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "notas_medicos_ajustado_por_fkey"
+            columns: ["ajustado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notas_medicos_medico_id_fkey"
             columns: ["medico_id"]

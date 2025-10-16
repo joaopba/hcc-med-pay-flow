@@ -26,12 +26,12 @@ serve(async (req) => {
 
     const cpfNumeros = cpf.replace(/\D/g, '');
 
-    // Buscar médico ativo por CPF
+    // Buscar médico ativo por documento (CPF ou CNPJ)
     const { data: medico, error: medicoError } = await supabase
       .from('medicos')
       .select('*')
       .eq('ativo', true)
-      .eq('cpf', cpfNumeros)
+      .eq('documento', cpfNumeros)
       .maybeSingle();
 
     if (medicoError) throw medicoError;

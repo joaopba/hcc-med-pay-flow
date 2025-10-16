@@ -56,12 +56,12 @@ export default function NotasMedicos() {
 
     setLoading(true);
     try {
-      // Buscar médico pelo CPF
+      // Buscar médico pelo documento (CPF ou CNPJ)
       const cpfNumeros = cpf.replace(/\D/g, '');
       const { data: medicoData, error: medicoError } = await supabase
         .from("medicos")
         .select("*")
-        .eq("cpf", cpfNumeros)
+        .eq("documento", cpfNumeros)
         .eq("ativo", true)
         .single();
 

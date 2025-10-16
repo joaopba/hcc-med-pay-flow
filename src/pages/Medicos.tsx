@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Edit, Trash2, FileSpreadsheet } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -30,8 +31,10 @@ interface Medico {
   id: string;
   nome: string;
   numero_whatsapp: string;
+  numero_whatsapp_contador?: string;
   especialidade: string;
-  cpf: string;
+  documento: string;
+  tipo_pessoa: string;
   ativo: boolean;
 }
 
@@ -48,8 +51,10 @@ export default function Medicos() {
   const [formData, setFormData] = useState({
     nome: "",
     numero_whatsapp: "",
+    numero_whatsapp_contador: "",
     especialidade: "",
-    cpf: "",
+    documento: "",
+    tipo_pessoa: "CPF",
   });
 
   useEffect(() => {
@@ -121,7 +126,7 @@ export default function Medicos() {
 
       setShowDialog(false);
       setEditingMedico(null);
-      setFormData({ nome: "", numero_whatsapp: "", especialidade: "", cpf: "" });
+      setFormData({ nome: "", numero_whatsapp: "", numero_whatsapp_contador: "", especialidade: "", documento: "", tipo_pessoa: "CPF" });
       loadMedicos();
     } catch (error) {
       console.error("Erro ao salvar médico:", error);
@@ -140,8 +145,10 @@ export default function Medicos() {
     setFormData({
       nome: medico.nome,
       numero_whatsapp: medico.numero_whatsapp,
+      numero_whatsapp_contador: medico.numero_whatsapp_contador || "",
       especialidade: medico.especialidade || "",
-      cpf: medico.cpf || "",
+      documento: medico.documento || "",
+      tipo_pessoa: medico.tipo_pessoa || "CPF",
     });
     setShowDialog(true);
   };
@@ -176,8 +183,10 @@ export default function Medicos() {
       const medicosData = data.map(row => ({
         nome: row.nome || row.Nome,
         numero_whatsapp: row.numero_whatsapp || row.WhatsApp || row.whatsapp,
+        numero_whatsapp_contador: row.numero_whatsapp_contador || row.whatsapp_contador || "",
         especialidade: row.especialidade || row.Especialidade || "",
-        cpf: row.cpf || row.CPF || ""
+        documento: row.documento || row.Documento || row.cpf || row.CPF || row.cnpj || row.CNPJ || "",
+        tipo_pessoa: row.tipo_pessoa || row.tipo || (row.cnpj || row.CNPJ ? "CNPJ" : "CPF")
       }));
 
       const { error } = await supabase
@@ -198,14 +207,18 @@ export default function Medicos() {
     {
       nome: "Dr. João Silva",
       numero_whatsapp: "5511999999999",
+      numero_whatsapp_contador: "5511988888888",
       especialidade: "Cardiologia",
-      cpf: "12345678900"
+      documento: "12345678900",
+      tipo_pessoa: "CPF"
     },
     {
-      nome: "Dra. Maria Santos",
-      numero_whatsapp: "5511888888888", 
-      especialidade: "Pediatria",
-      cpf: "98765432100"
+      nome: "Clínica ABC Ltda",
+      numero_whatsapp: "5511777777777",
+      numero_whatsapp_contador: "",
+      especialidade: "Radiologia",
+      documento: "12345678000190",
+      tipo_pessoa: "CNPJ"
     }
   ];
 
@@ -234,7 +247,7 @@ export default function Medicos() {
                   onImport={handleExcelImport}
                   templateData={getTemplateData()}
                   templateFilename="modelo-medicos.xlsx"
-                  expectedColumns={["nome", "numero_whatsapp", "cpf"]}
+                  expectedColumns={["nome", "numero_whatsapp", "documento", "tipo_pessoa"]}
                   title="Importação de Médicos"
                 />
               </DialogContent>
@@ -244,7 +257,7 @@ export default function Medicos() {
               <DialogTrigger asChild>
                 <Button onClick={() => {
                   setEditingMedico(null);
-                  setFormData({ nome: "", numero_whatsapp: "", especialidade: "", cpf: "" });
+                  setFormData({ nome: "", numero_whatsapp: "", numero_whatsapp_contador: "", especialidade: "", documento: "", tipo_pessoa: "CPF" });
                 }} className="btn-gradient-primary gap-2 w-full sm:w-auto">
                   <Plus className="h-4 w-4" />
                   Novo Médico
@@ -267,7 +280,29 @@ export default function Medicos() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="numero_whatsapp">Número WhatsApp</Label>
+                  <Label htmlFor="tipo_pessoa">Tipo de Pessoa</Label>
+                  <Select value={formData.tipo_pessoa} onValueChange={(value) => setFormData({ ...formData, tipo_pessoa: value })}>
+                    <SelectTrigger id="tipo_pessoa">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CPF">CPF - Pessoa Física</SelectItem>
+                      <SelectItem value="CNPJ">CNPJ - Pessoa Jurídica</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="documento">{formData.tipo_pessoa === "CNPJ" ? "CNPJ" : "CPF"}</Label>
+                  <Input
+                    id="documento"
+                    value={formData.documento}
+                    onChange={(e) => setFormData({ ...formData, documento: e.target.value.replace(/\D/g, '') })}
+                    placeholder={formData.tipo_pessoa === "CNPJ" ? "00000000000000" : "00000000000"}
+                    maxLength={formData.tipo_pessoa === "CNPJ" ? 14 : 11}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="numero_whatsapp">Número WhatsApp (Médico)</Label>
                   <Input
                     id="numero_whatsapp"
                     value={formData.numero_whatsapp}
@@ -277,21 +312,20 @@ export default function Medicos() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="numero_whatsapp_contador">WhatsApp Contador (Opcional)</Label>
+                  <Input
+                    id="numero_whatsapp_contador"
+                    value={formData.numero_whatsapp_contador}
+                    onChange={(e) => setFormData({ ...formData, numero_whatsapp_contador: e.target.value })}
+                    placeholder="5511988888888"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="especialidade">Especialidade</Label>
                   <Input
                     id="especialidade"
                     value={formData.especialidade}
                     onChange={(e) => setFormData({ ...formData, especialidade: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cpf">CPF</Label>
-                  <Input
-                    id="cpf"
-                    value={formData.cpf}
-                    onChange={(e) => setFormData({ ...formData, cpf: e.target.value.replace(/\D/g, '') })}
-                    placeholder="00000000000"
-                    maxLength={11}
                   />
                 </div>
                 <div className="flex justify-end space-x-2">

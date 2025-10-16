@@ -292,7 +292,7 @@ serve(async (req) => {
 
         console.log('[Background] Enviando para API WhatsApp:', apiUrl);
 
-        // Enviar mensagem
+        // Enviar mensagem principal
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -316,6 +316,37 @@ serve(async (req) => {
         }
         
         console.log('[Background] Resposta da API:', responseData);
+
+        // Se houver número do contador e for uma notificação relevante, enviar também para ele
+        if (['nota', 'nota_aprovada', 'nota_rejeitada', 'nota_recebida'].includes(type) && medico_id) {
+          try {
+            const { data: medicoCompleto } = await supabase
+              .from('medicos')
+              .select('numero_whatsapp_contador')
+              .eq('id', medico_id)
+              .single();
+
+            if (medicoCompleto?.numero_whatsapp_contador) {
+              console.log('[Background] Enviando também para contador:', medicoCompleto.numero_whatsapp_contador);
+              
+              // Criar payload para contador com mesmo conteúdo
+              const payloadContador = { ...payload, number: medicoCompleto.numero_whatsapp_contador };
+              
+              await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${config.auth_token}`
+                },
+                body: JSON.stringify(payloadContador)
+              });
+              
+              console.log('[Background] Mensagem enviada para contador com sucesso');
+            }
+          } catch (error) {
+            console.error('[Background] Erro ao enviar para contador (não crítico):', error);
+          }
+        }
 
         // Verificar erros
         const isDuplicateContactError = responseData.message && 

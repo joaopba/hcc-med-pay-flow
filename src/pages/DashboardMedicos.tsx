@@ -111,10 +111,19 @@ export default function DashboardMedicos() {
   const { theme, setTheme } = useTheme();
 
   const formatCPF = (value: string) => {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-      .substr(0, 14);
+    const numeros = value.replace(/\D/g, '');
+    if (numeros.length === 11) {
+      // CPF
+      return numeros
+        .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+        .substr(0, 14);
+    } else if (numeros.length === 14) {
+      // CNPJ
+      return numeros
+        .replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+        .substr(0, 18);
+    }
+    return value;
   };
 
   useEffect(() => {
@@ -239,7 +248,7 @@ export default function DashboardMedicos() {
     if (!cpf || cpf.length < 14) {
       toast({
         title: "Erro",
-        description: "Digite um CPF válido",
+        description: "Digite um CPF/CNPJ válido",
         variant: "destructive",
       });
       return;
@@ -255,8 +264,8 @@ export default function DashboardMedicos() {
 
       if (fnError || !result?.medico) {
         toast({
-          title: "CPF não encontrado",
-          description: "Não encontramos um médico ativo com este CPF",
+          title: "CPF/CNPJ não encontrado",
+          description: "Não encontramos um médico ativo com este CPF/CNPJ",
           variant: "destructive",
         });
         return;
@@ -637,20 +646,20 @@ export default function DashboardMedicos() {
                 <div>
                   <CardTitle className="text-2xl gradient-text mb-2">Dashboard Médicos</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Digite seu CPF para visualizar suas informações
+                    Digite seu CPF ou CNPJ para visualizar suas informações
                   </p>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="cpf" className="text-sm font-medium">CPF</Label>
+                    <Label htmlFor="cpf" className="text-sm font-medium">CPF ou CNPJ</Label>
                     <Input
                       id="cpf"
-                      placeholder="000.000.000-00"
+                      placeholder="000.000.000-00 ou 00.000.000/0000-00"
                       value={cpf}
                       onChange={handleCPFChange}
-                      maxLength={14}
+                      maxLength={18}
                       className="text-lg text-center font-semibold"
                     />
                   </div>
