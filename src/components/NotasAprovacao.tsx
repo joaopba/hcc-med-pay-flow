@@ -241,16 +241,21 @@ export default function NotasAprovacao() {
         .eq("id", nota.medico_id)
         .single();
 
-      // Notificar médico sobre ajuste
+      // Notificar médico sobre ajuste de valor
       await supabase.functions.invoke('send-whatsapp-template', {
         body: {
-          type: 'nota_recebida',
+          type: 'valor_ajustado',
           medico: {
             nome: nota.medicos.nome,
             numero_whatsapp: medicoData?.numero_whatsapp
           },
+          medico_id: nota.medico_id,
           competencia: nota.pagamentos.mes_competencia,
-          valor: nota.pagamentos.valor,
+          valorOriginal: nota.pagamentos.valor_liquido 
+            ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(nota.pagamentos.valor_liquido) 
+            : 'N/A',
+          valorNovo: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorAjustadoNum),
+          motivo: motivoAjuste,
           pagamentoId: nota.pagamento_id
         }
       });

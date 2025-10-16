@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface WhatsAppRequest {
-  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro' | 'nota_aprovacao';
+  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro' | 'nota_aprovacao' | 'valor_ajustado';
   numero?: string;
   nome?: string;
   valor?: string;
@@ -32,6 +32,8 @@ interface WhatsAppRequest {
   financeiro_numero?: string;
   valorBruto?: number;
   valorLiquido?: number;
+  valorOriginal?: string;
+  valorNovo?: string;
 }
 
 // Função auxiliar para encurtar URL
@@ -77,7 +79,7 @@ serve(async (req) => {
     );
 
     const requestData: WhatsAppRequest = await req.json();
-    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero, valorBruto, valorLiquido } = requestData;
+    const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero, valorBruto, valorLiquido, valorOriginal, valorNovo } = requestData;
 
     // Função para processar o envio em background
     async function processarEnvio() {
@@ -286,6 +288,16 @@ serve(async (req) => {
             };
             break;
           
+          case 'valor_ajustado':
+            message = `⚠️ *Valor da Nota Ajustado*\n\nOlá ${medico?.nome}!\n\nO valor líquido da sua nota fiscal referente ao período ${competencia} foi ajustado.\n\n💰 Valor Original: ${valorOriginal}\n💵 Novo Valor: ${valorNovo}\n\n📝 *Motivo do Ajuste:*\n${motivo}\n\nSe tiver dúvidas, entre em contato conosco.`;
+            payload = {
+              body: message,
+              number: phoneNumber,
+              externalKey: `valor_ajustado_${medico_id}_${Date.now()}`,
+              isClosed: false
+            };
+            break;
+          
           default:
             throw new Error('Tipo de mensagem inválido');
         }
@@ -318,7 +330,7 @@ serve(async (req) => {
         console.log('[Background] Resposta da API:', responseData);
 
         // Se houver número do contador e for uma notificação relevante, enviar também para ele
-        if (['nota', 'nota_aprovada', 'nota_rejeitada', 'nota_recebida'].includes(type) && medico_id) {
+        if (['nota', 'nota_aprovada', 'nota_rejeitada', 'nota_recebida', 'valor_ajustado'].includes(type) && medico_id) {
           try {
             const { data: medicoCompleto } = await supabase
               .from('medicos')
