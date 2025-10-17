@@ -298,11 +298,16 @@ serve(async (req) => {
               console.log('Links - Aprovar:', approveUrl, 'Rejeitar:', rejectUrl, 'PDF:', shortPdfUrl);
               console.log('🗓️ DEBUG Competência na mensagem:', pagamento.mes_competencia, '->', formatMesCompetencia(pagamento.mes_competencia));
               
+              const valorLiquidoFormatado = pagamento.valor_liquido 
+                ? `R$ ${pagamento.valor_liquido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : 'Não informado';
+              
               const caption = `📋 Nova Nota - Análise
 
 Médico: ${(pagamento.medicos as any)?.nome}
 Competência: ${formatMesCompetencia(pagamento.mes_competencia)}
-Valor: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Valor Bruto: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Valor Líquido: ${valorLiquidoFormatado}
 
 ✅ Aprovar: ${approveUrl}
 ❌ Rejeitar: ${rejectUrl}`;

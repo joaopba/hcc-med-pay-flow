@@ -82,9 +82,26 @@ export default function AprovarNota() {
         setMedicoNome(medico.nome);
       }
 
+      // Extrair o path do arquivo da URL completa
+      const urlPath = nota.arquivo_url.split('/notas/')[1];
+      const pdfPath = urlPath ? urlPath.split('?')[0] : null;
+
+      // Gerar signed URL válida para o PDF
+      let signedPdfUrl = nota.arquivo_url;
+      if (pdfPath) {
+        const { data: urlData } = await supabase.storage
+          .from('notas')
+          .createSignedUrl(pdfPath, 3600); // 1 hora
+        
+        if (urlData?.signedUrl) {
+          signedPdfUrl = urlData.signedUrl;
+        }
+      }
+
       setNotaData({
         ...nota,
         ...pagamento,
+        arquivo_url: signedPdfUrl,
         token
       });
       setShowConfirmation(true);
