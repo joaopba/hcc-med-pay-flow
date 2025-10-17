@@ -41,7 +41,7 @@ serve(async (req) => {
         created_at,
         medicos(
           nome,
-          cpf,
+          documento,
           numero_whatsapp,
           especialidade
         )
@@ -81,7 +81,7 @@ serve(async (req) => {
         return {
           id: pagamento.id,
           medico_nome: medico?.nome || 'N/A',
-          medico_cpf: medico?.cpf || 'N/A',
+          medico_documento: medico?.documento || 'N/A',
           numero_whatsapp: medico?.numero_whatsapp || 'N/A',
           especialidade: medico?.especialidade || 'N/A',
           mes_competencia: pagamento.mes_competencia,
@@ -98,7 +98,7 @@ serve(async (req) => {
         return {
           id: pagamento.id,
           medico_nome: medico?.nome || 'N/A',
-          medico_cpf: medico?.cpf || 'N/A',
+          medico_documento: medico?.documento || 'N/A',
           mes_competencia: pagamento.mes_competencia,
           valor: pagamento.valor,
           data_resposta: pagamento.data_resposta,
@@ -114,7 +114,7 @@ serve(async (req) => {
         return {
           id: pagamento.id,
           medico_nome: medico?.nome || 'N/A',
-          medico_cpf: medico?.cpf || 'N/A',
+          medico_documento: medico?.documento || 'N/A',
           especialidade: medico?.especialidade || 'N/A',
           mes_competencia: pagamento.mes_competencia,
           valor_bruto: pagamento.valor,

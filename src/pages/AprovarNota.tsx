@@ -45,13 +45,21 @@ export default function AprovarNota() {
           medico_id,
           pagamento_id,
           arquivo_url,
-          nome_arquivo
+          nome_arquivo,
+          status
         `)
         .eq('id', notaId)
         .maybeSingle();
 
       if (notaError || !nota) {
         throw new Error('Nota não encontrada');
+      }
+
+      // Verificar se a nota já foi aprovada
+      if (nota.status === 'aprovado') {
+        setError('Esta nota fiscal já foi aprovada anteriormente.');
+        setLoading(false);
+        return;
       }
 
       const { data: pagamento, error: pagamentoError } = await supabase
@@ -218,18 +226,45 @@ export default function AprovarNota() {
 
   if (showConfirmation && notaData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center p-2 relative">
-        <div className="bg-white rounded-2xl shadow-2xl p-4 max-w-sm w-full">
-          {/* ... Conteúdo do card principal ... */}
+      <div className="min-h-screen bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center p-4 relative">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-4xl w-full">
           <div className="text-center mb-6">
             <DollarSign className="h-10 w-10 text-blue-600 mx-auto mb-2" />
             <h1 className="text-2xl font-bold text-gray-900 mb-1">
-              Confirmar Aprovação da Nota
+              Confirmar Aprovação da Nota Fiscal
             </h1>
-            <p className="text-gray-800 text-base">Verifique o valor líquido antes de aprovar</p>
+            <p className="text-gray-800 text-base">Revise todos os dados e confirme o valor líquido</p>
           </div>
 
-          <Card className="p-4 mb-4 bg-blue-50 border-blue-200 text-gray-900 rounded-xl">
+          {/* Layout em Grid: PDF à esquerda, Dados à direita */}
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            {/* Coluna da esquerda: PDF Viewer */}
+            <div className="space-y-4">
+              <Card className="p-4 bg-gray-50 border-gray-200 rounded-xl">
+                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  📄 Nota Fiscal Anexada
+                </h3>
+                <div className="bg-white rounded-lg border-2 border-gray-300 overflow-hidden" style={{ height: '600px' }}>
+                  <iframe
+                    src={notaData.arquivo_url}
+                    className="w-full h-full"
+                    title="Visualização da Nota Fiscal"
+                  />
+                </div>
+                <a 
+                  href={notaData.arquivo_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline font-medium text-sm flex items-center justify-center gap-1 mt-3"
+                >
+                  🔗 Abrir em Nova Aba
+                </a>
+              </Card>
+            </div>
+
+            {/* Coluna da direita: Dados e Validação */}
+            <div className="space-y-4">
+              <Card className="p-4 bg-blue-50 border-blue-200 text-gray-900 rounded-xl">
             <div className="space-y-2">
               <div>
                 <Label className="text-xs text-blue-900 mb-1">Médico</Label>
@@ -245,10 +280,10 @@ export default function AprovarNota() {
                   R$ {notaData.valor ? parseFloat(notaData.valor).toFixed(2).replace('.', ',') : '0,00'}
                 </p>
               </div>
-            </div>
-          </Card>
+              </div>
+            </Card>
 
-          <Card className="p-4 mb-4 bg-amber-50 border-amber-300 border rounded-xl">
+            <Card className="p-4 bg-amber-50 border-amber-300 border rounded-xl">
             <div className="flex items-start gap-2 mb-2">
               <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-1" />
               <div>
@@ -263,66 +298,59 @@ export default function AprovarNota() {
               <p className="text-2xl font-bold text-amber-900">
                 R$ {notaData.valor_liquido ? parseFloat(notaData.valor_liquido).toFixed(2).replace('.', ',') : '0,00'}
               </p>
+              </div>
+            </Card>
+
+            <div>
+              <Label htmlFor="valorDigitado" className="block mb-2 font-semibold text-gray-900 text-base">
+                Digite o valor líquido exato que aparece na nota fiscal:
+              </Label>
+              <Input
+                id="valorDigitado"
+                type="text"
+                inputMode="decimal"
+                autoCorrect="off"
+                autoCapitalize="off"
+                autoComplete="off"
+                placeholder="Ex: 1234,56"
+                value={valorDigitado}
+                onChange={(e) => {
+                  setValorDigitado(e.target.value);
+                  setValorError(false);
+                }}
+                className={`text-xl text-gray-900 bg-white border-2 rounded-lg px-4 py-3 w-full ${valorError ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+              />
+              <p className="text-xs text-gray-600 mt-1">
+                ⚠️ Use vírgula para centavos (Ex: 1234,56)
+              </p>
             </div>
-          </Card>
 
-          <div className="mb-4">
-            <a 
-              href={notaData.arquivo_url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-900 hover:text-blue-800 underline font-medium text-xs flex items-center justify-center gap-1 mb-2"
-            >
-              📄 <span className="text-blue-900">Abrir Nota Fiscal para Conferência</span>
-            </a>
-
-            <Label htmlFor="valorDigitado" className="block mb-2 font-semibold text-gray-900 text-base">
-              Digite o valor líquido que você vê na nota fiscal:
-            </Label>
-            <Input
-              id="valorDigitado"
-              type="text"
-              inputMode="decimal"
-              autoCorrect="off"
-              autoCapitalize="off"
-              autoComplete="off"
-              placeholder="Ex: 1234,56"
-              value={valorDigitado}
-              onChange={(e) => {
-                setValorDigitado(e.target.value);
-                setValorError(false);
-              }}
-              className={`text-lg text-gray-900 bg-white border-gray-300 rounded-lg px-4 py-2 w-full ${valorError ? 'border-red-500 bg-red-50' : ''}`}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Use vírgula para centavos (Ex: 1234,56)
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2 w-full">
-            <Button
-              onClick={handleConfirmarAprovacao}
-              disabled={!valorDigitado || loading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 text-lg rounded-lg"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Processando...
-                </>
-              ) : (
-                <>
-                  ✓ Confirmar e Aprovar
-                </>
-              )}
-            </Button>
-            <Button
-              onClick={() => navigate('/')}
-              variant="outline"
-              className="w-full px-6 py-4 rounded-lg text-lg"
-            >
-              Cancelar
-            </Button>
+            <div className="flex flex-col gap-3 w-full mt-6">
+              <Button
+                onClick={handleConfirmarAprovacao}
+                disabled={!valorDigitado || loading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 text-lg rounded-lg shadow-lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Processando aprovação...
+                  </>
+                ) : (
+                  <>
+                    ✓ Confirmar e Aprovar Nota
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => navigate('/')}
+                variant="outline"
+                className="w-full px-6 py-4 rounded-lg text-lg"
+              >
+                Cancelar
+              </Button>
+            </div>
+            </div>
           </div>
 
           <div className="mt-6 pt-4 border-t border-border/30 flex flex-col items-center gap-1">

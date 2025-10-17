@@ -121,10 +121,17 @@ export default function Dashboard() {
       });
 
       // Buscar pagamentos dos últimos 6 meses agrupados por mês
-      const { data: allPayments } = await supabase
+      let paymentsQuery = supabase
         .from("pagamentos")
         .select("mes_competencia, valor, created_at")
         .order("mes_competencia", { ascending: true });
+      
+      // Aplicar filtro de mês se selecionado
+      if (selectedMonth !== 'all') {
+        paymentsQuery = paymentsQuery.eq("mes_competencia", selectedMonth);
+      }
+      
+      const { data: allPayments } = await paymentsQuery;
 
       if (allPayments) {
         // Agrupar por mês
@@ -150,9 +157,32 @@ export default function Dashboard() {
       }
 
       // Buscar distribuição por status de notas
-      const { data: allNotes } = await supabase
-        .from("notas_medicos")
-        .select("status");
+      let allNotes;
+      
+      // Se houver filtro de mês, buscar apenas notas do mês selecionado
+      if (selectedMonth !== 'all') {
+        const { data: pagamentosDoMes } = await supabase
+          .from("pagamentos")
+          .select("id")
+          .eq("mes_competencia", selectedMonth);
+        
+        const pagamentoIds = pagamentosDoMes?.map(p => p.id) || [];
+        
+        if (pagamentoIds.length > 0) {
+          const { data: filteredNotes } = await supabase
+            .from("notas_medicos")
+            .select("status")
+            .in("pagamento_id", pagamentoIds);
+          allNotes = filteredNotes;
+        } else {
+          allNotes = [];
+        }
+      } else {
+        const { data: allNotesData } = await supabase
+          .from("notas_medicos")
+          .select("status");
+        allNotes = allNotesData;
+      }
 
       if (allNotes) {
         const statusMap: Record<string, number> = {};
@@ -187,10 +217,17 @@ export default function Dashboard() {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const { data: recentPayments } = await supabase
+      let recentPaymentsQuery = supabase
         .from("pagamentos")
         .select("created_at")
         .gte("created_at", sevenDaysAgo.toISOString());
+      
+      // Aplicar filtro de mês se selecionado
+      if (selectedMonth !== 'all') {
+        recentPaymentsQuery = recentPaymentsQuery.eq("mes_competencia", selectedMonth);
+      }
+
+      const { data: recentPayments } = await recentPaymentsQuery;
 
       if (recentPayments) {
         const dayMap: Record<string, number> = {
