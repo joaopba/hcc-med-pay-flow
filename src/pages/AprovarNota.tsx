@@ -82,20 +82,36 @@ export default function AprovarNota() {
         setMedicoNome(medico.nome);
       }
 
-      // Extrair o path do arquivo da URL completa
-      const urlPath = nota.arquivo_url.split('/notas/')[1];
-      const pdfPath = urlPath ? urlPath.split('?')[0] : null;
+      // Resolver corretamente o path do PDF no bucket 'notas'
+      const rawUrl = String(nota.arquivo_url || '');
+      let pdfPath: string | null = null;
 
-      // Gerar signed URL válida para o PDF
-      let signedPdfUrl = nota.arquivo_url;
+      // Caso 1: URL já contém '/notas/' (signed/public/object)
+      const afterBucket = rawUrl.split('/notas/')[1];
+      if (afterBucket) {
+        pdfPath = afterBucket.split('?')[0];
+      } else {
+        // Caso 2: veio como domínio próprio com '/medicos/...'
+        const medicosIdx = rawUrl.indexOf('/medicos/');
+        if (medicosIdx !== -1) {
+          const after = rawUrl.substring(medicosIdx + 1); // remove '/'
+          pdfPath = after.split('?')[0]; // 'medicos/xxx.pdf'
+        } else if (!rawUrl.startsWith('http') && /\.pdf($|\?)/.test(rawUrl)) {
+          // Caso 3: veio somente o caminho relativo
+          pdfPath = rawUrl.split('?')[0];
+        } else if (nota.nome_arquivo) {
+          // Caso 4: fallback pelo nome do arquivo no padrão 'medicos/<file>'
+          pdfPath = `medicos/${nota.nome_arquivo}`;
+        }
+      }
+
+      // Gerar signed URL válida para o PDF (1h)
+      let signedPdfUrl = rawUrl;
       if (pdfPath) {
         const { data: urlData } = await supabase.storage
           .from('notas')
-          .createSignedUrl(pdfPath, 3600); // 1 hora
-        
-        if (urlData?.signedUrl) {
-          signedPdfUrl = urlData.signedUrl;
-        }
+          .createSignedUrl(pdfPath, 3600);
+        if (urlData?.signedUrl) signedPdfUrl = urlData.signedUrl;
       }
 
       setNotaData({
