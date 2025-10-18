@@ -162,7 +162,7 @@ serve(async (req) => {
                   to: phoneNumber,
                   type: "template",
                   template: {
-                    name: "nota",
+                    name: "nota_hcc",
                     language: { code: "pt_BR" },
                     components: [
                       { 
