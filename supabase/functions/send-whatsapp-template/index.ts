@@ -5,6 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Função para formatar mês de competência
+function formatMesCompetencia(mesCompetencia: string): string {
+  if (!mesCompetencia || !mesCompetencia.includes('-')) return mesCompetencia;
+  const [ano, mes] = mesCompetencia.split('-');
+  const meses = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ];
+  const mesIndex = parseInt(mes, 10) - 1;
+  const mesNome = meses[mesIndex] || mes;
+  return `${mesNome} - ${ano}`;
+}
+
 interface WhatsAppRequest {
   type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro' | 'nota_aprovacao' | 'valor_ajustado';
   numero?: string;
@@ -132,7 +145,7 @@ serve(async (req) => {
             
             if (within24Hours) {
               console.log('[Background] Dentro da janela de 24h - enviando mensagem livre');
-              message = `🏥 *Solicitação de Nota Fiscal - HCC Hospital*\n\nOlá, ${nome}!\n\nPara darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: ${valor}\n📅 Competência: ${competencia}\n\nClique no botão abaixo para receber as instruções de como enviar.`;
+              message = `🏥 *Solicitação de Nota Fiscal - HCC Hospital*\n\nOlá, ${nome}!\n\nPara darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: ${valor}\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\nClique no botão abaixo para receber as instruções de como enviar.`;
               payload = {
                 body: message,
                 number: phoneNumber,
@@ -157,7 +170,7 @@ serve(async (req) => {
                         parameters: [
                           { type: "text", text: nome },
                           { type: "text", text: valor },
-                          { type: "text", text: competencia }
+                          { type: "text", text: formatMesCompetencia(competencia || '') }
                         ]
                       }
                     ]
@@ -209,7 +222,7 @@ serve(async (req) => {
             break;
           
           case 'nota_recebida':
-            message = `✅ *Nota Fiscal Recebida*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi recebida com sucesso.\n\n📋 Status: Em análise\n⏱️ Prazo: Até 24h úteis\n\nVocê será notificado assim que a análise for concluída.\n\nObrigado!`;
+            message = `✅ *Nota Fiscal Recebida*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi recebida com sucesso.\n\n📋 Status: Em análise\n⏱️ Prazo: Até 24h úteis\n\nVocê será notificado assim que a análise for concluída.\n\nObrigado!`;
             payload = {
               body: message,
               number: phoneNumber,
@@ -225,7 +238,7 @@ serve(async (req) => {
             const valorBrutoFormatado = valorBruto ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorBruto) : valor;
             const valorLiquidoFormatado = valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado';
             
-            const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n   ⚠️ *Valor informado pelo médico - VERIFICAR*\n📅 Competência: ${competencia}\n\n⚡ *IMPORTANTE:* Confira se o valor líquido está correto antes de aprovar!\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
+            const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n   ⚠️ *Valor informado pelo médico - VERIFICAR*\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\n⚡ *IMPORTANTE:* Confira se o valor líquido está correto antes de aprovar!\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
             const derivedFileName = (pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`);
             
             payload = {
@@ -245,7 +258,7 @@ serve(async (req) => {
             break;
           
           case 'nota_aprovada':
-            message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
+            message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
             payload = {
               body: message,
               number: phoneNumber,
@@ -255,7 +268,7 @@ serve(async (req) => {
             break;
           
           case 'nota_rejeitada':
-            message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${competencia} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal:\n\n🔗 ${linkPortal || 'https://hcc.chatconquista.com/dashboard-medicos'}\n\nPrecisa de ajuda? Entre em contato conosco.`;
+            message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal:\n\n🔗 ${linkPortal || 'https://hcc.chatconquista.com/dashboard-medicos'}\n\nPrecisa de ajuda? Entre em contato conosco.`;
             payload = {
               body: message,
               number: phoneNumber,
@@ -289,7 +302,7 @@ serve(async (req) => {
             break;
           
           case 'valor_ajustado':
-            message = `⚠️ *Valor da Nota Ajustado*\n\nOlá ${medico?.nome}!\n\nO valor líquido da sua nota fiscal referente ao período ${competencia} foi ajustado.\n\n💰 Valor Original: ${valorOriginal}\n💵 Novo Valor: ${valorNovo}\n\n📝 *Motivo do Ajuste:*\n${motivo}\n\nSe tiver dúvidas, entre em contato conosco.`;
+            message = `⚠️ *Valor da Nota Ajustado*\n\nOlá ${medico?.nome}!\n\nO valor líquido da sua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi ajustado.\n\n💰 Valor Original: ${valorOriginal}\n💵 Novo Valor: ${valorNovo}\n\n📝 *Motivo do Ajuste:*\n${motivo}\n\nSe tiver dúvidas, entre em contato conosco.`;
             payload = {
               body: message,
               number: phoneNumber,

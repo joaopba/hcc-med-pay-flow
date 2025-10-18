@@ -5,6 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Função para formatar mês de competência
+function formatMesCompetencia(mesCompetencia: string): string {
+  if (!mesCompetencia || !mesCompetencia.includes('-')) return mesCompetencia;
+  const [ano, mes] = mesCompetencia.split('-');
+  const meses = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ];
+  const mesIndex = parseInt(mes, 10) - 1;
+  const mesNome = meses[mesIndex] || mes;
+  return `${mesNome} - ${ano}`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -266,54 +279,7 @@ serve(async (req) => {
         }
 
         const pagamento = pagamentos[0];
-
-        // Verificar se já foi enviado nas últimas 48h (regra de rate limit)
-        const { data: logsRecentes } = await supabase
-          .from('message_logs')
-          .select('created_at')
-          .eq('pagamento_id', pagamento.id)
-          .eq('tipo', 'encaminhar_nota_link')
-          .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (logsRecentes && logsRecentes.length > 0) {
-          const ultimoEnvio = new Date(logsRecentes[0].created_at);
-          const horasRestantes = Math.ceil((48 * 60 * 60 * 1000 - (Date.now() - ultimoEnvio.getTime())) / (60 * 60 * 1000));
-          
-          console.log(`⏰ Bloqueado: mensagem já enviada há menos de 48h. Restam ${horasRestantes}h`);
-          
-          // Buscar configurações da API
-          const { data: config } = await supabase
-            .from('configuracoes')
-            .select('api_url, auth_token')
-            .single();
-
-          if (config) {
-            // Enviar mensagem informando o bloqueio
-            const form = new FormData();
-            form.append('number', from);
-            form.append('body', `⏰ Olá ${medico.nome}!\n\nJá enviamos as instruções para anexar sua nota recentemente.\n\nPor questões de segurança, só podemos reenviar após 48 horas.\n\nTempo restante: aproximadamente ${horasRestantes} hora(s).\n\n💡 Caso tenha dúvidas, entre em contato com o financeiro.`);
-            form.append('externalKey', `bloqueio_48h_${Date.now()}`);
-            form.append('isClosed', 'false');
-
-            await fetch(config.api_url, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${config.auth_token}` },
-              body: form
-            });
-          }
-          
-          return new Response(JSON.stringify({
-            success: false,
-            message: 'Bloqueado por 48h'
-          }), {
-            headers: { 
-              'Content-Type': 'application/json',
-              ...corsHeaders 
-            },
-          });
-        }
+        console.log('Pagamento encontrado:', pagamento);
 
         // Buscar configurações da API
         const { data: config, error: configError } = await supabase
@@ -329,9 +295,11 @@ serve(async (req) => {
         const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
         const videoBlob = await videoResponse.blob();
         
+        const competenciaFormatada = formatMesCompetencia(pagamento.mes_competencia);
+        
         const form = new FormData();
         form.append('number', from);
-        form.append('body', `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá ${medico.nome}! Para darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Envie o arquivo PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Envie o documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`);
+        form.append('body', `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá ${medico.nome}! Para darmos sequência ao seu pagamento referente a ${competenciaFormatada}, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Envie o arquivo PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Envie o documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`);
         form.append('externalKey', `encaminhar_nota_${Date.now()}`);
         form.append('isClosed', 'false');
         form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');

@@ -7,6 +7,19 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
+// Função para formatar mês de competência
+function formatMesCompetencia(mesCompetencia: string): string {
+  if (!mesCompetencia || !mesCompetencia.includes('-')) return mesCompetencia;
+  const [ano, mes] = mesCompetencia.split('-');
+  const meses = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ];
+  const mesIndex = parseInt(mes, 10) - 1;
+  const mesNome = meses[mesIndex] || mes;
+  return `${mesNome} - ${ano}`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -139,7 +152,7 @@ serve(async (req) => {
               nome: nota.medicos.nome,
               numero_whatsapp: nota.medicos.numero_whatsapp
             },
-            competencia: nota.pagamentos.mes_competencia,
+              competencia: formatMesCompetencia(nota.pagamentos.mes_competencia),
             pagamentoId: nota.pagamento_id
           }
         });
@@ -233,7 +246,7 @@ serve(async (req) => {
             <h1>Nota Fiscal Aprovada!</h1>
             <div class="info">
               <p><strong>Médico:</strong> ${nota.medicos.nome}</p>
-              <p><strong>Competência:</strong> ${nota.pagamentos.mes_competencia}</p>
+              <p><strong>Competência:</strong> ${formatMesCompetencia(nota.pagamentos.mes_competencia)}</p>
               <p><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">Aprovado</span></p>
             </div>
             <p class="message">O pagamento será processado em breve e o médico foi notificado via WhatsApp.</p>
@@ -322,7 +335,7 @@ serve(async (req) => {
               <h1>Rejeitar Nota Fiscal</h1>
               <div class="info">
                 <p><strong>Médico:</strong> ${nota.medicos.nome}</p>
-                <p><strong>Competência:</strong> ${nota.pagamentos.mes_competencia}</p>
+                <p><strong>Competência:</strong> ${formatMesCompetencia(nota.pagamentos.mes_competencia)}</p>
                 <p><strong>Arquivo:</strong> ${nota.nome_arquivo}</p>
               </div>
               <form method="POST" action="?nota=${notaId}&action=rejeitar&token=${token}">
@@ -371,7 +384,7 @@ serve(async (req) => {
                 nome: nota.medicos.nome,
                 numero_whatsapp: nota.medicos.numero_whatsapp
               },
-              competencia: nota.pagamentos.mes_competencia,
+              competencia: formatMesCompetencia(nota.pagamentos.mes_competencia),
               motivo: motivo,
               linkPortal: 'https://hcc.chatconquista.com/dashboard-medicos',
               pagamentoId: nota.pagamento_id
