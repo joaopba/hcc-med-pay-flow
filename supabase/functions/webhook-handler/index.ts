@@ -414,7 +414,7 @@ serve(async (req) => {
         if (medico && medico.length > 0) {
           const { data: pagamentos } = await supabase
             .from('pagamentos')
-            .select('id, valor, status, created_at')
+            .select('id, valor, status, created_at, medico_id, mes_competencia')
             .in('status', ['pendente','solicitado'])
             .eq('medico_id', medico[0].id)
             .order('created_at', { ascending: false })
@@ -444,7 +444,7 @@ serve(async (req) => {
             if (pagamentoId) {
               const { data: pagamentoById } = await supabase
                 .from('pagamentos')
-                .select('id, valor, status, created_at')
+                .select('id, valor, status, created_at, medico_id, mes_competencia')
                 .eq('id', pagamentoId)
                 .maybeSingle();
               if (pagamentoById) pagamento = pagamentoById;
