@@ -39,7 +39,7 @@ function formatMesCompetencia(mesCompetencia: string): string {
     'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
   ];
   const mesIndex = parseInt(mes, 10) - 1;
-  return `${meses[mesIndex]} de ${ano}`;
+  return `${meses[mesIndex]} - ${ano}`;
 }
 
 serve(async (req) => {

@@ -19,6 +19,7 @@ export default function AprovarNota() {
   const [notaData, setNotaData] = useState<any>(null);
   const [valorDigitado, setValorDigitado] = useState("");
   const [valorError, setValorError] = useState(false);
+  const [valorLiquidoAjustado, setValorLiquidoAjustado] = useState("");
 
   // Novo estado para mostrar popup
   const [showValorErrorPopup, setShowValorErrorPopup] = useState(false);
@@ -120,6 +121,7 @@ export default function AprovarNota() {
         arquivo_url: signedPdfUrl,
         token
       });
+      setValorLiquidoAjustado(pagamento.valor_liquido?.toString() || "");
       setShowConfirmation(true);
 
     } catch (err: any) {
@@ -131,28 +133,43 @@ export default function AprovarNota() {
 
   const handleConfirmarAprovacao = async () => {
     if (!notaData) return;
-    const valorInformado = parseFloat(notaData.valor_liquido?.toString().replace(/[^\d,.-]/g, '').replace(',', '.') || '0');
+    
+    const valorLiquidoAjustadoNum = parseFloat(valorLiquidoAjustado.replace(/[^\d,.-]/g, '').replace(',', '.'));
     const valorDigitadoNum = parseFloat(valorDigitado.replace(/[^\d,.-]/g, '').replace(',', '.'));
 
     if (!valorDigitado || isNaN(valorDigitadoNum)) {
       setValorError(true);
-      setShowValorErrorPopup(true); // Mostrar popup
+      setShowValorErrorPopup(true);
       return;
     }
 
-    if (Math.abs(valorInformado - valorDigitadoNum) > 0.01) {
+    if (!valorLiquidoAjustado || isNaN(valorLiquidoAjustadoNum)) {
       setValorError(true);
-      setShowValorErrorPopup(true); // Mostrar popup
+      setShowValorErrorPopup(true);
+      return;
+    }
+
+    if (Math.abs(valorLiquidoAjustadoNum - valorDigitadoNum) > 0.01) {
+      setValorError(true);
+      setShowValorErrorPopup(true);
       return;
     }
 
     setValorError(false);
-    setShowValorErrorPopup(false); // Fechar popup se estava aberto
+    setShowValorErrorPopup(false);
     setLoading(true);
 
     try {
       const notaId = searchParams.get('i') || searchParams.get('nota');
       const token = notaData.token;
+
+      // Atualizar valor_liquido se foi ajustado
+      if (Math.abs(valorLiquidoAjustadoNum - parseFloat(notaData.valor_liquido || '0')) > 0.01) {
+        await supabase
+          .from('pagamentos')
+          .update({ valor_liquido: valorLiquidoAjustadoNum })
+          .eq('id', notaData.pagamento_id);
+      }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -317,26 +334,36 @@ export default function AprovarNota() {
             </Card>
 
             <Card className="p-4 bg-amber-50 border-amber-300 border rounded-xl">
-            <div className="flex items-start gap-2 mb-2">
-              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="font-bold text-amber-900 mb-1 text-base">Atenção: Verificação Obrigatória</h3>
-                <p className="text-xs text-amber-900">
-                  O médico informou o valor líquido abaixo. Por favor, <strong>confira na nota fiscal</strong> se o valor está correto e digite-o abaixo para confirmar.
-                </p>
+              <div className="flex items-start gap-2 mb-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-bold text-amber-900 mb-1 text-base">Atenção: Verificação Obrigatória</h3>
+                  <p className="text-xs text-amber-900">
+                    Confira o valor líquido na nota fiscal. Você pode ajustar o valor se necessário antes de aprovar.
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="bg-white p-2 rounded-lg border border-amber-400">
-              <Label className="text-xs text-amber-900 mb-1">Valor Líquido Informado pelo Médico</Label>
-              <p className="text-2xl font-bold text-amber-900">
-                R$ {notaData.valor_liquido ? parseFloat(notaData.valor_liquido).toFixed(2).replace('.', ',') : '0,00'}
-              </p>
+              <div className="space-y-3">
+                <div className="bg-white p-3 rounded-lg border border-amber-400">
+                  <Label className="text-xs text-amber-900 mb-1 block">Valor Líquido (editável)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={valorLiquidoAjustado}
+                    onChange={(e) => setValorLiquidoAjustado(e.target.value)}
+                    className="text-xl font-bold text-amber-900 bg-white border-amber-400"
+                    placeholder="Ex: 1234,56"
+                  />
+                  <p className="text-xs text-amber-700 mt-1">
+                    💡 Ajuste se o valor na nota for diferente
+                  </p>
+                </div>
               </div>
             </Card>
 
             <div>
               <Label htmlFor="valorDigitado" className="block mb-2 font-semibold text-gray-900 text-base">
-                Digite o valor líquido exato que aparece na nota fiscal:
+                Digite novamente o valor líquido para confirmar:
               </Label>
               <Input
                 id="valorDigitado"
@@ -354,7 +381,7 @@ export default function AprovarNota() {
                 className={`text-xl text-gray-900 bg-white border-2 rounded-lg px-4 py-3 w-full ${valorError ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
               />
               <p className="text-xs text-gray-600 mt-1">
-                ⚠️ Use vírgula para centavos (Ex: 1234,56)
+                ⚠️ Digite o mesmo valor acima para confirmar (use vírgula: 1234,56)
               </p>
             </div>
 

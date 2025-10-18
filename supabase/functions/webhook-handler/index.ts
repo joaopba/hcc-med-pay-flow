@@ -267,6 +267,54 @@ serve(async (req) => {
 
         const pagamento = pagamentos[0];
 
+        // Verificar se já foi enviado nas últimas 48h (regra de rate limit)
+        const { data: logsRecentes } = await supabase
+          .from('message_logs')
+          .select('created_at')
+          .eq('pagamento_id', pagamento.id)
+          .eq('tipo', 'encaminhar_nota_link')
+          .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (logsRecentes && logsRecentes.length > 0) {
+          const ultimoEnvio = new Date(logsRecentes[0].created_at);
+          const horasRestantes = Math.ceil((48 * 60 * 60 * 1000 - (Date.now() - ultimoEnvio.getTime())) / (60 * 60 * 1000));
+          
+          console.log(`⏰ Bloqueado: mensagem já enviada há menos de 48h. Restam ${horasRestantes}h`);
+          
+          // Buscar configurações da API
+          const { data: config } = await supabase
+            .from('configuracoes')
+            .select('api_url, auth_token')
+            .single();
+
+          if (config) {
+            // Enviar mensagem informando o bloqueio
+            const form = new FormData();
+            form.append('number', from);
+            form.append('body', `⏰ Olá ${medico.nome}!\n\nJá enviamos as instruções para anexar sua nota recentemente.\n\nPor questões de segurança, só podemos reenviar após 48 horas.\n\nTempo restante: aproximadamente ${horasRestantes} hora(s).\n\n💡 Caso tenha dúvidas, entre em contato com o financeiro.`);
+            form.append('externalKey', `bloqueio_48h_${Date.now()}`);
+            form.append('isClosed', 'false');
+
+            await fetch(config.api_url, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${config.auth_token}` },
+              body: form
+            });
+          }
+          
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Bloqueado por 48h'
+          }), {
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders 
+            },
+          });
+        }
+
         // Buscar configurações da API
         const { data: config, error: configError } = await supabase
           .from('configuracoes')
