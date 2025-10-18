@@ -59,6 +59,7 @@ export default function Pagamentos() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [valorMaxFilter, setValorMaxFilter] = useState("");
   
   // Definir mês anterior como filtro padrão
   const getDefaultMonth = () => {
@@ -567,8 +568,9 @@ export default function Pagamentos() {
     const matchesSearch = medicoNome.includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "todos" || pagamento.status === statusFilter;
     const matchesMes = mesFilter === "todos" || pagamento.mes_competencia === mesFilter;
+    const matchesValor = !valorMaxFilter || pagamento.valor <= parseFloat(valorMaxFilter);
     
-    return matchesSearch && matchesStatus && matchesMes;
+    return matchesSearch && matchesStatus && matchesMes && matchesValor;
   });
 
   if (loading) {
@@ -755,6 +757,28 @@ export default function Pagamentos() {
                 onChange={(e) => setMesFilter(e.target.value || 'todos')}
                 className="w-full sm:w-[200px]"
               />
+
+              <div className="flex items-center gap-2 w-full sm:w-[200px]">
+                <Input
+                  type="number"
+                  placeholder="Até R$ (valor máx)"
+                  value={valorMaxFilter}
+                  onChange={(e) => setValorMaxFilter(e.target.value)}
+                  step="0.01"
+                  min="0"
+                  className="w-full"
+                />
+                {valorMaxFilter && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setValorMaxFilter("")}
+                    className="px-2"
+                  >
+                    ×
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
         </Card>
