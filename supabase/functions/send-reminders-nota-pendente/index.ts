@@ -40,14 +40,13 @@ serve(async (req) => {
         mes_competencia,
         valor,
         data_solicitacao,
-        medicos!inner (
+        medicos (
           nome,
           numero_whatsapp,
           ativo
         )
       `)
       .eq('status', 'solicitado')
-      .eq('medicos.ativo', true)
       .not('data_solicitacao', 'is', null)
       .order('data_solicitacao', { ascending: true });
 
@@ -79,12 +78,17 @@ serve(async (req) => {
       (notasExistentes || []).map((n: any) => n.pagamento_id)
     );
 
-    // Filtrar apenas pagamentos SEM NOTA ENVIADA
+    // Filtrar apenas pagamentos SEM NOTA ENVIADA e com médico ativo
     const pagamentosSemNota = (pagamentosPendentes as any[]).filter(
-      (p: any) => !pagamentosComNota.has(p.id)
+      (p: any) => !pagamentosComNota.has(p.id) && p.medicos?.ativo === true
     );
 
     console.log(`📊 ${pagamentosSemNota.length} pagamentos sem nota de ${pagamentosPendentes.length} solicitados`);
+
+    // Log de debug para entender a estrutura dos dados
+    if (pagamentosSemNota.length > 0) {
+      console.log('🔍 Estrutura do primeiro pagamento:', JSON.stringify(pagamentosSemNota[0], null, 2));
+    }
 
     if (pagamentosSemNota.length === 0) {
       console.log('✅ Todos os pagamentos solicitados já têm nota enviada');
@@ -102,9 +106,9 @@ serve(async (req) => {
 
     for (const pagamento of pagamentosSemNota) {
       try {
-        const medico = pagamento.medicos?.[0];
-        if (!medico) {
-          console.log(`⏭️ Pulando pagamento ${pagamento.id} - médico não encontrado`);
+        const medico = pagamento.medicos;
+        if (!medico || !medico.nome || !medico.numero_whatsapp) {
+          console.log(`⏭️ Pulando pagamento ${pagamento.id} - médico não encontrado ou incompleto`);
           continue;
         }
 
