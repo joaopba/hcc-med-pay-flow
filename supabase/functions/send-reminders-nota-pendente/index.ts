@@ -66,13 +66,41 @@ serve(async (req) => {
       });
     }
 
-    console.log(`📊 Encontrados ${pagamentosPendentes.length} pagamentos pendentes`);
+    // Verificar quais pagamentos JÁ TÊM NOTA enviada (mesmo que pendente)
+    const pagamentoIds = pagamentosPendentes.map((p: any) => p.id);
+    const { data: notasExistentes } = await supabase
+      .from('notas_medicos')
+      .select('pagamento_id, status')
+      .in('pagamento_id', pagamentoIds)
+      .in('status', ['pendente', 'aprovado']);
+
+    // Criar Set de IDs que já têm nota para filtrar
+    const pagamentosComNota = new Set(
+      (notasExistentes || []).map((n: any) => n.pagamento_id)
+    );
+
+    // Filtrar apenas pagamentos SEM NOTA ENVIADA
+    const pagamentosSemNota = (pagamentosPendentes as any[]).filter(
+      (p: any) => !pagamentosComNota.has(p.id)
+    );
+
+    console.log(`📊 ${pagamentosSemNota.length} pagamentos sem nota de ${pagamentosPendentes.length} solicitados`);
+
+    if (pagamentosSemNota.length === 0) {
+      console.log('✅ Todos os pagamentos solicitados já têm nota enviada');
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Todos os pagamentos já têm nota enviada' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const agora = new Date();
     const lembretesEnviados: string[] = [];
     const erros: string[] = [];
 
-    for (const pagamento of pagamentosPendentes as any[]) {
+    for (const pagamento of pagamentosSemNota) {
       try {
         const medico = pagamento.medicos?.[0];
         if (!medico) {
