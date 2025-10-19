@@ -19,10 +19,10 @@ function formatMesCompetencia(mesCompetencia: string): string {
 }
 
 interface WhatsAppRequest {
-  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro' | 'nota_aprovacao' | 'valor_ajustado';
+  type: 'nota' | 'pagamento' | 'nota_aprovada' | 'nota_rejeitada' | 'nota_recebida' | 'nova_mensagem_chat' | 'resposta_financeiro' | 'nota_aprovacao' | 'valor_ajustado' | 'nota_pendente';
   numero?: string;
   nome?: string;
-  valor?: string;
+  valor?: string | number;
   competencia?: string;
   dataPagamento?: string;
   pagamentoId?: string;
@@ -153,7 +153,7 @@ serve(async (req) => {
                 isClosed: false
               };
             } else {
-              console.log('[Background] Fora da janela de 24h - usando template "nota"');
+              console.log('[Background] Fora da janela de 24h - usando template "nota_hcc"');
               payload = {
                 number: phoneNumber,
                 isClosed: false,
@@ -179,6 +179,39 @@ serve(async (req) => {
               };
               apiUrl = config.api_url + '/template';
             }
+            break;
+          
+          case 'nota_pendente':
+            // Template de lembrete para notas pendentes (mesmas variáveis do template nota)
+            console.log('[Background] Usando template "nota_pendente" para lembrete');
+            const valorFormatado = typeof valor === 'number' 
+              ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)
+              : valor;
+            
+            payload = {
+              number: phoneNumber,
+              isClosed: false,
+              templateData: {
+                messaging_product: "whatsapp",
+                to: phoneNumber,
+                type: "template",
+                template: {
+                  name: "nota_pendente",
+                  language: { code: "pt_BR" },
+                  components: [
+                    { 
+                      type: "body", 
+                      parameters: [
+                        { type: "text", text: medico?.nome || nome },
+                        { type: "text", text: valorFormatado },
+                        { type: "text", text: formatMesCompetencia(competencia || '') }
+                      ]
+                    }
+                  ]
+                }
+              }
+            };
+            apiUrl = config.api_url + '/template';
             break;
           
           case 'pagamento':
@@ -343,7 +376,7 @@ serve(async (req) => {
         console.log('[Background] Resposta da API:', responseData);
 
         // Se houver número do contador e for uma notificação relevante, enviar também para ele
-        if (['nota', 'nota_aprovada', 'nota_rejeitada', 'nota_recebida', 'valor_ajustado'].includes(type) && medico_id) {
+        if (['nota', 'nota_pendente', 'nota_aprovada', 'nota_rejeitada', 'nota_recebida', 'valor_ajustado'].includes(type) && medico_id) {
           try {
             const { data: medicoCompleto } = await supabase
               .from('medicos')

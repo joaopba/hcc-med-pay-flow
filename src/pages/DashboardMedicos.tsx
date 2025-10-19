@@ -444,6 +444,13 @@ export default function DashboardMedicos() {
 
     setUploading(true);
     setShowConfirmUpload(false);
+
+    // Mostrar toast informativo de que o envio está em andamento
+    toast({
+      title: "Enviando...",
+      description: "Aguarde, sua nota está sendo enviada. Não feche esta página.",
+      duration: 5000,
+    });
     
     try {
       // Upload do arquivo
@@ -451,57 +458,70 @@ export default function DashboardMedicos() {
       const fileName = `${selectedPagamento.id}_${Date.now()}.${fileExt}`;
       const filePath = `medicos/${fileName}`;
 
+      // Upload mais otimizado
       const { error: uploadError } = await supabase.storage
         .from('notas')
-        .upload(filePath, selectedFile);
+        .upload(filePath, selectedFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) throw uploadError;
 
-      // Atualizar o pagamento com o valor líquido
-      const { error: valorLiquidoError } = await supabase
+      // Fazer inserções e atualizações em paralelo
+      const [valorLiquidoResult, notaInsertResult, pagamentoDataResult] = await Promise.allSettled([
+        // Atualizar o pagamento com o valor líquido
+        supabase
+          .from("pagamentos")
+          .update({ valor_liquido: parseFloat(valorLiquido) })
+          .eq("id", selectedPagamento.id)
+          .eq("medico_id", medico.id),
+        
+        // Registrar na tabela notas_medicos
+        supabase
+          .from("notas_medicos")
+          .insert({
+            medico_id: medico.id,
+            pagamento_id: selectedPagamento.id,
+            arquivo_url: filePath,
+            nome_arquivo: selectedFile.name,
+            status: 'pendente'
+          })
+          .select('id')
+          .single(),
+        
+        // Buscar competência
+        supabase
+          .from('pagamentos')
+          .select('mes_competencia')
+          .eq('id', selectedPagamento.id)
+          .single()
+      ]);
+
+      // Verificar se houve erro no insert da nota
+      if (notaInsertResult.status === 'rejected') {
+        await supabase.storage.from('notas').remove([filePath]);
+        throw new Error('Erro ao registrar nota');
+      }
+
+      const notaData = (notaInsertResult as PromiseFulfilledResult<any>).value.data;
+      const competencia = (pagamentoDataResult as PromiseFulfilledResult<any>).value?.data?.mes_competencia || selectedPagamento.mes_competencia;
+
+      // Atualizar o pagamento com status "nota_recebida" e PDF
+      await supabase
         .from("pagamentos")
         .update({
-          valor_liquido: parseFloat(valorLiquido)
+          status: "nota_recebida",
+          nota_pdf_url: filePath,
+          data_resposta: new Date().toISOString()
         })
         .eq("id", selectedPagamento.id)
         .eq("medico_id", medico.id);
 
-      if (valorLiquidoError) {
-        console.error('Erro ao atualizar valor líquido:', valorLiquidoError);
-      }
-
-      // Registrar na tabela notas_medicos - GARANTIR que é do médico correto
-      const { data: notaData, error: insertError } = await supabase
-        .from("notas_medicos")
-        .insert({
-          medico_id: medico.id,
-          pagamento_id: selectedPagamento.id,
-          arquivo_url: filePath,
-          nome_arquivo: selectedFile.name,
-          status: 'pendente'
-        })
-        .select('id')
-        .single();
-
-      if (insertError) {
-        // Se der erro, remover o arquivo do storage
-        await supabase.storage.from('notas').remove([filePath]);
-        throw insertError;
-      }
-
-      // Buscar competência separadamente
-      const { data: pagamentoData } = await supabase
-        .from('pagamentos')
-        .select('mes_competencia')
-        .eq('id', selectedPagamento.id)
-        .single();
-
-      const competencia = pagamentoData?.mes_competencia || selectedPagamento.mes_competencia;
-
-      // Enviar notificação via WhatsApp Template
-      try {
-        console.log('Enviando notificação WhatsApp para:', medico.nome, medico.numero_whatsapp);
-        const whatsappResponse = await supabase.functions.invoke('send-whatsapp-template', {
+      // Disparar notificações em background (não bloquear UI)
+      Promise.all([
+        // WhatsApp
+        supabase.functions.invoke('send-whatsapp-template', {
           body: {
             type: 'nota_recebida',
             medico: {
@@ -513,30 +533,10 @@ export default function DashboardMedicos() {
             valorBruto: selectedPagamento.valor,
             valorLiquido: parseFloat(valorLiquido)
           }
-        });
-        console.log('Resposta da notificação WhatsApp:', whatsappResponse);
+        }).then(res => console.log('WhatsApp enviado:', res)).catch(err => console.error('Erro WhatsApp:', err)),
         
-        if (whatsappResponse.error) {
-          console.error('Erro na notificação WhatsApp:', whatsappResponse.error);
-        } else {
-          console.log('Notificação de nota recebida enviada via WhatsApp');
-        }
-      } catch (whatsappError) {
-        console.error('Erro ao enviar notificação via WhatsApp:', whatsappError);
-      }
-
-      // Enviar notificação por e-mail
-      console.log('=== INICIANDO ENVIO DE EMAIL ===');
-      console.log('Dados para email:', {
-        type: 'nova_nota',
-        pagamentoId: selectedPagamento.id,
-        notaId: notaData.id,
-        fileName: selectedFile.name,
-        pdfPath: filePath
-      });
-      
-      try {
-        const emailResponse = await supabase.functions.invoke('send-email-notification', {
+        // Email
+        supabase.functions.invoke('send-email-notification', {
           body: {
             type: 'nova_nota',
             pagamentoId: selectedPagamento.id,
@@ -544,56 +544,35 @@ export default function DashboardMedicos() {
             fileName: selectedFile.name,
             pdfPath: filePath
           }
-        });
-        
-        console.log('=== RESPOSTA DO EMAIL ===', emailResponse);
-        
-        if (emailResponse.error) {
-          console.error('ERRO ao enviar email:', emailResponse.error);
-        } else {
-          console.log('✅ Email enviado com sucesso!');
-        }
-      } catch (emailError) {
-        console.error('❌ EXCEÇÃO ao enviar email:', emailError);
-      }
+        }).then(res => console.log('Email enviado:', res)).catch(err => console.error('Erro email:', err))
+      ]).catch(err => console.warn('Erro nas notificações:', err));
 
-      // Atualizar o pagamento com a URL da nota
-      const { error: pagamentoUpdateError } = await supabase
-        .from("pagamentos")
-        .update({
-          status: "nota_recebida",
-          nota_pdf_url: filePath,
-          data_resposta: new Date().toISOString()
-        })
-        .eq("id", selectedPagamento.id)
-        .eq("medico_id", medico.id); // GARANTIR que é do médico correto
-
-      if (pagamentoUpdateError) {
-        console.error('Erro ao atualizar pagamento:', pagamentoUpdateError);
-      }
-
-      // Fechar modal e recarregar dados
+      // UI Update imediato
       setShowUploadModal(false);
       setSelectedPagamento(null);
       setSelectedFile(null);
       setValorLiquido("");
+      
+      // Recarregar dados
       buscarDados();
 
-      // Mostrar mensagem de sucesso mais específica
+      // Mensagem de sucesso
       const isReenvio = selectedPagamento?.temNotaRejeitada;
       toast({
-        title: "Sucesso",
+        title: "✅ Nota Enviada!",
         description: isReenvio 
-          ? "Nota fiscal reenviada com sucesso! Aguarde a nova análise." 
-          : "Nota fiscal enviada com sucesso! Aguarde a análise.",
+          ? "Nota fiscal reenviada. O gestor será notificado para análise." 
+          : "Nota fiscal enviada. O gestor será notificado para análise.",
+        duration: 6000,
       });
 
     } catch (error: any) {
       console.error("Erro no upload:", error);
       toast({
-        title: "Erro",
-        description: error.message || "Falha no upload do arquivo",
+        title: "❌ Erro no Envio",
+        description: error.message || "Falha no upload. Tente novamente.",
         variant: "destructive",
+        duration: 8000,
       });
     } finally {
       setUploading(false);
