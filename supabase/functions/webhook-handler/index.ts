@@ -607,7 +607,7 @@ serve(async (req) => {
                 nota_pdf_url: `notas/${filePath}`,
               };
 
-              if (valorLiquido) {
+              if (valorLiquido !== null && valorLiquido !== undefined) {
                 updateData.valor_liquido = valorLiquido;
               }
 
@@ -728,8 +728,9 @@ serve(async (req) => {
                       link_rejeitar: linkRejeitar,
                       financeiro_numero: configFinanceiro.numero_whatsapp,
                       pagamentoId: pagamento.id,
-                      valorBruto: pagamento.valor,
-                      valorLiquido: pagamento.valor_liquido
+                      valorBruto: (valorBruto ?? pagamento.valor),
+                      valorLiquido: (valorLiquido ?? pagamento.valor_liquido),
+                      numeroNota: numeroNota || undefined
                     }
                   });
                   console.log('Notificação de aprovação enviada ao financeiro com PDF');
