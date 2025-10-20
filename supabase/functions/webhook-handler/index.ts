@@ -542,9 +542,9 @@ serve(async (req) => {
               console.log('Arquivo enviado para storage:', uploadData);
 
               // Processar OCR se habilitado
-              let numeroNota = null;
-              let valorBruto = null;
-              let valorLiquido = null;
+              let numeroNota: string | null = null;
+              let valorBruto: number | null = null;
+              let valorLiquido: number | null = null;
               let ocrProcessado = false;
               
               if (config?.ocr_nfse_habilitado && config?.ocr_nfse_api_key) {
@@ -552,9 +552,9 @@ serve(async (req) => {
                 const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
                 
                 if (ocrResult.success) {
-                  numeroNota = ocrResult.numeroNota;
-                  valorBruto = ocrResult.valorBruto;
-                  valorLiquido = ocrResult.valorLiquido;
+                  numeroNota = ocrResult.numeroNota || null;
+                  valorBruto = ocrResult.valorBruto || null;
+                  valorLiquido = ocrResult.valorLiquido || null;
                   ocrProcessado = true;
                   
                   // Validar valor bruto

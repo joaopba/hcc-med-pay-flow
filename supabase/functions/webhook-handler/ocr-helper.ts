@@ -24,13 +24,12 @@ export async function processarOCRNota(
     }
     const base64Data = btoa(binary);
 
-    // Chamar a edge function de OCR
+    // Chamar a edge function de OCR (não precisa passar apiKey, ela busca do banco)
     const { data: ocrResult, error: ocrError } = await supabase.functions.invoke(
       'process-ocr-nfse',
       {
         body: {
-          pdfData: base64Data,
-          apiKey: apiKey
+          pdfData: base64Data
         }
       }
     );

@@ -107,6 +107,7 @@ export default function DashboardMedicos() {
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [pendingTicket, setPendingTicket] = useState<any>(null);
   const [valorLiquido, setValorLiquido] = useState("");
+  const [ocrHabilitado, setOcrHabilitado] = useState(false);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -257,6 +258,16 @@ export default function DashboardMedicos() {
     setLoading(true);
     try {
       const cpfNumeros = cpf.replace(/\D/g, '');
+
+      // Buscar configurações OCR
+      const { data: configData } = await supabase
+        .from('configuracoes')
+        .select('ocr_nfse_habilitado')
+        .single();
+      
+      if (configData) {
+        setOcrHabilitado(configData.ocr_nfse_habilitado || false);
+      }
 
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
         body: { cpf: cpfNumeros }
@@ -421,25 +432,28 @@ export default function DashboardMedicos() {
   const handleConfirmUpload = async () => {
     if (!selectedFile || !selectedPagamento) return;
 
-    if (!valorLiquido || parseFloat(valorLiquido) <= 0) {
-      toast({
-        title: "Erro",
-        description: "Por favor, informe o valor líquido da nota",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Se OCR estiver desativado, validar valor líquido
+    if (!ocrHabilitado) {
+      if (!valorLiquido || parseFloat(valorLiquido) <= 0) {
+        toast({
+          title: "Erro",
+          description: "Por favor, informe o valor líquido da nota",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const valorLiquidoNum = parseFloat(valorLiquido);
-    const valorBrutoNum = selectedPagamento.valor;
+      const valorLiquidoNum = parseFloat(valorLiquido);
+      const valorBrutoNum = selectedPagamento.valor;
 
-    if (valorLiquidoNum > valorBrutoNum) {
-      toast({
-        title: "Erro",
-        description: "O valor líquido não pode ser maior que o valor bruto",
-        variant: "destructive",
-      });
-      return;
+      if (valorLiquidoNum > valorBrutoNum) {
+        toast({
+          title: "Erro",
+          description: "O valor líquido não pode ser maior que o valor bruto",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setUploading(true);
@@ -448,7 +462,9 @@ export default function DashboardMedicos() {
     // Mostrar toast informativo de que o envio está em andamento
     toast({
       title: "Enviando...",
-      description: "Aguarde, sua nota está sendo enviada. Não feche esta página.",
+      description: ocrHabilitado 
+        ? "Aguarde, processando nota fiscal automaticamente..." 
+        : "Aguarde, sua nota está sendo enviada. Não feche esta página.",
       duration: 5000,
     });
     
@@ -468,25 +484,113 @@ export default function DashboardMedicos() {
 
       if (uploadError) throw uploadError;
 
+      let numeroNota = null;
+      let valorBrutoOCR = null;
+      let valorLiquidoOCR = null;
+      let ocrProcessado = false;
+      let ocrResultado = null;
+
+      // Se OCR estiver habilitado, processar a nota
+      if (ocrHabilitado) {
+        try {
+          // Ler o arquivo como ArrayBuffer
+          const arrayBuffer = await selectedFile.arrayBuffer();
+          
+          // Converter para base64
+          const uint8Array = new Uint8Array(arrayBuffer);
+          let binary = '';
+          for (let i = 0; i < uint8Array.length; i++) {
+            binary += String.fromCharCode(uint8Array[i]);
+          }
+          const base64Data = btoa(binary);
+
+          // Chamar função OCR
+          const { data: ocrData, error: ocrError } = await supabase.functions.invoke('process-ocr-nfse', {
+            body: { pdfData: base64Data }
+          });
+
+          if (ocrError) {
+            console.error('Erro OCR:', ocrError);
+            throw new Error('Falha ao processar OCR da nota');
+          }
+
+          if (ocrData?.success) {
+            numeroNota = ocrData.numeroNota;
+            valorBrutoOCR = ocrData.valorBruto;
+            valorLiquidoOCR = ocrData.valorLiquido;
+            ocrProcessado = true;
+            ocrResultado = ocrData;
+
+            // Validar valor bruto
+            const valorEsperado = selectedPagamento.valor;
+            const diferenca = Math.abs(valorEsperado - (valorBrutoOCR || 0));
+
+            if (diferenca > 0.01) {
+              // Remover arquivo do storage
+              await supabase.storage.from('notas').remove([filePath]);
+
+              toast({
+                title: "❌ Nota Rejeitada",
+                description: `O valor bruto da nota (R$ ${valorBrutoOCR?.toFixed(2)}) não corresponde ao valor esperado (R$ ${valorEsperado.toFixed(2)}). Por favor, verifique e envie a nota correta.`,
+                variant: "destructive",
+                duration: 10000,
+              });
+
+              setUploading(false);
+              return;
+            }
+
+            console.log('✅ OCR processado:', { numeroNota, valorBrutoOCR, valorLiquidoOCR });
+          }
+        } catch (ocrError) {
+          console.error('Erro ao processar OCR:', ocrError);
+          // Continuar mesmo com erro de OCR (fallback para fluxo manual)
+        }
+      }
+
+      // Preparar dados da nota
+      const notaInsertData: any = {
+        medico_id: medico.id,
+        pagamento_id: selectedPagamento.id,
+        arquivo_url: filePath,
+        nome_arquivo: selectedFile.name,
+        status: 'pendente'
+      };
+
+      if (ocrProcessado) {
+        notaInsertData.numero_nota = numeroNota;
+        notaInsertData.valor_bruto = valorBrutoOCR;
+        notaInsertData.ocr_processado = true;
+        notaInsertData.ocr_resultado = ocrResultado;
+      }
+
+      // Preparar dados do pagamento
+      const pagamentoUpdate: any = {
+        status: "nota_recebida",
+        nota_pdf_url: filePath,
+        data_resposta: new Date().toISOString()
+      };
+
+      // Adicionar valor líquido conforme OCR ou input manual
+      if (valorLiquidoOCR) {
+        pagamentoUpdate.valor_liquido = valorLiquidoOCR;
+      } else if (!ocrHabilitado && valorLiquido) {
+        pagamentoUpdate.valor_liquido = parseFloat(valorLiquido);
+      }
+
       // Fazer inserções e atualizações em paralelo
-      const [valorLiquidoResult, notaInsertResult, pagamentoDataResult] = await Promise.allSettled([
-        // Atualizar o pagamento com o valor líquido
+      const [pagamentoUpdateResult, notaInsertResult, pagamentoDataResult] = await Promise.allSettled([
+        // Atualizar o pagamento
         supabase
           .from("pagamentos")
-          .update({ valor_liquido: parseFloat(valorLiquido) })
+          .update(pagamentoUpdate)
           .eq("id", selectedPagamento.id)
           .eq("medico_id", medico.id),
         
         // Registrar na tabela notas_medicos
         supabase
           .from("notas_medicos")
-          .insert({
-            medico_id: medico.id,
-            pagamento_id: selectedPagamento.id,
-            arquivo_url: filePath,
-            nome_arquivo: selectedFile.name,
-            status: 'pendente'
-          })
+          .insert(notaInsertData)
           .select('id')
           .single(),
         
@@ -507,16 +611,7 @@ export default function DashboardMedicos() {
       const notaData = (notaInsertResult as PromiseFulfilledResult<any>).value.data;
       const competencia = (pagamentoDataResult as PromiseFulfilledResult<any>).value?.data?.mes_competencia || selectedPagamento.mes_competencia;
 
-      // Atualizar o pagamento com status "nota_recebida" e PDF
-      await supabase
-        .from("pagamentos")
-        .update({
-          status: "nota_recebida",
-          nota_pdf_url: filePath,
-          data_resposta: new Date().toISOString()
-        })
-        .eq("id", selectedPagamento.id)
-        .eq("medico_id", medico.id);
+      const valorParaNotificacao = valorLiquidoOCR || (valorLiquido ? parseFloat(valorLiquido) : null);
 
       // Disparar notificações em background (não bloquear UI)
       Promise.all([
@@ -531,7 +626,7 @@ export default function DashboardMedicos() {
             competencia: competencia,
             pagamentoId: selectedPagamento.id,
             valorBruto: selectedPagamento.valor,
-            valorLiquido: parseFloat(valorLiquido)
+            valorLiquido: valorParaNotificacao
           }
         }).then(res => console.log('WhatsApp enviado:', res)).catch(err => console.error('Erro WhatsApp:', err)),
         
@@ -542,6 +637,7 @@ export default function DashboardMedicos() {
             pagamentoId: selectedPagamento.id,
             notaId: notaData.id,
             fileName: selectedFile.name,
+            valorLiquido: valorParaNotificacao,
             pdfPath: filePath
           }
         }).then(res => console.log('Email enviado:', res)).catch(err => console.error('Erro email:', err))
@@ -558,12 +654,16 @@ export default function DashboardMedicos() {
 
       // Mensagem de sucesso
       const isReenvio = selectedPagamento?.temNotaRejeitada;
+      const successMessage = ocrProcessado 
+        ? `Nota fiscal ${isReenvio ? 'reenviada' : 'enviada'} e validada automaticamente! Número: ${numeroNota || 'N/A'}. O gestor será notificado para análise.`
+        : isReenvio 
+          ? "Nota fiscal reenviada. O gestor será notificado para análise." 
+          : "Nota fiscal enviada. O gestor será notificado para análise.";
+      
       toast({
         title: "✅ Nota Enviada!",
-        description: isReenvio 
-          ? "Nota fiscal reenviada. O gestor será notificado para análise." 
-          : "Nota fiscal enviada. O gestor será notificado para análise.",
-        duration: 6000,
+        description: successMessage,
+        duration: 8000,
       });
 
     } catch (error: any) {
@@ -1174,25 +1274,39 @@ export default function DashboardMedicos() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="valorLiquido" className="text-sm font-medium">
-                  Valor Líquido da Nota *
-                </Label>
-                <Input
-                  id="valorLiquido"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0,00"
-                  value={valorLiquido}
-                  onChange={(e) => setValorLiquido(e.target.value)}
-                  className="text-base"
-                  disabled={uploading}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Informe o valor líquido que consta na nota fiscal
-                </p>
-              </div>
+              {!ocrHabilitado && (
+                <div className="space-y-2">
+                  <Label htmlFor="valorLiquido" className="text-sm font-medium">
+                    Valor Líquido da Nota *
+                  </Label>
+                  <Input
+                    id="valorLiquido"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    value={valorLiquido}
+                    onChange={(e) => setValorLiquido(e.target.value)}
+                    className="text-base"
+                    disabled={uploading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Informe o valor líquido que consta na nota fiscal
+                  </p>
+                </div>
+              )}
+
+              {ocrHabilitado && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-900">
+                    <strong>✨ OCR Automático Ativado</strong>
+                  </p>
+                  <p className="text-xs text-blue-800 mt-1">
+                    O sistema irá extrair automaticamente o número da nota, valor bruto e valor líquido. 
+                    Você não precisa preencher o valor líquido manualmente.
+                  </p>
+                </div>
+              )}
 
               <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
                 <p className="text-sm font-medium text-foreground">
@@ -1200,7 +1314,7 @@ export default function DashboardMedicos() {
                 </p>
                 <ul className="text-xs text-muted-foreground mt-2 space-y-1">
                   <li>• O arquivo está correto e completo?</li>
-                  <li>• O valor líquido informado está correto?</li>
+                  {!ocrHabilitado && <li>• O valor líquido informado está correto?</li>}
                   <li>• Os dados conferem com o pagamento?</li>
                   <li>• O PDF não possui problemas de visualização?</li>
                 </ul>
@@ -1220,7 +1334,7 @@ export default function DashboardMedicos() {
                 </Button>
                 <Button 
                   onClick={handleConfirmUpload}
-                  disabled={uploading || !valorLiquido || parseFloat(valorLiquido) <= 0}
+                  disabled={uploading || (!ocrHabilitado && (!valorLiquido || parseFloat(valorLiquido) <= 0))}
                   className="w-full sm:w-auto"
                 >
                   {uploading ? "Enviando..." : "Confirmar e Enviar"}
