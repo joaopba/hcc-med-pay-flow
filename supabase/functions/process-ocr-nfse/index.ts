@@ -75,16 +75,41 @@ serve(async (req) => {
     const pdfBlob = new Blob([bytes], { type: 'application/pdf' });
 
     const formData = new FormData();
-    formData.append('file', pdfBlob, 'nota.pdf');
+    // A API espera o campo "invoices" no multipart
+    formData.append('invoices', pdfBlob, 'nota.pdf');
 
-    const ocrResponse = await fetch('https://ocr.api.shelf.evtit.com/v1/external/nfse/map', {
+    // Timeout de 60s para APIs que demoram
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    // Tentar primeiro o endpoint padrão; se falhar com 404/400, tentar o alternativo
+    const primaryUrl = 'https://ocr.api.shelf.evtit.com/v1/external/nfse/map';
+    const fallbackUrl = 'https://ocr.api.shelf.evtit.com/v1/external/v1/external/nfse/map';
+
+    let ocrResponse = await fetch(primaryUrl, {
       method: 'POST',
-      headers: { 
-        'Accept': 'application/json', 
-        'x-api-key': config.ocr_nfse_api_key 
+      headers: {
+        'Accept': 'application/json',
+        'x-api-key': config.ocr_nfse_api_key
       },
-      body: formData
+      body: formData,
+      signal: controller.signal
     });
+
+    if (!ocrResponse.ok && (ocrResponse.status === 404 || ocrResponse.status === 400)) {
+      // tenta fallback
+      ocrResponse = await fetch(fallbackUrl, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'x-api-key': config.ocr_nfse_api_key
+        },
+        body: formData,
+        signal: controller.signal
+      });
+    }
+
+    clearTimeout(timeoutId);
 
     if (!ocrResponse.ok) {
       const errorText = await ocrResponse.text();

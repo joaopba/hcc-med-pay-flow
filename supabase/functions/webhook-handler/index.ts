@@ -568,6 +568,14 @@ serve(async (req) => {
                       .select('nome')
                       .eq('id', pagamento.medico_id)
                       .single();
+
+                    // Remover o arquivo do Storage para evitar lixo
+                    try {
+                      await supabase.storage.from('notas').remove([filePath]);
+                      console.log('🧹 PDF removido do storage após rejeição');
+                    } catch (removeErr) {
+                      console.warn('Falha ao remover PDF rejeitado:', removeErr);
+                    }
                     
                     await enviarMensagemRejeicaoValor(
                       supabase, from, medicoData?.nome || 'Médico',
