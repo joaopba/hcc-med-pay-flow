@@ -8,32 +8,39 @@ const corsHeaders = {
 function parseBR(value: string | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
   if (typeof value === 'number') return value;
-  const cleaned = value.replace(/[^\d,\.]/g, '').trim();
-  if (/,\d{1,2}$/.test(cleaned)) {
-    return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+  // remove non-digits except comma and dot
+  const cleaned = value.replace(/[^\d\,\.]/g, '');
+  // assume format like 3.578,72 or 3578.72
+  if (/\,\d{2}$/.test(cleaned)) {
+    const step = cleaned.replace(/\./g, '').replace(',', '.');
+    return parseFloat(step) || 0;
   }
   return parseFloat(cleaned.replace(',', '.')) || 0;
 }
 
 function calcularValorLiquido(result: any) {
   const bruto = parseBR(result.totalValue);
-  const inss = parseBR(result.INSSRetention ?? result.INSSvalue ?? result.INSS ?? 0);
-  const irrf = parseBR(result.IRRFvalue ?? result.IRRF ?? result.IR ?? 0);
+  const inss = parseBR(result.INSSRetention ?? result.INSS ?? result.INSSvalue);
+  const irrf = parseBR(result.IRRFvalue ?? result.IRR ?? 0);
   const csll = parseBR(result.CSLLvalue ?? 0);
   const cofins = parseBR(result.COFINSvalue ?? 0);
   const pis = parseBR(result.PISvalue ?? 0);
-  const desconto = parseBR(result.inconditionalDiscount ?? 0);
+  const discount = parseBR(result.inconditionalDiscount ?? result.inconditionalDiscount ?? result.inconditionalDiscount);
+  // ISS somente se retido
+  const issRetido = (result.ISSretain === "Sim" || result.ISSretain === true) ? parseBR(result.ISSvalue) : 0;
+  // outras deduções explícitas
   const outras = parseBR(result.totalDeductions ?? 0);
-  const issRetido = (result.ISSretain === 'Sim' || result.ISSretain === true) ? parseBR(result.ISSvalue) : 0;
-  const liquido = bruto - (inss + irrf + csll + cofins + pis + issRetido + desconto + outras);
-  const arredondado = Math.round((liquido + Number.EPSILON) * 100) / 100;
+
+  const net = bruto - (inss + irrf + csll + cofins + pis + issRetido + discount + outras);
+  // arredondar para 2 casas
+  const liquido = Math.round((net + Number.EPSILON) * 100) / 100;
 
   return {
     numeroNota: result.invoiceNumber ?? null,
     valorBruto: bruto,
-    valorLiquido: arredondado,
+    valorLiquido: liquido,
     issRetido: result.ISSretain === 'Sim' || result.ISSretain === true,
-    retencoes: { INSS: inss, IRRF: irrf, CSLL: csll, COFINS: cofins, PIS: pis, ISS: issRetido, descontoIncondicional: desconto, outrasDeducoes: outras }
+    retencoes: { INSS: inss, IRRF: irrf, CSLL: csll, COFINS: cofins, PIS: pis, ISS: issRetido, descontoIncondicional: discount, outrasDeducoes: outras }
   };
 }
 

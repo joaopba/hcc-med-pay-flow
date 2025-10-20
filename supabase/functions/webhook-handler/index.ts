@@ -600,15 +600,17 @@ serve(async (req) => {
                 }
               }
 
-              // Atualizar pagamento
+              // Atualizar pagamento - SEMPRE salvar valor_liquido se vier do OCR
               const updateData: any = {
                 status: 'nota_recebida',
                 data_resposta: new Date().toISOString(),
                 nota_pdf_url: `notas/${filePath}`,
               };
 
-              if (valorLiquido !== null && valorLiquido !== undefined) {
+              // Se OCR processou e retornou valor líquido, SEMPRE atualizar (mesmo que seja 0)
+              if (ocrProcessado && valorLiquido !== null && valorLiquido !== undefined) {
                 updateData.valor_liquido = valorLiquido;
+                console.log('💰 Atualizando valor_liquido no pagamento:', valorLiquido);
               }
 
               const { error: updateError } = await supabase
@@ -621,7 +623,14 @@ serve(async (req) => {
                 throw updateError;
               }
 
-              // Inserir nota na tabela notas_medicos
+              // Inserir nota na tabela notas_medicos com todos os dados do OCR
+              console.log('📝 Inserindo nota com dados:', { 
+                numeroNota, 
+                valorBruto, 
+                valorLiquido, 
+                ocrProcessado 
+              });
+              
               const { data: insertData, error: insertError } = await supabase
                 .from('notas_medicos')
                 .insert([{
@@ -630,8 +639,8 @@ serve(async (req) => {
                   arquivo_url: filePath,
                   nome_arquivo: filename,
                   status: 'pendente',
-                  numero_nota: numeroNota,
-                  valor_bruto: valorBruto,
+                  numero_nota: numeroNota || null,
+                  valor_bruto: valorBruto || null,
                   ocr_processado: ocrProcessado,
                   ocr_resultado: ocrProcessado ? { numeroNota, valorBruto, valorLiquido } : null
                 }])

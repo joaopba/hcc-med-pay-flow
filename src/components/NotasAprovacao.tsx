@@ -38,6 +38,8 @@ interface NotaMedico {
   updated_at: string;
   valor_ajustado?: number;
   motivo_ajuste?: string;
+  numero_nota?: string;
+  valor_bruto?: number;
   medicos: {
     nome: string;
     documento: string;
@@ -540,6 +542,7 @@ export default function NotasAprovacao() {
             <TableRow>
               <TableHead>Médico</TableHead>
               <TableHead>CPF/CNPJ</TableHead>
+              <TableHead>Nº Nota</TableHead>
               <TableHead>Competência</TableHead>
               <TableHead>Valor Bruto</TableHead>
               <TableHead>Valor Líquido</TableHead>
@@ -559,6 +562,9 @@ export default function NotasAprovacao() {
                       : nota.medicos.documento.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
                     : 'N/A'
                   }
+                </TableCell>
+                <TableCell className="text-center">
+                  {nota.numero_nota || '-'}
                 </TableCell>
                 <TableCell>
                   {formatMesCompetencia(nota.pagamentos.mes_competencia)}
@@ -604,6 +610,7 @@ export default function NotasAprovacao() {
                           <div className="space-y-4">
                             <div>
                               <p><strong>Médico:</strong> {nota.medicos.nome}</p>
+                              <p><strong>Nº Nota:</strong> {nota.numero_nota || '-'}</p>
                               <p><strong>Competência:</strong> {formatMesCompetencia(nota.pagamentos.mes_competencia)}</p>
                               <p><strong>Valor Bruto:</strong> {formatCurrency(nota.pagamentos.valor)}</p>
                               <p><strong>Valor Líquido:</strong> {nota.valor_ajustado ? formatCurrency(nota.valor_ajustado) + ' (Ajustado)' : nota.pagamentos.valor_liquido ? formatCurrency(nota.pagamentos.valor_liquido) : 'Não informado'}</p>
