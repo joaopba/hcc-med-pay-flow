@@ -31,6 +31,7 @@ interface RelatorioItem {
   data_solicitacao: string;
   data_resposta: string;
   data_pagamento: string;
+  numero_nota: string;
 }
 
 export default function Relatorios() {
@@ -51,6 +52,7 @@ export default function Relatorios() {
       let query = supabase
         .from("pagamentos")
         .select(`
+          id,
           valor,
           valor_liquido,
           status,
@@ -82,6 +84,16 @@ export default function Relatorios() {
       
       if (error) throw error;
 
+      // Buscar números de notas
+      const pagamentoIds = data?.map(p => p.id) || [];
+      const { data: notasData } = await supabase
+        .from("notas_medicos")
+        .select("pagamento_id, numero_nota")
+        .in("pagamento_id", pagamentoIds)
+        .eq("status", "aprovado");
+
+      const notasMap = new Map((notasData || []).map(n => [n.pagamento_id, n.numero_nota]));
+
       // Transformar dados para o formato do relatório
       const dadosFormatados = data?.map(item => {
         // Função para formatar data evitando timezone
@@ -102,6 +114,7 @@ export default function Relatorios() {
           data_solicitacao: formatarData(item.data_solicitacao),
           data_resposta: formatarData(item.data_resposta),
           data_pagamento: formatarData(item.data_pagamento),
+          numero_nota: notasMap.get(item.id) || '-',
         };
       }) || [];
 
@@ -306,6 +319,7 @@ export default function Relatorios() {
       // ========== TABELA DE DADOS ==========
       const tableData = dados.map(item => [
         item.medico_nome,
+        item.numero_nota,
         item.mes_competencia,
         formatCurrency(item.valor),
         formatCurrency(item.valor_liquido),
@@ -316,7 +330,7 @@ export default function Relatorios() {
 
       autoTable(doc, {
         startY: 98,
-        head: [['Médico', 'Competência', 'Vlr. Bruto', 'Vlr. Líquido', 'Status', 'Dt. Solicitação', 'Dt. Pagamento']],
+        head: [['Médico', 'Nº Nota', 'Competência', 'Vlr. Bruto', 'Vlr. Líquido', 'Status', 'Dt. Solicitação', 'Dt. Pagamento']],
         body: tableData,
         theme: 'grid',
         headStyles: {
@@ -336,13 +350,14 @@ export default function Relatorios() {
           fillColor: [249, 249, 249]
         },
         columnStyles: {
-          0: { cellWidth: 60, halign: 'left' },
-          1: { cellWidth: 28, halign: 'center' },
-          2: { cellWidth: 30, halign: 'right' },
-          3: { cellWidth: 30, halign: 'right' },
-          4: { cellWidth: 28, halign: 'center' },
-          5: { cellWidth: 32, halign: 'center' },
-          6: { cellWidth: 32, halign: 'center' }
+          0: { cellWidth: 50, halign: 'left' },
+          1: { cellWidth: 22, halign: 'center' },
+          2: { cellWidth: 24, halign: 'center' },
+          3: { cellWidth: 28, halign: 'right' },
+          4: { cellWidth: 28, halign: 'right' },
+          5: { cellWidth: 24, halign: 'center' },
+          6: { cellWidth: 28, halign: 'center' },
+          7: { cellWidth: 28, halign: 'center' }
         },
         margin: { left: 15, right: 15 },
         styles: {
@@ -406,6 +421,7 @@ export default function Relatorios() {
 
     const headers = [
       "Médico",
+      "Nº Nota",
       "WhatsApp",
       "Competência",
       "Valor Bruto",
@@ -420,6 +436,7 @@ export default function Relatorios() {
       headers.join(","),
       ...dados.map(item => [
         `"${item.medico_nome}"`,
+        `"${item.numero_nota}"`,
         `"${item.numero_whatsapp}"`,
         item.mes_competencia,
         item.valor.toFixed(2),
@@ -619,6 +636,7 @@ export default function Relatorios() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[180px]">Médico</TableHead>
+                      <TableHead className="min-w-[100px]">Nº Nota</TableHead>
                       <TableHead className="min-w-[120px]">Competência</TableHead>
                       <TableHead className="min-w-[120px]">Valor Bruto</TableHead>
                       <TableHead className="min-w-[120px]">Valor Líquido</TableHead>
@@ -632,6 +650,7 @@ export default function Relatorios() {
                     {dados.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.medico_nome}</TableCell>
+                        <TableCell className="text-center">{item.numero_nota}</TableCell>
                         <TableCell>{item.mes_competencia}</TableCell>
                         <TableCell>{formatCurrency(item.valor)}</TableCell>
                         <TableCell>{formatCurrency(item.valor_liquido)}</TableCell>

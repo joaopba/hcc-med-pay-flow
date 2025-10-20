@@ -79,7 +79,10 @@ serve(async (req) => {
 
     const ocrResponse = await fetch('https://ocr.api.shelf.evtit.com/v1/external/nfse/map', {
       method: 'POST',
-      headers: { 'Accept': 'application/json', 'x-api-key': config.ocr_nfse_api_key },
+      headers: { 
+        'Accept': 'application/json', 
+        'x-api-key': config.ocr_nfse_api_key 
+      },
       body: formData
     });
 

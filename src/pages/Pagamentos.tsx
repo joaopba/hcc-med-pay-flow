@@ -51,6 +51,7 @@ interface Pagamento {
   comprovante_url: string;
   observacoes: string;
   medicos: Medico;
+  numero_nota?: string;
 }
 
 export default function Pagamentos() {
@@ -145,14 +146,23 @@ export default function Pagamentos() {
       // Verificar notas aprovadas e corrigir status inconsistentes
       const pagamentoIds = (pagamentosData || []).map((p: any) => p.id);
       let aprovadosSet = new Set<string>();
+      const notasNumeroMap = new Map<string, string>();
+      
       if (pagamentoIds.length > 0) {
         const { data: notasAprovadas } = await supabase
           .from('notas_medicos')
-          .select('pagamento_id, status')
+          .select('pagamento_id, status, numero_nota')
           .in('pagamento_id', pagamentoIds)
           .eq('status', 'aprovado');
 
         aprovadosSet = new Set((notasAprovadas || []).map((n: any) => n.pagamento_id));
+        
+        // Mapear números de nota
+        (notasAprovadas || []).forEach((n: any) => {
+          if (n.numero_nota) {
+            notasNumeroMap.set(n.pagamento_id, n.numero_nota);
+          }
+        });
 
         // Corrigir banco se houver pagamentos marcados como 'nota_recebida' mas com nota aprovada
         // MAS NÃO SOBRESCREVER se já estiver como 'pago'
@@ -173,6 +183,7 @@ export default function Pagamentos() {
         // Só sobrescrever para 'aprovado' se não estiver como 'pago'
         status: (aprovadosSet.has(p.id) && p.status !== 'pago') ? 'aprovado' : p.status,
         medicos: medicosMap.get(p.medico_id) || null,
+        numero_nota: notasNumeroMap.get(p.id) || null,
       }));
 
       setPagamentos(pagamentosComMedico);
@@ -802,6 +813,7 @@ export default function Pagamentos() {
                       />
                     </TableHead>
                     <TableHead className="min-w-[150px]">Médico</TableHead>
+                    <TableHead className="min-w-[100px]">Nº Nota</TableHead>
                     <TableHead className="min-w-[100px]">Competência</TableHead>
                     <TableHead className="min-w-[100px]">Valor Bruto</TableHead>
                     <TableHead className="min-w-[120px]">Status</TableHead>
@@ -827,6 +839,7 @@ export default function Pagamentos() {
                         />
                       </TableCell>
                       <TableCell className="font-medium">{pagamento.medicos?.nome || '—'}</TableCell>
+                      <TableCell className="text-center">{pagamento.numero_nota || '-'}</TableCell>
                       <TableCell>{pagamento.mes_competencia}</TableCell>
                       <TableCell>{formatCurrency(pagamento.valor)}</TableCell>
                       <TableCell>
