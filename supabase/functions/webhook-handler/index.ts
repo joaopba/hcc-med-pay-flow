@@ -547,8 +547,8 @@ serve(async (req) => {
               let valorLiquido: number | null = null;
               let ocrProcessado = false;
               
-              if (config?.ocr_nfse_habilitado && config?.ocr_nfse_api_key) {
-                console.log('🔍 OCR habilitado, processando nota...');
+              if (config?.ocr_nfse_api_key) {
+                console.log('🔍 OCR ativo (API key presente), processando nota...');
                 
                 const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
                 
