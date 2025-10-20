@@ -16,6 +16,9 @@ interface Configuracao {
   auth_token: string;
   webhook_url: string;
   email_notificacoes: boolean;
+  ocr_nfse_habilitado: boolean;
+  ocr_nfse_api_key: string;
+  permitir_nota_via_whatsapp: boolean;
 }
 
 export default function Configuracoes() {
@@ -61,6 +64,9 @@ export default function Configuracoes() {
         auth_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MywicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjoyLCJpYXQiOjE3NTgxMjkzMjMsImV4cCI6MTgyMTIwMTMyM30.dEvjbe3ZYLkFn3Bx7N8uKcsw34ZOJoCApJRgAAMmW2w",
         webhook_url: "",
         email_notificacoes: true,
+        ocr_nfse_habilitado: false,
+        ocr_nfse_api_key: "",
+        permitir_nota_via_whatsapp: true,
       });
     } finally {
       setLoading(false);
@@ -80,6 +86,9 @@ export default function Configuracoes() {
             auth_token: config.auth_token,
             webhook_url: config.webhook_url,
             email_notificacoes: config.email_notificacoes,
+            ocr_nfse_habilitado: config.ocr_nfse_habilitado,
+            ocr_nfse_api_key: config.ocr_nfse_api_key,
+            permitir_nota_via_whatsapp: config.permitir_nota_via_whatsapp,
           })
           .eq("id", config.id);
 
@@ -92,6 +101,9 @@ export default function Configuracoes() {
             auth_token: config.auth_token,
             webhook_url: config.webhook_url,
             email_notificacoes: config.email_notificacoes,
+            ocr_nfse_habilitado: config.ocr_nfse_habilitado,
+            ocr_nfse_api_key: config.ocr_nfse_api_key,
+            permitir_nota_via_whatsapp: config.permitir_nota_via_whatsapp,
           }])
           .select()
           .single();
@@ -365,13 +377,120 @@ export default function Configuracoes() {
 
           <Card>
             <CardHeader>
+              <CardTitle>🔍 OCR NFS-e (Reconhecimento Automático)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                <p className="text-sm text-blue-900 mb-2">
+                  <strong>📝 O que é OCR NFS-e?</strong>
+                </p>
+                <p className="text-xs text-blue-800">
+                  Sistema que extrai automaticamente dados das notas fiscais (número, valor bruto, valor líquido) 
+                  e valida se o valor está correto antes de enviar para aprovação. Reduz erros e acelera o processo.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="ocr_nfse_habilitado">Habilitar OCR NFS-e</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Ativar reconhecimento automático de dados nas notas fiscais
+                  </p>
+                </div>
+                <Switch
+                  id="ocr_nfse_habilitado"
+                  checked={config.ocr_nfse_habilitado}
+                  onCheckedChange={(checked) => 
+                    setConfig({ ...config, ocr_nfse_habilitado: checked })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ocr_nfse_api_key">Chave da API OCR</Label>
+                <Textarea
+                  id="ocr_nfse_api_key"
+                  value={config.ocr_nfse_api_key}
+                  onChange={(e) => setConfig({ ...config, ocr_nfse_api_key: e.target.value })}
+                  rows={4}
+                  placeholder="Cole aqui sua chave de API do serviço OCR..."
+                  disabled={!config.ocr_nfse_habilitado}
+                />
+                <p className="text-xs text-muted-foreground">
+                  ⚠️ Mantenha esta chave segura. Será usada para processar as notas fiscais.
+                </p>
+              </div>
+
+              {config.ocr_nfse_habilitado && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-900 mb-2">
+                    <strong>✅ Quando OCR está ativo:</strong>
+                  </p>
+                  <ul className="text-xs text-green-800 space-y-1 list-disc list-inside">
+                    <li>Sistema extrai automaticamente número da nota, valor bruto e líquido</li>
+                    <li>Valida se o valor bruto está correto antes de aprovar</li>
+                    <li>Não pede valor líquido ao médico (calcula automaticamente)</li>
+                    <li>Rejeita automaticamente notas com valor incorreto</li>
+                  </ul>
+                </div>
+              )}
+
+              {!config.ocr_nfse_habilitado && (
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-sm text-gray-700 mb-2">
+                    <strong>ℹ️ Quando OCR está desativado:</strong>
+                  </p>
+                  <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+                    <li>Sistema pergunta ao médico o valor líquido da nota</li>
+                    <li>Gestor precisa conferir manualmente os valores na aprovação</li>
+                    <li>Processo mais manual, mas sem custos de API OCR</li>
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>📱 Upload de Notas via WhatsApp</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="permitir_nota_via_whatsapp">Permitir envio via WhatsApp</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Médicos podem enviar notas direto por mensagem no WhatsApp
+                  </p>
+                </div>
+                <Switch
+                  id="permitir_nota_via_whatsapp"
+                  checked={config.permitir_nota_via_whatsapp}
+                  onCheckedChange={(checked) => 
+                    setConfig({ ...config, permitir_nota_via_whatsapp: checked })
+                  }
+                />
+              </div>
+
+              {!config.permitir_nota_via_whatsapp && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-900">
+                    <strong>⚠️ Atenção:</strong> Quando desativado, médicos receberão uma mensagem 
+                    informando que devem enviar a nota apenas pelo portal web.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Informações do Sistema</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Versão:</p>
-                  <p className="font-medium">1.3.2</p>
+                  <p className="font-medium">1.4.0</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Último backup:</p>

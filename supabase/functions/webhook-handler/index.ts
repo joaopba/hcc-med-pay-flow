@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { processarOCRNota, enviarMensagemRejeicaoValor, enviarMensagemApenasPortal } from "./ocr-helper.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -137,7 +138,7 @@ serve(async (req) => {
         // Buscar configurações da API
         const { data: config, error: configError } = await supabase
           .from('configuracoes')
-          .select('api_url, auth_token')
+          .select('api_url, auth_token, ocr_nfse_habilitado, ocr_nfse_api_key, permitir_nota_via_whatsapp')
           .single();
 
         if (configError || !config) {
@@ -284,7 +285,7 @@ serve(async (req) => {
         // Buscar configurações da API
         const { data: config, error: configError } = await supabase
           .from('configuracoes')
-          .select('api_url, auth_token')
+          .select('api_url, auth_token, ocr_nfse_habilitado, ocr_nfse_api_key, permitir_nota_via_whatsapp')
           .single();
 
         if (configError || !config) {
@@ -455,6 +456,27 @@ serve(async (req) => {
         }
 
         if (pagamento) {
+          // Buscar configurações
+          const { data: config } = await supabase
+            .from('configuracoes')
+            .select('ocr_nfse_habilitado, ocr_nfse_api_key, permitir_nota_via_whatsapp, api_url, auth_token')
+            .single();
+
+          // Verificar se permite upload via WhatsApp
+          if (config && !config.permitir_nota_via_whatsapp) {
+            console.log('❌ Upload via WhatsApp desativado');
+            const { data: medicoData } = await supabase
+              .from('medicos')
+              .select('nome')
+              .eq('id', pagamento.medico_id)
+              .single();
+            
+            await enviarMensagemApenasPortal(supabase, from, medicoData?.nome || 'Médico');
+            
+            return new Response(JSON.stringify({ success: true, message: 'Upload apenas por portal' }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
           
           // Fazer download do arquivo PDF usando o token do webhook
           try {
@@ -519,14 +541,48 @@ serve(async (req) => {
 
               console.log('Arquivo enviado para storage:', uploadData);
 
-              // Tentar extrair valor líquido do PDF usando OCR ou regex
+              // Processar OCR se habilitado
+              let numeroNota = null;
+              let valorBruto = null;
               let valorLiquido = null;
-              try {
-                // Simulação de extração de valor - implementar OCR real se necessário
-                const textContent = await extractTextFromPDF(fileData);
-                valorLiquido = extractLiquidValue(textContent);
-              } catch (ocrError) {
-                console.warn('Erro na extração de texto:', ocrError);
+              let ocrProcessado = false;
+              
+              if (config?.ocr_nfse_habilitado && config?.ocr_nfse_api_key) {
+                console.log('🔍 OCR habilitado, processando nota...');
+                const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
+                
+                if (ocrResult.success) {
+                  numeroNota = ocrResult.numeroNota;
+                  valorBruto = ocrResult.valorBruto;
+                  valorLiquido = ocrResult.valorLiquido;
+                  ocrProcessado = true;
+                  
+                  // Validar valor bruto
+                  const valorEsperado = parseFloat(pagamento.valor);
+                  const diferenca = Math.abs(valorEsperado - (valorBruto || 0));
+                  
+                  if (diferenca > 0.01) {
+                    console.log('❌ Valor bruto incorreto, rejeitando nota');
+                    const { data: medicoData } = await supabase
+                      .from('medicos')
+                      .select('nome')
+                      .eq('id', pagamento.medico_id)
+                      .single();
+                    
+                    await enviarMensagemRejeicaoValor(
+                      supabase, from, medicoData?.nome || 'Médico',
+                      valorEsperado, valorBruto || 0, 
+                      formatMesCompetencia(pagamento.mes_competencia)
+                    );
+                    
+                    return new Response(JSON.stringify({ 
+                      success: false, 
+                      message: 'Nota rejeitada - valor incorreto' 
+                    }), {
+                      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    });
+                  }
+                }
               }
 
               // Atualizar pagamento
@@ -558,7 +614,11 @@ serve(async (req) => {
                   pagamento_id: pagamento.id,
                   arquivo_url: filePath,
                   nome_arquivo: filename,
-                  status: 'pendente'
+                  status: 'pendente',
+                  numero_nota: numeroNota,
+                  valor_bruto: valorBruto,
+                  ocr_processado: ocrProcessado,
+                  ocr_resultado: ocrProcessado ? { numeroNota, valorBruto, valorLiquido } : null
                 }])
                 .select('*, pagamentos!inner(mes_competencia)')
                 .single();

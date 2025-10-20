@@ -116,6 +116,9 @@ export type Database = {
           created_at: string
           email_notificacoes: boolean
           id: string
+          ocr_nfse_api_key: string | null
+          ocr_nfse_habilitado: boolean
+          permitir_nota_via_whatsapp: boolean
           updated_at: string
           webhook_url: string | null
         }
@@ -125,6 +128,9 @@ export type Database = {
           created_at?: string
           email_notificacoes?: boolean
           id?: string
+          ocr_nfse_api_key?: string | null
+          ocr_nfse_habilitado?: boolean
+          permitir_nota_via_whatsapp?: boolean
           updated_at?: string
           webhook_url?: string | null
         }
@@ -134,6 +140,9 @@ export type Database = {
           created_at?: string
           email_notificacoes?: boolean
           id?: string
+          ocr_nfse_api_key?: string | null
+          ocr_nfse_habilitado?: boolean
+          permitir_nota_via_whatsapp?: boolean
           updated_at?: string
           webhook_url?: string | null
         }
@@ -274,11 +283,15 @@ export type Database = {
           medico_id: string
           motivo_ajuste: string | null
           nome_arquivo: string
+          numero_nota: string | null
           observacoes: string | null
+          ocr_processado: boolean | null
+          ocr_resultado: Json | null
           pagamento_id: string
           status: string
           updated_at: string
           valor_ajustado: number | null
+          valor_bruto: number | null
         }
         Insert: {
           ajustado_em?: string | null
@@ -289,11 +302,15 @@ export type Database = {
           medico_id: string
           motivo_ajuste?: string | null
           nome_arquivo: string
+          numero_nota?: string | null
           observacoes?: string | null
+          ocr_processado?: boolean | null
+          ocr_resultado?: Json | null
           pagamento_id: string
           status?: string
           updated_at?: string
           valor_ajustado?: number | null
+          valor_bruto?: number | null
         }
         Update: {
           ajustado_em?: string | null
@@ -304,11 +321,15 @@ export type Database = {
           medico_id?: string
           motivo_ajuste?: string | null
           nome_arquivo?: string
+          numero_nota?: string | null
           observacoes?: string | null
+          ocr_processado?: boolean | null
+          ocr_resultado?: Json | null
           pagamento_id?: string
           status?: string
           updated_at?: string
           valor_ajustado?: number | null
+          valor_bruto?: number | null
         }
         Relationships: [
           {
