@@ -552,51 +552,53 @@ serve(async (req) => {
                 
                 const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
                 
-                if (ocrResult.success && ocrResult.numeroNota && ocrResult.valorBruto !== undefined && ocrResult.valorLiquido !== undefined) {
-                  numeroNota = ocrResult.numeroNota;
-                  valorBruto = ocrResult.valorBruto;
-                  valorLiquido = ocrResult.valorLiquido;
+                if (ocrResult.success) {
+                  numeroNota = ocrResult.numeroNota ?? null;
+                  valorBruto = (typeof ocrResult.valorBruto === 'number') ? ocrResult.valorBruto : null;
+                  valorLiquido = (typeof ocrResult.valorLiquido === 'number') ? ocrResult.valorLiquido : null;
                   ocrProcessado = true;
                   
-                  console.log(`✅ OCR processado: Nota ${numeroNota}, Bruto: ${valorBruto}, Líquido: ${valorLiquido}`);
+                  console.log(`✅ OCR processado: Nota ${numeroNota || '—'}, Bruto: ${valorBruto ?? '—'}, Líquido: ${valorLiquido ?? '—'}`);
                   
-                  // Validar valor bruto
-                  const valorEsperado = parseFloat(pagamento.valor);
-                  const diferenca = Math.abs(valorEsperado - valorBruto);
-                  
-                  console.log(`🔍 Validando: Esperado ${valorEsperado}, Recebido ${valorBruto}, Diferença: ${diferenca}`);
-                  
-                  if (diferenca > 0.01) {
-                    console.log('❌ Valor bruto incorreto, rejeitando nota');
-                    const { data: medicoData } = await supabase
-                      .from('medicos')
-                      .select('nome')
-                      .eq('id', pagamento.medico_id)
-                      .single();
+                  // Validar valor bruto apenas se disponível
+                  if (typeof valorBruto === 'number') {
+                    const valorEsperado = parseFloat(pagamento.valor);
+                    const diferenca = Math.abs(valorEsperado - valorBruto);
+                    
+                    console.log(`🔍 Validando: Esperado ${valorEsperado}, Recebido ${valorBruto}, Diferença: ${diferenca}`);
+                    
+                    if (diferenca > 0.01) {
+                      console.log('❌ Valor bruto incorreto, rejeitando nota');
+                      const { data: medicoData } = await supabase
+                        .from('medicos')
+                        .select('nome')
+                        .eq('id', pagamento.medico_id)
+                        .single();
 
-                    // Remover o arquivo do Storage para evitar lixo
-                    try {
-                      await supabase.storage.from('notas').remove([filePath]);
-                      console.log('🧹 PDF removido do storage após rejeição');
-                    } catch (removeErr) {
-                      console.warn('Falha ao remover PDF rejeitado:', removeErr);
+                      // Remover o arquivo do Storage para evitar lixo
+                      try {
+                        await supabase.storage.from('notas').remove([filePath]);
+                        console.log('🧹 PDF removido do storage após rejeição');
+                      } catch (removeErr) {
+                        console.warn('Falha ao remover PDF rejeitado:', removeErr);
+                      }
+                      
+                      await enviarMensagemRejeicaoValor(
+                        supabase, from, medicoData?.nome || 'Médico',
+                        valorEsperado, valorBruto, 
+                        formatMesCompetencia(pagamento.mes_competencia)
+                      );
+                      
+                      return new Response(JSON.stringify({ 
+                        success: false, 
+                        message: 'Nota rejeitada - valor incorreto' 
+                      }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                      });
                     }
-                    
-                    await enviarMensagemRejeicaoValor(
-                      supabase, from, medicoData?.nome || 'Médico',
-                      valorEsperado, valorBruto, 
-                      formatMesCompetencia(pagamento.mes_competencia)
-                    );
-                    
-                    return new Response(JSON.stringify({ 
-                      success: false, 
-                      message: 'Nota rejeitada - valor incorreto' 
-                    }), {
-                      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-                    });
                   }
                 } else {
-                  console.warn('⚠️ OCR não retornou dados completos:', ocrResult);
+                  console.warn('⚠️ OCR não retornou sucesso:', ocrResult);
                 }
               }
 

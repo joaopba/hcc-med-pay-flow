@@ -19,27 +19,37 @@ function parseBR(value: string | number | null | undefined): number {
 }
 
 function calcularValorLiquido(result: any) {
-  const bruto = parseBR(result.totalValue);
-  const inss = parseBR(result.INSSRetention ?? result.INSS ?? result.INSSvalue);
-  const irrf = parseBR(result.IRRFvalue ?? result.IRR ?? 0);
-  const csll = parseBR(result.CSLLvalue ?? 0);
-  const cofins = parseBR(result.COFINSvalue ?? 0);
-  const pis = parseBR(result.PISvalue ?? 0);
-  const discount = parseBR(result.inconditionalDiscount ?? result.inconditionalDiscount ?? result.inconditionalDiscount);
-  // ISS somente se retido
-  const issRetido = (result.ISSretain === "Sim" || result.ISSretain === true) ? parseBR(result.ISSvalue) : 0;
-  // outras deduções explícitas
-  const outras = parseBR(result.totalDeductions ?? 0);
+  const get = (...keys: string[]) => {
+    for (const k of keys) {
+      const v = result?.[k];
+      if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return undefined;
+  };
+
+  const bruto = parseBR(get('totalValue','totalAmount','invoiceTotal','total','total_value','valorTotal','valor_total'));
+  const inss = parseBR(get('INSSRetention','INSS','INSSvalue','inss'));
+  const irrf = parseBR(get('IRRFvalue','IRRF','IR','irrf'));
+  const csll = parseBR(get('CSLLvalue','csll'));
+  const cofins = parseBR(get('COFINSvalue','cofins'));
+  const pis = parseBR(get('PISvalue','pis'));
+  const discount = parseBR(get('inconditionalDiscount','unconditionalDiscount','descontoIncondicional','desconto_incondicional','discount'));
+  const outras = parseBR(get('totalDeductions','outrasDeducoes','outras_deducoes', 0 as any));
+  const issFlag = get('ISSretain','issRetained','iss_retain','issRetido');
+  const issRetido = (issFlag === 'Sim' || issFlag === true || issFlag === 'true' || issFlag === 'Yes') 
+    ? parseBR(get('ISSvalue','issValue','iss')) 
+    : 0;
 
   const net = bruto - (inss + irrf + csll + cofins + pis + issRetido + discount + outras);
-  // arredondar para 2 casas
   const liquido = Math.round((net + Number.EPSILON) * 100) / 100;
 
+  const numeroNota = get('invoiceNumber','nfseNumber','nfNumber','number','numeroNota','numero_nota','invoice_no') ?? null;
+
   return {
-    numeroNota: result.invoiceNumber ?? null,
+    numeroNota,
     valorBruto: bruto,
     valorLiquido: liquido,
-    issRetido: result.ISSretain === 'Sim' || result.ISSretain === true,
+    issRetido: (issFlag === 'Sim' || issFlag === true || issFlag === 'true' || issFlag === 'Yes'),
     retencoes: { INSS: inss, IRRF: irrf, CSLL: csll, COFINS: cofins, PIS: pis, ISS: issRetido, descontoIncondicional: discount, outrasDeducoes: outras }
   };
 }
@@ -127,6 +137,11 @@ serve(async (req) => {
 
     const ocrResult = await ocrResponse.json();
 
+    // Logs úteis para depuração de mapeamento
+    try {
+      console.log('🔎 OCR invoicesResult length:', Array.isArray(ocrResult?.invoicesResult) ? ocrResult.invoicesResult.length : 'N/A');
+    } catch {}
+
     if (!ocrResult.invoicesResult || ocrResult.invoicesResult.length === 0) {
       return new Response(JSON.stringify({ success: false, error: 'Nota não encontrada no PDF' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -139,6 +154,16 @@ serve(async (req) => {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    try {
+      console.log('🔑 Chaves do resultado da nota:', Object.keys(invoice.result || {}));
+      console.log('📌 Candidatos de número:', {
+        invoiceNumber: invoice.result?.invoiceNumber,
+        nfseNumber: invoice.result?.nfseNumber,
+        nfNumber: invoice.result?.nfNumber,
+        number: invoice.result?.number,
+      });
+    } catch {}
 
     const dadosCalculados = calcularValorLiquido(invoice.result);
 
