@@ -457,14 +457,28 @@ serve(async (req) => {
 
         if (pagamento) {
           // Buscar configurações
-          const { data: config } = await supabase
+          const { data: config, error: configError } = await supabase
             .from('configuracoes')
             .select('ocr_nfse_habilitado, ocr_nfse_api_key, permitir_nota_via_whatsapp, api_url, auth_token')
             .single();
 
-          // Verificar se permite upload via WhatsApp
-          if (config && !config.permitir_nota_via_whatsapp) {
-            console.log('❌ Upload via WhatsApp desativado');
+          if (configError || !config) {
+            console.error('❌ Erro ao buscar configurações:', configError);
+            return new Response(JSON.stringify({ 
+              success: false, 
+              message: 'Erro ao buscar configurações do sistema' 
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
+          // Verificar se permite upload via WhatsApp (campo deve ser explicitamente true)
+          const permitirWhatsApp = config.permitir_nota_via_whatsapp === true;
+          
+          if (!permitirWhatsApp) {
+            console.log('❌ Upload via WhatsApp desativado - config.permitir_nota_via_whatsapp:', config.permitir_nota_via_whatsapp);
+            
             const { data: medicoData } = await supabase
               .from('medicos')
               .select('nome')
@@ -473,19 +487,30 @@ serve(async (req) => {
             
             await enviarMensagemApenasPortal(supabase, from, medicoData?.nome || 'Médico');
             
-            return new Response(JSON.stringify({ success: true, message: 'Upload apenas por portal' }), {
+            return new Response(JSON.stringify({ 
+              success: true, 
+              message: 'Upload via WhatsApp desativado - direcionado ao portal' 
+            }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
           }
           
+          console.log('✅ Upload via WhatsApp ATIVADO - processando nota...');
+          
           // Fazer download do arquivo PDF usando o token do webhook
           try {
             const wabaToken = ticket?.whatsapp?.bmToken;
-            console.log('Fazendo download do PDF - Media ID:', wabaMediaId, 'Token disponível:', !!wabaToken);
+            
+            if (!wabaToken) {
+              console.error('❌ Token WABA não encontrado no webhook');
+              throw new Error('Token de autenticação WhatsApp não encontrado');
+            }
+            
+            console.log('📥 Fazendo download do PDF - Media ID:', wabaMediaId);
             
             // Primeiro, obter a URL real do arquivo usando o wabaMediaId
             const mediaInfoUrl = `https://graph.facebook.com/v20.0/${wabaMediaId}`;
-            console.log('Buscando informações do arquivo:', mediaInfoUrl);
+            console.log('🔍 Buscando informações do arquivo:', mediaInfoUrl);
             
             const mediaInfoResponse = await fetch(mediaInfoUrl, {
               headers: {
@@ -494,52 +519,116 @@ serve(async (req) => {
             });
             
             if (!mediaInfoResponse.ok) {
+              const errorText = await mediaInfoResponse.text();
+              console.error('❌ Erro ao buscar informações do arquivo:', mediaInfoResponse.status, errorText);
               throw new Error(`Erro ao buscar informações do arquivo: ${mediaInfoResponse.status}`);
             }
             
             const mediaInfo = await mediaInfoResponse.json();
-            console.log('Informações do arquivo obtidas:', mediaInfo);
+            console.log('✅ Informações do arquivo obtidas:', { 
+              id: mediaInfo.id, 
+              mime_type: mediaInfo.mime_type,
+              file_size: mediaInfo.file_size 
+            });
+            
+            if (!mediaInfo.url) {
+              console.error('❌ URL do arquivo não encontrada na resposta da API');
+              throw new Error('URL do arquivo não encontrada');
+            }
             
             // Agora fazer o download do arquivo usando a URL obtida
+            console.log('📥 Baixando arquivo da URL:', mediaInfo.url);
+            
             const fileResponse = await fetch(mediaInfo.url, {
               headers: {
                 'Authorization': `Bearer ${wabaToken}`,
               }
             });
             
+            if (!fileResponse.ok) {
+              const errorText = await fileResponse.text();
+              console.error('❌ Erro ao baixar arquivo:', fileResponse.status, errorText);
+              throw new Error(`Erro ao baixar arquivo: ${fileResponse.status}`);
+            }
+            
             if (fileResponse.ok) {
               const fileData = await fileResponse.arrayBuffer();
+              
+              console.log('✅ Arquivo baixado com sucesso, tamanho:', fileData.byteLength, 'bytes');
               
               // Verificar tamanho do arquivo (máx 10MB)
               const maxSize = 10 * 1024 * 1024; // 10MB em bytes
               if (fileData.byteLength > maxSize) {
-                throw new Error(`Arquivo muito grande: ${(fileData.byteLength / 1024 / 1024).toFixed(2)}MB. Máximo permitido: 10MB`);
+                const sizeInMB = (fileData.byteLength / 1024 / 1024).toFixed(2);
+                console.error(`❌ Arquivo muito grande: ${sizeInMB}MB`);
+                
+                // Enviar mensagem ao médico informando sobre o tamanho
+                const { data: medicoData } = await supabase
+                  .from('medicos')
+                  .select('nome')
+                  .eq('id', pagamento.medico_id)
+                  .single();
+                
+                const form = new FormData();
+                form.append('number', from);
+                form.append('body', `⚠️ *Arquivo muito grande*\n\nOlá ${medicoData?.nome || 'Médico'}!\n\nO arquivo enviado (${sizeInMB}MB) excede o limite de 10MB.\n\nPor favor, envie um arquivo menor através do portal:\nhttps://hcc.chatconquista.com/dashboard-medicos`);
+                form.append('externalKey', `erro_tamanho_${Date.now()}`);
+                form.append('isClosed', 'false');
+                
+                await fetch(config.api_url, {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${config.auth_token}` },
+                  body: form
+                });
+                
+                throw new Error(`Arquivo muito grande: ${sizeInMB}MB. Máximo permitido: 10MB`);
               }
               
               // Nome do arquivo já está sanitizado
               const uniqueName = `${pagamento.id}_${wabaMediaId}_${Date.now()}_${filename}`;
               const filePath = `${pagamento.id}/${uniqueName}`;
               
-              console.log('Preparando upload:', { 
+              console.log('📤 Preparando upload para storage:', { 
                 filePath, 
                 size: `${(fileData.byteLength / 1024).toFixed(2)}KB`,
                 pagamentoId: pagamento.id 
               });
               
               // Fazer upload para o Supabase Storage
+              console.log('📤 Fazendo upload para storage bucket "notas"...');
+              
               const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('notas')
                 .upload(filePath, fileData, {
                   contentType: 'application/pdf',
                   cacheControl: '3600',
+                  upsert: false // Não sobrescrever se existir
                 });
 
               if (uploadError) {
-                console.error('Erro no upload:', uploadError);
-                throw uploadError;
+                console.error('❌ Erro no upload para storage:', uploadError);
+                
+                // Se erro de duplicação, tentar com timestamp adicional
+                if (uploadError.message?.includes('already exists')) {
+                  const retryPath = `${pagamento.id}/${Date.now()}_${filename}`;
+                  console.log('🔄 Tentando upload novamente com caminho:', retryPath);
+                  
+                  const { error: retryError } = await supabase.storage
+                    .from('notas')
+                    .upload(retryPath, fileData, {
+                      contentType: 'application/pdf',
+                      cacheControl: '3600'
+                    });
+                  
+                  if (retryError) {
+                    throw new Error(`Erro ao fazer upload do PDF: ${retryError.message}`);
+                  }
+                } else {
+                  throw new Error(`Erro ao fazer upload do PDF: ${uploadError.message}`);
+                }
               }
 
-              console.log('Arquivo enviado para storage:', uploadData);
+              console.log('✅ Arquivo enviado para storage:', uploadData);
 
               // Processar OCR se habilitado
               let numeroNota: string | null = null;
@@ -548,58 +637,84 @@ serve(async (req) => {
               let ocrProcessado = false;
               
               if (config?.ocr_nfse_api_key) {
-                console.log('🔍 OCR ativo (API key presente), processando nota...');
+                console.log('🔍 OCR ATIVO - API key configurada, processando nota...');
                 
-                const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
-                
-                if (ocrResult.success) {
-                  numeroNota = ocrResult.numeroNota ?? null;
-                  valorBruto = (typeof ocrResult.valorBruto === 'number') ? ocrResult.valorBruto : null;
-                  valorLiquido = (typeof ocrResult.valorLiquido === 'number') ? ocrResult.valorLiquido : null;
-                  ocrProcessado = true;
+                try {
+                  const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
                   
-                  console.log(`✅ OCR processado: Nota ${numeroNota || '—'}, Bruto: ${valorBruto ?? '—'}, Líquido: ${valorLiquido ?? '—'}`);
-                  
-                  // Validar valor bruto apenas se disponível
-                  if (typeof valorBruto === 'number') {
-                    const valorEsperado = parseFloat(pagamento.valor);
-                    const diferenca = Math.abs(valorEsperado - valorBruto);
+                  if (ocrResult.success) {
+                    numeroNota = ocrResult.numeroNota ?? null;
+                    valorBruto = (typeof ocrResult.valorBruto === 'number') ? ocrResult.valorBruto : null;
+                    valorLiquido = (typeof ocrResult.valorLiquido === 'number') ? ocrResult.valorLiquido : null;
+                    ocrProcessado = true;
                     
-                    console.log(`🔍 Validando: Esperado ${valorEsperado}, Recebido ${valorBruto}, Diferença: ${diferenca}`);
+                    console.log(`✅ OCR SUCESSO:`, {
+                      numeroNota: numeroNota || 'não identificado',
+                      valorBruto: valorBruto ?? 'não identificado',
+                      valorLiquido: valorLiquido ?? 'não calculado'
+                    });
                     
-                    if (diferenca > 0.01) {
-                      console.log('❌ Valor bruto incorreto, rejeitando nota');
-                      const { data: medicoData } = await supabase
-                        .from('medicos')
-                        .select('nome')
-                        .eq('id', pagamento.medico_id)
-                        .single();
-
-                      // Remover o arquivo do Storage para evitar lixo
-                      try {
-                        await supabase.storage.from('notas').remove([filePath]);
-                        console.log('🧹 PDF removido do storage após rejeição');
-                      } catch (removeErr) {
-                        console.warn('Falha ao remover PDF rejeitado:', removeErr);
-                      }
+                    // Validar valor bruto apenas se disponível
+                    if (typeof valorBruto === 'number') {
+                      const valorEsperado = parseFloat(pagamento.valor);
+                      const diferenca = Math.abs(valorEsperado - valorBruto);
                       
-                      await enviarMensagemRejeicaoValor(
-                        supabase, from, medicoData?.nome || 'Médico',
-                        valorEsperado, valorBruto, 
-                        formatMesCompetencia(pagamento.mes_competencia)
-                      );
-                      
-                      return new Response(JSON.stringify({ 
-                        success: false, 
-                        message: 'Nota rejeitada - valor incorreto' 
-                      }), {
-                        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                      console.log(`🔍 VALIDAÇÃO DE VALOR:`, {
+                        esperado: valorEsperado,
+                        recebido: valorBruto,
+                        diferenca: diferenca,
+                        tolerancia: 0.01
                       });
+                      
+                      if (diferenca > 0.01) {
+                        console.log('❌ VALOR INCORRETO - Rejeitando nota e removendo arquivo');
+                        
+                        const { data: medicoData } = await supabase
+                          .from('medicos')
+                          .select('nome')
+                          .eq('id', pagamento.medico_id)
+                          .single();
+
+                        // Remover o arquivo do Storage para evitar lixo
+                        try {
+                          await supabase.storage.from('notas').remove([filePath]);
+                          console.log('🧹 PDF removido do storage após rejeição por valor');
+                        } catch (removeErr) {
+                          console.warn('⚠️ Falha ao remover PDF rejeitado:', removeErr);
+                        }
+                        
+                        await enviarMensagemRejeicaoValor(
+                          supabase, from, medicoData?.nome || 'Médico',
+                          valorEsperado, valorBruto, 
+                          formatMesCompetencia(pagamento.mes_competencia)
+                        );
+                        
+                        return new Response(JSON.stringify({ 
+                          success: false, 
+                          message: 'Nota rejeitada - valor bruto incorreto',
+                          details: {
+                            valorEsperado,
+                            valorRecebido: valorBruto,
+                            diferenca
+                          }
+                        }), {
+                          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                        });
+                      } else {
+                        console.log('✅ Valor validado com sucesso');
+                      }
+                    } else {
+                      console.warn('⚠️ Valor bruto não identificado pelo OCR - prosseguindo sem validação');
                     }
+                  } else {
+                    console.warn('⚠️ OCR não retornou sucesso:', ocrResult.erro || 'erro desconhecido');
                   }
-                } else {
-                  console.warn('⚠️ OCR não retornou sucesso:', ocrResult);
+                } catch (ocrError: any) {
+                  console.error('❌ ERRO NO PROCESSAMENTO OCR:', ocrError.message || ocrError);
+                  // Não bloquear o fluxo se OCR falhar, apenas logar
                 }
+              } else {
+                console.log('ℹ️ OCR DESATIVADO - API key não configurada');
               }
 
               // Atualizar pagamento - SEMPRE salvar valor_liquido se vier do OCR
