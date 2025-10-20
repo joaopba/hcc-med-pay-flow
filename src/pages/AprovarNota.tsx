@@ -47,7 +47,8 @@ export default function AprovarNota() {
           pagamento_id,
           arquivo_url,
           nome_arquivo,
-          status
+          status,
+          numero_nota
         `)
         .eq('id', notaId)
         .maybeSingle();
@@ -320,6 +321,12 @@ export default function AprovarNota() {
                 <Label className="text-xs text-blue-900 mb-1">Médico</Label>
                 <p className="font-semibold text-base">{medicoNome}</p>
               </div>
+              {notaData.numero_nota && (
+                <div>
+                  <Label className="text-xs text-blue-900 mb-1">Número da Nota</Label>
+                  <p className="font-semibold text-base">{notaData.numero_nota}</p>
+                </div>
+              )}
               <div>
                 <Label className="text-xs text-blue-900 mb-1">Competência</Label>
                 <p className="font-semibold text-base">{notaData.mes_competencia}</p>

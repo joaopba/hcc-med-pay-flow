@@ -549,17 +549,22 @@ serve(async (req) => {
               
               if (config?.ocr_nfse_habilitado && config?.ocr_nfse_api_key) {
                 console.log('🔍 OCR habilitado, processando nota...');
+                
                 const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
                 
-                if (ocrResult.success) {
-                  numeroNota = ocrResult.numeroNota || null;
-                  valorBruto = ocrResult.valorBruto || null;
-                  valorLiquido = ocrResult.valorLiquido || null;
+                if (ocrResult.success && ocrResult.numeroNota && ocrResult.valorBruto !== undefined && ocrResult.valorLiquido !== undefined) {
+                  numeroNota = ocrResult.numeroNota;
+                  valorBruto = ocrResult.valorBruto;
+                  valorLiquido = ocrResult.valorLiquido;
                   ocrProcessado = true;
+                  
+                  console.log(`✅ OCR processado: Nota ${numeroNota}, Bruto: ${valorBruto}, Líquido: ${valorLiquido}`);
                   
                   // Validar valor bruto
                   const valorEsperado = parseFloat(pagamento.valor);
-                  const diferenca = Math.abs(valorEsperado - (valorBruto || 0));
+                  const diferenca = Math.abs(valorEsperado - valorBruto);
+                  
+                  console.log(`🔍 Validando: Esperado ${valorEsperado}, Recebido ${valorBruto}, Diferença: ${diferenca}`);
                   
                   if (diferenca > 0.01) {
                     console.log('❌ Valor bruto incorreto, rejeitando nota');
@@ -579,7 +584,7 @@ serve(async (req) => {
                     
                     await enviarMensagemRejeicaoValor(
                       supabase, from, medicoData?.nome || 'Médico',
-                      valorEsperado, valorBruto || 0, 
+                      valorEsperado, valorBruto, 
                       formatMesCompetencia(pagamento.mes_competencia)
                     );
                     
@@ -590,6 +595,8 @@ serve(async (req) => {
                       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                     });
                   }
+                } else {
+                  console.warn('⚠️ OCR não retornou dados completos:', ocrResult);
                 }
               }
 
