@@ -73,11 +73,32 @@ export default function ExcelImport({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    } catch (error) {
-      console.error("Erro ao importar Excel:", error);
+    } catch (error: any) {
+      console.error("Erro ao importar:", error);
+      
+      let errorMessage = "Falha ao importar arquivo";
+      
+      if (error?.code === '23505') {
+        const detail = error?.details || error?.message || '';
+        
+        if (detail.includes('medicos_documento_key')) {
+          const docMatch = detail.match(/\(documento\)=\(([^)]+)\)/);
+          const doc = docMatch ? docMatch[1] : 'não identificado';
+          errorMessage = `CPF/CNPJ duplicado: ${doc}. Já existe cadastro com este documento.`;
+        } else if (detail.includes('medicos_numero_whatsapp_key')) {
+          const phoneMatch = detail.match(/\(numero_whatsapp\)=\(([^)]+)\)/);
+          const phone = phoneMatch ? phoneMatch[1] : 'não identificado';
+          errorMessage = `WhatsApp duplicado: ${phone}. Já existe cadastro com este número.`;
+        } else {
+          errorMessage = `Registro duplicado encontrado. Verifique os dados.`;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Falha ao importar arquivo Excel",
+        title: "Erro na Importação",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

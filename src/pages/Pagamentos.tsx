@@ -494,61 +494,82 @@ export default function Pagamentos() {
       const duplicados = [];
       
       for (const row of data) {
-        // Buscar médico pelo nome
         const medicoNome = row.medico || row.Medico || row.nome_medico;
         const medico = medicos.find(m => m.nome.toLowerCase().includes(medicoNome?.toLowerCase()));
         
         if (!medico) {
-          throw new Error(`Médico não encontrado: ${medicoNome}`);
+          duplicados.push(`Médico não encontrado: "${medicoNome}"`);
+          continue;
         }
 
         const mesCompetencia = row.mes_competencia || row.competencia || row.Competencia;
-        
-        // Verificar se já existe pagamento para este médico e mês
-        const { data: existingPayment } = await supabase
+        const valor = row.valor || row.Valor;
+
+        if (!mesCompetencia || !valor) {
+          duplicados.push(`Dados incompletos para médico: ${medicoNome}`);
+          continue;
+        }
+
+        const existente = await supabase
           .from("pagamentos")
-          .select("id")
+          .select("id, medicos!inner(nome)")
           .eq("medico_id", medico.id)
           .eq("mes_competencia", mesCompetencia)
-          .maybeSingle();
+          .single();
 
-        if (existingPayment) {
-          duplicados.push(`${medico.nome} - ${mesCompetencia}`);
+        if (existente.data) {
+          const nomeMedico = (existente.data.medicos as any)?.nome || medicoNome;
+          duplicados.push(`Pagamento duplicado: ${nomeMedico} - ${mesCompetencia}`);
           continue;
         }
 
         pagamentosData.push({
           medico_id: medico.id,
           mes_competencia: mesCompetencia,
-          valor: parseFloat(row.valor || row.Valor || "0")
+          valor: parseFloat(valor),
+          status: "pendente"
         });
       }
 
-      if (pagamentosData.length === 0) {
-        throw new Error("Nenhum pagamento válido para importar (todos são duplicados ou inválidos)");
-      }
-
-      const { error } = await supabase
-        .from("pagamentos")
-        .insert(pagamentosData);
-
-      if (error) throw error;
-
-      let successMessage = `${pagamentosData.length} pagamento(s) importado(s) com sucesso!`;
       if (duplicados.length > 0) {
-        successMessage += ` ${duplicados.length} duplicado(s) ignorado(s): ${duplicados.join(', ')}`;
+        toast({
+          title: "Atenção",
+          description: `${duplicados.length} registro(s) ignorado(s):\n${duplicados.slice(0, 3).join('\n')}${duplicados.length > 3 ? '\n...' : ''}`,
+          variant: "default",
+        });
       }
 
-      toast({
-        title: "Importação Concluída",
-        description: successMessage,
-      });
+      if (pagamentosData.length > 0) {
+        const { error } = await supabase
+          .from("pagamentos")
+          .insert(pagamentosData);
+
+        if (error) throw error;
+
+        toast({
+          title: "Sucesso",
+          description: `${pagamentosData.length} pagamento(s) importado(s)!`,
+        });
+      }
 
       setShowImportDialog(false);
       await loadData();
-    } catch (error) {
-      console.error("Erro ao importar pagamentos:", error);
-      throw error;
+    } catch (error: any) {
+      console.error("Erro ao importar:", error);
+      
+      let errorMessage = "Falha ao importar pagamentos";
+      
+      if (error?.code === '23505') {
+        errorMessage = "Pagamento duplicado detectado. Verifique os dados.";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 

@@ -128,11 +128,46 @@ export default function Medicos() {
       setEditingMedico(null);
       setFormData({ nome: "", numero_whatsapp: "", numero_whatsapp_contador: "", especialidade: "", documento: "", tipo_pessoa: "CPF" });
       loadMedicos();
-    } catch (error) {
-      console.error("Erro ao salvar médico:", error);
+    } catch (error: any) {
+      console.error("Erro ao salvar:", error);
+      
+      let errorMessage = "Falha ao salvar médico";
+      
+      if (error?.code === '23505') {
+        const detail = error?.details || error?.message || '';
+        
+        if (detail.includes('medicos_documento_key')) {
+          const { data: medicoExistente } = await supabase
+            .from('medicos')
+            .select('nome, documento')
+            .eq('documento', formData.documento)
+            .single();
+          
+          if (medicoExistente) {
+            errorMessage = `CPF/CNPJ já cadastrado para: ${medicoExistente.nome} (${medicoExistente.documento})`;
+          } else {
+            errorMessage = `Este CPF/CNPJ já está cadastrado no sistema`;
+          }
+        } else if (detail.includes('medicos_numero_whatsapp_key')) {
+          const { data: medicoExistente } = await supabase
+            .from('medicos')
+            .select('nome, numero_whatsapp')
+            .eq('numero_whatsapp', formData.numero_whatsapp)
+            .single();
+          
+          if (medicoExistente) {
+            errorMessage = `WhatsApp já cadastrado para: ${medicoExistente.nome} (${medicoExistente.numero_whatsapp})`;
+          } else {
+            errorMessage = `Este número de WhatsApp já está cadastrado`;
+          }
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro",
-        description: "Falha ao salvar médico",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

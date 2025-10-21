@@ -383,7 +383,6 @@ serve(async (req) => {
           from: "HCC Hospital <suporte@chatconquista.com>",
           to: dest,
           subject: subject,
-          content: "Versão texto do email",
           html: html,
           attachments: attachments.length > 0 ? attachments : undefined,
         });

@@ -636,8 +636,21 @@ serve(async (req) => {
               let valorLiquido: number | null = null;
               let ocrProcessado = false;
               
-              if (config?.ocr_nfse_api_key) {
-                console.log('🔍 OCR ATIVO - API key configurada, processando nota...');
+              // Verificar cache OCR: se já temos nota processada para este pagamento, reutilizar
+              const { data: notaExistenteCache } = await supabase
+                .from('notas_medicos')
+                .select('id, ocr_processado, numero_nota, valor_liquido')
+                .eq('pagamento_id', pagamento.id)
+                .eq('ocr_processado', true)
+                .single();
+              
+              if (notaExistenteCache?.ocr_processado) {
+                console.log('✓ Cache OCR encontrado, reutilizando dados anteriores');
+                numeroNota = notaExistenteCache.numero_nota;
+                valorLiquido = notaExistenteCache.valor_liquido;
+                ocrProcessado = true;
+              } else if (config?.ocr_nfse_api_key) {
+                console.log('Iniciando processamento OCR da nota...');
                 
                 try {
                   const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
@@ -648,7 +661,7 @@ serve(async (req) => {
                     valorLiquido = (typeof ocrResult.valorLiquido === 'number') ? ocrResult.valorLiquido : null;
                     ocrProcessado = true;
                     
-                    console.log(`✅ OCR SUCESSO:`, {
+                    console.log(`Resultado OCR:`, {
                       numeroNota: numeroNota || 'não identificado',
                       valorBruto: valorBruto ?? 'não identificado',
                       valorLiquido: valorLiquido ?? 'não calculado'
@@ -659,7 +672,7 @@ serve(async (req) => {
                       const valorEsperado = parseFloat(pagamento.valor);
                       const diferenca = Math.abs(valorEsperado - valorBruto);
                       
-                      console.log(`🔍 VALIDAÇÃO DE VALOR:`, {
+                      console.log(`Validação de valor:`, {
                         esperado: valorEsperado,
                         recebido: valorBruto,
                         diferenca: diferenca,
@@ -667,7 +680,7 @@ serve(async (req) => {
                       });
                       
                       if (diferenca > 0.01) {
-                        console.log('❌ VALOR INCORRETO - Rejeitando nota e removendo arquivo');
+                        console.log('Valor incorreto, rejeitando nota');
                         
                         const { data: medicoData } = await supabase
                           .from('medicos')
@@ -675,12 +688,11 @@ serve(async (req) => {
                           .eq('id', pagamento.medico_id)
                           .single();
 
-                        // Remover o arquivo do Storage para evitar lixo
                         try {
                           await supabase.storage.from('notas').remove([filePath]);
-                          console.log('🧹 PDF removido do storage após rejeição por valor');
+                          console.log('PDF rejeitado removido');
                         } catch (removeErr) {
-                          console.warn('⚠️ Falha ao remover PDF rejeitado:', removeErr);
+                          console.warn('Erro ao remover PDF:', removeErr);
                         }
                         
                         await enviarMensagemRejeicaoValor(
@@ -691,7 +703,7 @@ serve(async (req) => {
                         
                         return new Response(JSON.stringify({ 
                           success: false, 
-                          message: 'Nota rejeitada - valor bruto incorreto',
+                          message: 'Nota rejeitada - valor incorreto',
                           details: {
                             valorEsperado,
                             valorRecebido: valorBruto,
