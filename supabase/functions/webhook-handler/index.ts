@@ -57,22 +57,17 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // ===== MODO DEBUG: CAPTURAR TODOS OS DADOS DO WEBHOOK =====
-    
-    // 1. Capturar headers
     const headers: Record<string, string> = {};
     for (const [key, value] of req.headers.entries()) {
       headers[key] = value;
     }
     
-    // 2. Capturar URL e query params
     const url = new URL(req.url);
     const queryParams: Record<string, string> = {};
     for (const [key, value] of url.searchParams.entries()) {
       queryParams[key] = value;
     }
     
-    // 3. Capturar body
     let webhookData;
     let rawBody = '';
     
@@ -80,23 +75,17 @@ serve(async (req) => {
       const text = await req.text();
       rawBody = text;
       
-      // Tentar parsear como JSON
       try {
         webhookData = JSON.parse(text);
       } catch {
-        // Se não for JSON válido, manter como string
         webhookData = text;
       }
     } catch {
       webhookData = 'Erro ao ler body';
     }
 
-    // 4. Log completo de TUDO
-    console.log('='.repeat(80));
-    console.log('🔍 WEBHOOK DEBUG - CAPTURA COMPLETA');
-    console.log('='.repeat(80));
-    console.log('⏰ Timestamp:', new Date().toISOString());
-    console.log('🌐 Método:', req.method);
+    console.log('Webhook recebido:', new Date().toISOString());
+    console.log('Método:', req.method);
     console.log('📍 URL completa:', req.url);
     console.log('📝 Path:', url.pathname);
     console.log('🔗 Query Params:', JSON.stringify(queryParams, null, 2));
@@ -108,7 +97,6 @@ serve(async (req) => {
     console.log('🔒 User-Agent:', headers['user-agent'] || 'não informado');
     console.log('='.repeat(80));
     
-    // 5. Salvar no banco para análise posterior
     try {
       await supabase.from('webhook_debug_logs').insert({
         timestamp: new Date().toISOString(),
@@ -122,10 +110,8 @@ serve(async (req) => {
         content_type: headers['content-type'] || null
       });
     } catch (dbError) {
-      console.log('⚠️ Erro ao salvar no banco (normal se a tabela não existir):', dbError);
+      console.log('Erro ao salvar log:', dbError);
     }
-    
-    // ===== FIM DO MODO DEBUG =====
 
     // Verificar se é um clique no botão "Encaminhar Nota"
     if (webhookData.msg && webhookData.msg.type === 'button' && 
@@ -473,11 +459,10 @@ serve(async (req) => {
             });
           }
 
-          // Verificar se permite upload via WhatsApp (campo deve ser explicitamente true)
           const permitirWhatsApp = config.permitir_nota_via_whatsapp === true;
           
           if (!permitirWhatsApp) {
-            console.log('❌ Upload via WhatsApp desativado - config.permitir_nota_via_whatsapp:', config.permitir_nota_via_whatsapp);
+            console.log('Upload via WhatsApp desativado');
             
             const { data: medicoData } = await supabase
               .from('medicos')
@@ -495,9 +480,9 @@ serve(async (req) => {
             });
           }
           
-          console.log('✅ Upload via WhatsApp ATIVADO - processando nota...');
-          
-          // Fazer download do arquivo PDF usando o token do webhook
+            console.log('Upload via WhatsApp ativado - processando nota');
+            
+            // Download do arquivo PDF
           try {
             const wabaToken = ticket?.whatsapp?.bmToken;
             
@@ -645,42 +630,41 @@ serve(async (req) => {
                 .single();
               
               if (notaExistenteCache?.ocr_processado) {
-                console.log('✓ Cache OCR encontrado, reutilizando dados anteriores');
-                numeroNota = notaExistenteCache.numero_nota;
-                valorLiquido = notaExistenteCache.valor_liquido;
-                ocrProcessado = true;
-              } else if (config?.ocr_nfse_api_key) {
-                console.log('Iniciando processamento OCR da nota...');
+              console.log('Cache OCR encontrado, reutilizando dados anteriores');
+              numeroNota = notaExistenteCache.numero_nota;
+              valorLiquido = notaExistenteCache.valor_liquido;
+              ocrProcessado = true;
+            } else if (config?.ocr_nfse_api_key) {
+              console.log('Iniciando processamento OCR da nota');
+              
+              try {
+                const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
                 
-                try {
-                  const ocrResult = await processarOCRNota(fileData, config.ocr_nfse_api_key, supabase);
+                if (ocrResult.success) {
+                  numeroNota = ocrResult.numeroNota ?? null;
+                  valorBruto = (typeof ocrResult.valorBruto === 'number') ? ocrResult.valorBruto : null;
+                  valorLiquido = (typeof ocrResult.valorLiquido === 'number') ? ocrResult.valorLiquido : null;
+                  ocrProcessado = true;
                   
-                  if (ocrResult.success) {
-                    numeroNota = ocrResult.numeroNota ?? null;
-                    valorBruto = (typeof ocrResult.valorBruto === 'number') ? ocrResult.valorBruto : null;
-                    valorLiquido = (typeof ocrResult.valorLiquido === 'number') ? ocrResult.valorLiquido : null;
-                    ocrProcessado = true;
+                  console.log('Resultado OCR:', {
+                    numeroNota: numeroNota || 'não identificado',
+                    valorBruto: valorBruto ?? 'não identificado',
+                    valorLiquido: valorLiquido ?? 'não calculado'
+                  });
+                  
+                  if (typeof valorBruto === 'number') {
+                    const valorEsperado = parseFloat(pagamento.valor);
+                    const diferenca = Math.abs(valorEsperado - valorBruto);
                     
-                    console.log(`Resultado OCR:`, {
-                      numeroNota: numeroNota || 'não identificado',
-                      valorBruto: valorBruto ?? 'não identificado',
-                      valorLiquido: valorLiquido ?? 'não calculado'
+                    console.log('Validação de valor:', {
+                      esperado: valorEsperado,
+                      recebido: valorBruto,
+                      diferenca: diferenca,
+                      tolerancia: 0.01
                     });
                     
-                    // Validar valor bruto apenas se disponível
-                    if (typeof valorBruto === 'number') {
-                      const valorEsperado = parseFloat(pagamento.valor);
-                      const diferenca = Math.abs(valorEsperado - valorBruto);
-                      
-                      console.log(`Validação de valor:`, {
-                        esperado: valorEsperado,
-                        recebido: valorBruto,
-                        diferenca: diferenca,
-                        tolerancia: 0.01
-                      });
-                      
-                      if (diferenca > 0.01) {
-                        console.log('Valor incorreto, rejeitando nota');
+                    if (diferenca > 0.01) {
+                      console.log('Valor incorreto, rejeitando nota');
                         
                         const { data: medicoData } = await supabase
                           .from('medicos')
@@ -713,33 +697,30 @@ serve(async (req) => {
                           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                         });
                       } else {
-                        console.log('✅ Valor validado com sucesso');
-                      }
-                    } else {
-                      console.warn('⚠️ Valor bruto não identificado pelo OCR - prosseguindo sem validação');
+                      console.log('Valor validado com sucesso');
                     }
                   } else {
-                    console.warn('⚠️ OCR não retornou sucesso:', ocrResult.erro || 'erro desconhecido');
+                    console.warn('Valor bruto não identificado - prosseguindo sem validação');
                   }
-                } catch (ocrError: any) {
-                  console.error('❌ ERRO NO PROCESSAMENTO OCR:', ocrError.message || ocrError);
-                  // Não bloquear o fluxo se OCR falhar, apenas logar
+                } else {
+                  console.warn('OCR não retornou sucesso:', ocrResult.erro || 'erro desconhecido');
                 }
-              } else {
-                console.log('ℹ️ OCR DESATIVADO - API key não configurada');
+              } catch (ocrError: any) {
+                console.error('Erro no processamento OCR:', ocrError.message || ocrError);
               }
+            } else {
+              console.log('OCR desativado - API key não configurada');
+            }
 
-              // Atualizar pagamento - SEMPRE salvar valor_liquido se vier do OCR
               const updateData: any = {
                 status: 'nota_recebida',
                 data_resposta: new Date().toISOString(),
                 nota_pdf_url: `notas/${filePath}`,
               };
 
-              // Se OCR processou e retornou valor líquido, SEMPRE atualizar (mesmo que seja 0)
               if (ocrProcessado && valorLiquido !== null && valorLiquido !== undefined) {
                 updateData.valor_liquido = valorLiquido;
-                console.log('💰 Atualizando valor_liquido no pagamento:', valorLiquido);
+                console.log('Atualizando valor líquido:', valorLiquido);
               }
 
               const { error: updateError } = await supabase
@@ -752,13 +733,7 @@ serve(async (req) => {
                 throw updateError;
               }
 
-              // Inserir nota na tabela notas_medicos com todos os dados do OCR
-              console.log('📝 Inserindo nota com dados:', { 
-                numeroNota, 
-                valorBruto, 
-                valorLiquido, 
-                ocrProcessado 
-              });
+              console.log('Inserindo nota:', { numeroNota, valorBruto, valorLiquido, ocrProcessado });
               
               const { data: insertData, error: insertError } = await supabase
                 .from('notas_medicos')
