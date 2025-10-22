@@ -735,19 +735,26 @@ serve(async (req) => {
 
               console.log('Inserindo nota:', { numeroNota, valorBruto, valorLiquido, ocrProcessado });
               
+              const notaInsertData: any = {
+                medico_id: pagamento.medico_id,
+                pagamento_id: pagamento.id,
+                arquivo_url: filePath,
+                nome_arquivo: filename,
+                status: 'pendente',
+                numero_nota: numeroNota || null,
+                valor_bruto: valorBruto || null,
+                ocr_processado: ocrProcessado,
+                ocr_resultado: ocrProcessado ? { numeroNota, valorBruto, valorLiquido } : null
+              };
+
+              // Incluir valor_liquido se foi processado pelo OCR
+              if (ocrProcessado && valorLiquido !== null && valorLiquido !== undefined) {
+                notaInsertData.valor_liquido = valorLiquido;
+              }
+
               const { data: insertData, error: insertError } = await supabase
                 .from('notas_medicos')
-                .insert([{
-                  medico_id: pagamento.medico_id,
-                  pagamento_id: pagamento.id,
-                  arquivo_url: filePath,
-                  nome_arquivo: filename,
-                  status: 'pendente',
-                  numero_nota: numeroNota || null,
-                  valor_bruto: valorBruto || null,
-                  ocr_processado: ocrProcessado,
-                  ocr_resultado: ocrProcessado ? { numeroNota, valorBruto, valorLiquido } : null
-                }])
+                .insert([notaInsertData])
                 .select('*, pagamentos!inner(mes_competencia)')
                 .single();
 

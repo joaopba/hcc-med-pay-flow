@@ -80,15 +80,46 @@ export default function ExcelImport({
       
       if (error?.code === '23505') {
         const detail = error?.details || error?.message || '';
+        const { supabase } = await import('@/integrations/supabase/client');
         
         if (detail.includes('medicos_documento_key')) {
           const docMatch = detail.match(/\(documento\)=\(([^)]+)\)/);
           const doc = docMatch ? docMatch[1] : 'não identificado';
-          errorMessage = `CPF/CNPJ duplicado: ${doc}. Já existe cadastro com este documento.`;
+          
+          try {
+            const { data: medicoExistente } = await supabase
+              .from('medicos')
+              .select('nome')
+              .eq('documento', doc)
+              .single();
+            
+            if (medicoExistente) {
+              errorMessage = `CPF/CNPJ ${doc} já cadastrado para: ${medicoExistente.nome}`;
+            } else {
+              errorMessage = `CPF/CNPJ duplicado: ${doc}. Já existe cadastro com este documento.`;
+            }
+          } catch {
+            errorMessage = `CPF/CNPJ duplicado: ${doc}. Já existe cadastro com este documento.`;
+          }
         } else if (detail.includes('medicos_numero_whatsapp_key')) {
           const phoneMatch = detail.match(/\(numero_whatsapp\)=\(([^)]+)\)/);
           const phone = phoneMatch ? phoneMatch[1] : 'não identificado';
-          errorMessage = `WhatsApp duplicado: ${phone}. Já existe cadastro com este número.`;
+          
+          try {
+            const { data: medicoExistente } = await supabase
+              .from('medicos')
+              .select('nome')
+              .eq('numero_whatsapp', phone)
+              .single();
+            
+            if (medicoExistente) {
+              errorMessage = `WhatsApp ${phone} já cadastrado para: ${medicoExistente.nome}`;
+            } else {
+              errorMessage = `WhatsApp duplicado: ${phone}. Já existe cadastro com este número.`;
+            }
+          } catch {
+            errorMessage = `WhatsApp duplicado: ${phone}. Já existe cadastro com este número.`;
+          }
         } else {
           errorMessage = `Registro duplicado encontrado. Verifique os dados.`;
         }
