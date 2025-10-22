@@ -152,12 +152,13 @@ serve(async (req) => {
               nome: nota.medicos.nome,
               numero_whatsapp: nota.medicos.numero_whatsapp
             },
-              competencia: formatMesCompetencia(nota.pagamentos.mes_competencia),
+            medico_id: nota.medico_id,
+            competencia: formatMesCompetencia(nota.pagamentos.mes_competencia),
             pagamentoId: nota.pagamento_id
           }
         });
       } catch (whatsappError) {
-        console.warn('Erro ao enviar WhatsApp:', whatsappError);
+        console.warn('Erro ao enviar notificação WhatsApp:', whatsappError);
       }
 
       return new Response(`
@@ -384,6 +385,7 @@ serve(async (req) => {
                 nome: nota.medicos.nome,
                 numero_whatsapp: nota.medicos.numero_whatsapp
               },
+              medico_id: nota.medico_id,
               competencia: formatMesCompetencia(nota.pagamentos.mes_competencia),
               motivo: motivo,
               linkPortal: 'https://hcc.chatconquista.com/dashboard-medicos',
@@ -391,7 +393,7 @@ serve(async (req) => {
             }
           });
         } catch (whatsappError) {
-          console.warn('Erro ao enviar WhatsApp:', whatsappError);
+          console.warn('Erro ao enviar notificação WhatsApp:', whatsappError);
         }
 
         return new Response(`

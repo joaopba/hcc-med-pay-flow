@@ -782,6 +782,7 @@ serve(async (req) => {
                         nome: medicoData.nome,
                         numero_whatsapp: medicoData.numero_whatsapp
                       },
+                      medico_id: pagamento.medico_id,
                       competencia: insertData.pagamentos.mes_competencia,
                       pagamentoId: pagamento.id
                     }
@@ -839,6 +840,7 @@ serve(async (req) => {
                     body: {
                       type: 'nota_aprovacao',
                       nome: medicoData.nome,
+                      medico_id: pagamento.medico_id,
                       valor: pagamento.valor.toString(),
                       competencia: insertData.pagamentos.mes_competencia,
                       nota_id: insertData.id,

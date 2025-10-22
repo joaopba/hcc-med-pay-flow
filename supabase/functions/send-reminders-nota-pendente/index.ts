@@ -180,10 +180,10 @@ serve(async (req) => {
                 nome: medico.nome,
                 numero_whatsapp: medico.numero_whatsapp
               },
+              medico_id: medico.id,
               competencia: competenciaFormatada,
               valor: pagamento.valor,
-              pagamentoId: pagamento.id,
-              medico_id: pagamento.medico_id
+              pagamentoId: pagamento.id
             }
           });
 

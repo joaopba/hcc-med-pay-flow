@@ -383,13 +383,25 @@ serve(async (req) => {
               .from('medicos')
               .select('numero_whatsapp_contador')
               .eq('id', medico_id)
-              .single();
+              .maybeSingle();
 
             if (medicoCompleto?.numero_whatsapp_contador) {
               console.log('[Background] Enviando também para contador:', medicoCompleto.numero_whatsapp_contador);
               
-              // Criar payload para contador com mesmo conteúdo
-              const payloadContador = { ...payload, number: medicoCompleto.numero_whatsapp_contador };
+              // Criar payload para contador - ajustar conforme tipo
+              let payloadContador;
+              
+              if (apiUrl.includes('/template')) {
+                // Para templates, criar novo payload completo
+                payloadContador = JSON.parse(JSON.stringify(payload));
+                if (payloadContador.templateData?.to) {
+                  payloadContador.templateData.to = medicoCompleto.numero_whatsapp_contador;
+                }
+                payloadContador.number = medicoCompleto.numero_whatsapp_contador;
+              } else {
+                // Para mensagens livres
+                payloadContador = { ...payload, number: medicoCompleto.numero_whatsapp_contador };
+              }
               
               await fetch(apiUrl, {
                 method: 'POST',

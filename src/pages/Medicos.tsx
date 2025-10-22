@@ -141,25 +141,15 @@ export default function Medicos() {
             .from('medicos')
             .select('nome, documento')
             .eq('documento', formData.documento)
-            .single();
+            .maybeSingle();
           
           if (medicoExistente) {
             errorMessage = `CPF/CNPJ já cadastrado para: ${medicoExistente.nome} (${medicoExistente.documento})`;
           } else {
             errorMessage = `Este CPF/CNPJ já está cadastrado no sistema`;
           }
-        } else if (detail.includes('medicos_numero_whatsapp_key')) {
-          const { data: medicoExistente } = await supabase
-            .from('medicos')
-            .select('nome, numero_whatsapp')
-            .eq('numero_whatsapp', formData.numero_whatsapp)
-            .single();
-          
-          if (medicoExistente) {
-            errorMessage = `WhatsApp já cadastrado para: ${medicoExistente.nome} (${medicoExistente.numero_whatsapp})`;
-          } else {
-            errorMessage = `Este número de WhatsApp já está cadastrado`;
-          }
+        } else {
+          errorMessage = 'Registro duplicado encontrado. Verifique os dados.';
         }
       } else if (error?.message) {
         errorMessage = error.message;

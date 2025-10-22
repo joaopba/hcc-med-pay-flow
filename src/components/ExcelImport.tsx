@@ -101,25 +101,6 @@ export default function ExcelImport({
           } catch {
             errorMessage = `CPF/CNPJ duplicado: ${doc}. Já existe cadastro com este documento.`;
           }
-        } else if (detail.includes('medicos_numero_whatsapp_key')) {
-          const phoneMatch = detail.match(/\(numero_whatsapp\)=\(([^)]+)\)/);
-          const phone = phoneMatch ? phoneMatch[1] : 'não identificado';
-          
-          try {
-            const { data: medicoExistente } = await supabase
-              .from('medicos')
-              .select('nome')
-              .eq('numero_whatsapp', phone)
-              .single();
-            
-            if (medicoExistente) {
-              errorMessage = `WhatsApp ${phone} já cadastrado para: ${medicoExistente.nome}`;
-            } else {
-              errorMessage = `WhatsApp duplicado: ${phone}. Já existe cadastro com este número.`;
-            }
-          } catch {
-            errorMessage = `WhatsApp duplicado: ${phone}. Já existe cadastro com este número.`;
-          }
         } else {
           errorMessage = `Registro duplicado encontrado. Verifique os dados.`;
         }
