@@ -213,14 +213,15 @@ export default function Dashboard() {
         setStatusDistribution(distribution);
       }
 
-      // Buscar atividade dos últimos 7 dias
+      // Buscar atividade dos últimos 7 dias - PAGAMENTOS EFETIVADOS (data_pagamento)
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
       let recentPaymentsQuery = supabase
         .from("pagamentos")
-        .select("created_at")
-        .gte("created_at", sevenDaysAgo.toISOString());
+        .select("data_pagamento")
+        .not("data_pagamento", "is", null)
+        .gte("data_pagamento", sevenDaysAgo.toISOString());
       
       // Aplicar filtro de mês se selecionado
       if (selectedMonth !== 'all') {
@@ -235,11 +236,13 @@ export default function Dashboard() {
         };
 
         recentPayments.forEach(payment => {
-          const date = new Date(payment.created_at);
-          const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' });
-          const dayShort = dayName.charAt(0).toUpperCase() + dayName.slice(1, 3);
-          if (dayMap[dayShort] !== undefined) {
-            dayMap[dayShort]++;
+          if (payment.data_pagamento) {
+            const date = new Date(payment.data_pagamento);
+            const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' });
+            const dayShort = dayName.charAt(0).toUpperCase() + dayName.slice(1, 3);
+            if (dayMap[dayShort] !== undefined) {
+              dayMap[dayShort]++;
+            }
           }
         });
 
@@ -701,7 +704,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Atividade Semanal</h3>
-                  <p className="text-sm text-muted-foreground">Pagamentos por dia</p>
+                  <p className="text-sm text-muted-foreground">Pagamentos efetivados por dia</p>
                 </div>
                 <Activity className="h-5 w-5 text-primary" />
               </div>

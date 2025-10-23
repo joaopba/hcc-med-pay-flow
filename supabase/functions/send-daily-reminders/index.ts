@@ -115,52 +115,27 @@ serve(async (req) => {
     for (const gestor of gestores) {
       try {
         if (notasPendentes && notasPendentes.length > 0) {
-          const htmlContent = gerarHTMLNotasPendentes(notasPendentes);
-          
-          const mensagemNotas = `🏥 *HCC Hospital - Lembretes Diários*\n\n` +
-            `📋 *NOTAS PENDENTES DE APROVAÇÃO*\n\n` +
-            `Olá ${gestor.name}!\n\n` +
-            `Você possui *${notasPendentes.length} nota(s)* aguardando aprovação ou rejeição.\n\n` +
-            `Detalhes:\n${gerarTextoNotas(notasPendentes)}\n\n` +
-            `🔗 Acesse o portal para análise:\n` +
-            `https://hcc.chatconquista.com\n\n` +
-            `⚡ Ação necessária para liberar os pagamentos.`;
-
-          await enviarMensagemWhatsApp(
-            supabase,
-            gestor.numero_whatsapp,
-            mensagemNotas
-          );
-
-          console.log(`Lembrete de notas pendentes enviado para ${gestor.name}`);
+          const mensagemNotas = gerarRelatorioNotasPendentes(notasPendentes, gestor.name);
+          await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemNotas);
+          console.log(`Relatório de notas pendentes enviado para ${gestor.name}`);
         }
 
         if (pagamentosAprovados && pagamentosAprovados.length > 0) {
-          const htmlContent = gerarHTMLPagamentosAprovados(pagamentosAprovados);
-          const totalValor = pagamentosAprovados.reduce((sum, p) => sum + p.valor, 0);
-          
-          const mensagemPagamentos = `🏥 *HCC Hospital - Lembretes Diários*\n\n` +
-            `💰 *PAGAMENTOS APROVADOS PENDENTES*\n\n` +
-            `Olá ${gestor.name}!\n\n` +
-            `Você possui *${pagamentosAprovados.length} pagamento(s)* aprovado(s) aguardando efetivação.\n\n` +
-            `Detalhes:\n${gerarTextoPagamentos(pagamentosAprovados)}\n\n` +
-            `💵 *TOTAL: R$ ${totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*\n\n` +
-            `🔗 Acesse o portal para processamento:\n` +
-            `https://hcc.chatconquista.com/pagamentos\n\n` +
-            `✅ Finalize os pagamentos para completar o processo.`;
-
-          await enviarMensagemWhatsApp(
-            supabase,
-            gestor.numero_whatsapp,
-            mensagemPagamentos
-          );
-
-          console.log(`Lembrete de pagamentos aprovados enviado para ${gestor.name}`);
+          const mensagemPagamentos = gerarRelatorioPagamentosAprovados(pagamentosAprovados, gestor.name);
+          await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemPagamentos);
+          console.log(`Relatório de pagamentos aprovados enviado para ${gestor.name}`);
         }
 
         if ((!notasPendentes || notasPendentes.length === 0) && 
             (!pagamentosAprovados || pagamentosAprovados.length === 0)) {
-          console.log(`Nenhum lembrete necessário para ${gestor.name}`);
+          const mensagemTudoOk = `✅ *Relatório Diário - HCC Hospital*\n\n` +
+            `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
+            `Olá ${gestor.name}!\n\n` +
+            `🎉 *Tudo em dia!*\n\n` +
+            `Não há notas pendentes de aprovação nem pagamentos aguardando processamento.`;
+          
+          await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemTudoOk);
+          console.log(`Mensagem "tudo OK" enviada para ${gestor.name}`);
         }
 
       } catch (error) {
@@ -189,117 +164,65 @@ serve(async (req) => {
   }
 });
 
-function gerarTextoNotas(notas: any[]): string {
-  return notas.slice(0, 5).map((nota, index) => {
-    const diasPendente = Math.floor((Date.now() - new Date(nota.created_at).getTime()) / (1000 * 60 * 60 * 24));
-    return `${index + 1}. ${nota.pagamentos.medicos.nome} - ${nota.pagamentos.mes_competencia} - R$ ${nota.pagamentos.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${diasPendente}d)`;
-  }).join('\n') + (notas.length > 5 ? `\n... e mais ${notas.length - 5} nota(s)` : '');
-}
-
-function gerarTextoPagamentos(pagamentos: any[]): string {
-  return pagamentos.slice(0, 5).map((pag, index) => {
-    return `${index + 1}. ${pag.medicos.nome} - ${pag.mes_competencia} - R$ ${pag.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-  }).join('\n') + (pagamentos.length > 5 ? `\n... e mais ${pagamentos.length - 5} pagamento(s)` : '');
-}
-
-function gerarHTMLNotasPendentes(notas: any[]): string {
-  const linhas = notas.map((nota, index) => {
-    const diasPendente = Math.floor((Date.now() - new Date(nota.created_at).getTime()) / (1000 * 60 * 60 * 24));
-    return `
-      <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 12px; text-align: left;">${index + 1}</td>
-        <td style="padding: 12px; text-align: left;">${nota.pagamentos.medicos.nome}</td>
-        <td style="padding: 12px; text-align: left;">${nota.pagamentos.medicos.documento || '-'}</td>
-        <td style="padding: 12px; text-align: left;">${nota.pagamentos.mes_competencia}</td>
-        <td style="padding: 12px; text-align: right;">R$ ${nota.pagamentos.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-        <td style="padding: 12px; text-align: center;">${diasPendente} dia(s)</td>
-      </tr>
-    `;
-  }).join('');
-
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Notas Pendentes</title>
-    </head>
-    <body style="font-family: Arial, sans-serif; margin: 20px;">
-      <h1 style="color: #667eea; text-align: center;">HCC Hospital</h1>
-      <h2 style="text-align: center;">Notas Fiscais Pendentes de Aprovação</h2>
-      <p style="text-align: center; color: #666;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-      <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-        <thead>
-          <tr style="background-color: #f3f4f6; border-bottom: 2px solid #667eea;">
-            <th style="padding: 12px; text-align: left;">#</th>
-            <th style="padding: 12px; text-align: left;">Médico</th>
-            <th style="padding: 12px; text-align: left;">CPF/CNPJ</th>
-            <th style="padding: 12px; text-align: left;">Competência</th>
-            <th style="padding: 12px; text-align: right;">Valor</th>
-            <th style="padding: 12px; text-align: center;">Aguardando</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${linhas}
-        </tbody>
-      </table>
-    </body>
-    </html>
-  `;
-}
-
-function gerarHTMLPagamentosAprovados(pagamentos: any[]): string {
-  const totalValor = pagamentos.reduce((sum, p) => sum + p.valor, 0);
+function gerarRelatorioNotasPendentes(notas: any[], nomeGestor: string): string {
+  const totalValor = notas.reduce((sum, n) => sum + Number(n.pagamentos.valor), 0);
+  const formatValor = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
   
-  const linhas = pagamentos.map((pag, index) => {
-    return `
-      <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 12px; text-align: left;">${index + 1}</td>
-        <td style="padding: 12px; text-align: left;">${pag.medicos.nome}</td>
-        <td style="padding: 12px; text-align: left;">${pag.medicos.documento || '-'}</td>
-        <td style="padding: 12px; text-align: left;">${pag.mes_competencia}</td>
-        <td style="padding: 12px; text-align: right;">R$ ${pag.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-        <td style="padding: 12px; text-align: center;">${pag.status === 'aprovado' ? 'Aprovado' : 'Nota Aprovada'}</td>
-      </tr>
-    `;
-  }).join('');
+  const header = `📋 *RELATÓRIO DE NOTAS PENDENTES*\n` +
+    `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
+    `Olá ${nomeGestor}!\n\n` +
+    `Você tem *${notas.length} nota(s)* aguardando aprovação.\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Pagamentos Aprovados</title>
-    </head>
-    <body style="font-family: Arial, sans-serif; margin: 20px;">
-      <h1 style="color: #667eea; text-align: center;">HCC Hospital</h1>
-      <h2 style="text-align: center;">Pagamentos Aprovados Pendentes</h2>
-      <p style="text-align: center; color: #666;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-      <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-        <thead>
-          <tr style="background-color: #f3f4f6; border-bottom: 2px solid #667eea;">
-            <th style="padding: 12px; text-align: left;">#</th>
-            <th style="padding: 12px; text-align: left;">Médico</th>
-            <th style="padding: 12px; text-align: left;">CPF/CNPJ</th>
-            <th style="padding: 12px; text-align: left;">Competência</th>
-            <th style="padding: 12px; text-align: right;">Valor</th>
-            <th style="padding: 12px; text-align: center;">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${linhas}
-        </tbody>
-        <tfoot>
-          <tr style="background-color: #f3f4f6; border-top: 2px solid #667eea; font-weight: bold;">
-            <td colspan="4" style="padding: 12px; text-align: right;">TOTAL:</td>
-            <td style="padding: 12px; text-align: right;">R$ ${totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-    </body>
-    </html>
-  `;
+  const listaNotas = notas.slice(0, 10).map((nota, idx) => {
+    const diasPendente = Math.floor((Date.now() - new Date(nota.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    return `*${idx + 1}. ${nota.pagamentos.medicos.nome}*\n` +
+      `   💰 ${formatValor(nota.pagamentos.valor)}\n` +
+      `   📅 ${nota.pagamentos.mes_competencia}\n` +
+      `   ⏱️ ${diasPendente} dia(s) aguardando\n`;
+  }).join('\n');
+
+  const rodape = notas.length > 10 
+    ? `\n_...e mais ${notas.length - 10} notas_\n\n`
+    : '\n';
+
+  const total = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `💵 *TOTAL: ${formatValor(totalValor)}*\n\n` +
+    `🔗 Acesse o portal:\n` +
+    `https://hcc.chatconquista.com\n\n` +
+    `⚡ *Ação Necessária* para liberar os pagamentos.`;
+
+  return header + listaNotas + rodape + total;
+}
+
+function gerarRelatorioPagamentosAprovados(pagamentos: any[], nomeGestor: string): string {
+  const totalValor = pagamentos.reduce((sum, p) => sum + Number(p.valor), 0);
+  const formatValor = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  
+  const header = `💰 *RELATÓRIO DE PAGAMENTOS APROVADOS*\n` +
+    `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
+    `Olá ${nomeGestor}!\n\n` +
+    `Você tem *${pagamentos.length} pagamento(s)* aprovado(s) aguardando processamento.\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+  const listaPagamentos = pagamentos.slice(0, 10).map((pag, idx) => {
+    return `*${idx + 1}. ${pag.medicos.nome}*\n` +
+      `   💰 ${formatValor(pag.valor)}\n` +
+      `   📅 ${pag.mes_competencia}\n` +
+      `   ✅ ${pag.status === 'aprovado' ? 'Aprovado' : 'Nota Aprovada'}\n`;
+  }).join('\n');
+
+  const rodape = pagamentos.length > 10 
+    ? `\n_...e mais ${pagamentos.length - 10} pagamentos_\n\n`
+    : '\n';
+
+  const total = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `💵 *TOTAL: ${formatValor(totalValor)}*\n\n` +
+    `🔗 Acesse o portal:\n` +
+    `https://hcc.chatconquista.com/pagamentos\n\n` +
+    `✅ *Finalize os pagamentos* para completar o processo.`;
+
+  return header + listaPagamentos + rodape + total;
 }
 
 async function enviarMensagemWhatsApp(

@@ -115,7 +115,10 @@ export type Database = {
           auth_token: string
           created_at: string
           email_notificacoes: boolean
+          horario_envio_relatorios: string | null
           id: string
+          intervalo_cobranca_nota_horas: number | null
+          lembrete_periodico_horas: number | null
           ocr_nfse_api_key: string | null
           ocr_nfse_habilitado: boolean
           permitir_nota_via_whatsapp: boolean
@@ -127,7 +130,10 @@ export type Database = {
           auth_token: string
           created_at?: string
           email_notificacoes?: boolean
+          horario_envio_relatorios?: string | null
           id?: string
+          intervalo_cobranca_nota_horas?: number | null
+          lembrete_periodico_horas?: number | null
           ocr_nfse_api_key?: string | null
           ocr_nfse_habilitado?: boolean
           permitir_nota_via_whatsapp?: boolean
@@ -139,7 +145,10 @@ export type Database = {
           auth_token?: string
           created_at?: string
           email_notificacoes?: boolean
+          horario_envio_relatorios?: string | null
           id?: string
+          intervalo_cobranca_nota_horas?: number | null
+          lembrete_periodico_horas?: number | null
           ocr_nfse_api_key?: string | null
           ocr_nfse_habilitado?: boolean
           permitir_nota_via_whatsapp?: boolean
@@ -569,26 +578,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_whatsapp_rate_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      cleanup_old_whatsapp_queue: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      increment_whatsapp_rate_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      is_gestor: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_manager: {
-        Args: { user_uuid: string }
-        Returns: boolean
-      }
+      check_whatsapp_rate_limit: { Args: never; Returns: boolean }
+      cleanup_old_whatsapp_queue: { Args: never; Returns: undefined }
+      increment_whatsapp_rate_limit: { Args: never; Returns: undefined }
+      is_gestor: { Args: never; Returns: boolean }
+      is_manager: { Args: { user_uuid: string }; Returns: boolean }
     }
     Enums: {
       payment_status:

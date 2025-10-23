@@ -791,44 +791,48 @@ export default function DashboardMedicos() {
         {/* Seção especial para médicos com notas pendentes */}
         {pagamentosPendentes.length > 0 && (
           <Card className="mb-8 border-warning/30 bg-warning/5">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex flex-col md:flex-row items-start gap-4">
                 <div className="flex-shrink-0 w-12 h-12 bg-warning/20 rounded-xl flex items-center justify-center">
                   <Upload className="h-6 w-6 text-warning" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-warning" />
-                    Notas Fiscais Pendentes
+                <div className="flex-1 min-w-0 w-full">
+                  <h3 className="text-base md:text-lg font-semibold text-foreground mb-2 flex items-center gap-2 flex-wrap">
+                    <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0" />
+                    <span className="break-words">Notas Fiscais Pendentes</span>
                   </h3>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-sm md:text-base text-muted-foreground mb-4">
                     Você tem <strong className="text-warning">{pagamentosPendentes.length}</strong> pagamento(s) aguardando envio de nota fiscal.
                   </p>
                   <div className="grid gap-3">
                     {pagamentosPendentes.map((pagamento) => (
                       <div
                         key={pagamento.id}
-                        className="flex items-center justify-between p-4 bg-card rounded-lg border border-border/50 hover:border-border transition-all"
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 md:p-4 bg-card rounded-lg border border-border/50 hover:border-border transition-all gap-3"
                       >
-                        <div>
-                          <span className="font-semibold text-foreground">
-                            {formatMesCompetencia(pagamento.mes_competencia)}
-                          </span>
-                          <span className="text-lg font-bold text-success ml-3">
-                            {formatCurrency(pagamento.valor)}
-                          </span>
-                          {pagamento.temNotaRejeitada && (
-                            <Badge variant="destructive" className="ml-2">
-                              <X className="h-3 w-3 mr-1" />
-                              Rejeitada - Reenviar
-                            </Badge>
-                          )}
-                          {pagamento.temNotaPendente && (
-                            <Badge variant="secondary" className="ml-2">
-                              <Clock className="h-3 w-3 mr-1" />
-                              Aguardando Análise
-                            </Badge>
-                          )}
+                        <div className="flex-1 min-w-0 w-full">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <span className="font-semibold text-foreground text-sm md:text-base break-words">
+                              {formatMesCompetencia(pagamento.mes_competencia)}
+                            </span>
+                            <span className="text-base md:text-lg font-bold text-success">
+                              {formatCurrency(pagamento.valor)}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {pagamento.temNotaRejeitada && (
+                              <Badge variant="destructive" className="text-xs">
+                                <X className="h-3 w-3 mr-1" />
+                                Rejeitada - Reenviar
+                              </Badge>
+                            )}
+                            {pagamento.temNotaPendente && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Clock className="h-3 w-3 mr-1" />
+                                Aguardando Análise
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                          <Button
                           onClick={() => {
@@ -840,10 +844,13 @@ export default function DashboardMedicos() {
                           size="sm"
                           variant={pagamento.temNotaRejeitada ? "destructive" : pagamento.temNotaPendente ? "secondary" : "default"}
                           disabled={pagamento.temNotaPendente && !pagamento.temNotaRejeitada}
+                          className="w-full sm:w-auto flex-shrink-0"
                         >
                           <Upload className="h-4 w-4 mr-2" />
-                          {pagamento.temNotaRejeitada ? "Reenviar Nota" : 
-                           pagamento.temNotaPendente ? "Nota Enviada" : "Enviar Nota"}
+                          <span className="text-xs md:text-sm">
+                            {pagamento.temNotaRejeitada ? "Reenviar" : 
+                             pagamento.temNotaPendente ? "Enviada" : "Enviar Nota"}
+                          </span>
                         </Button>
                       </div>
                     ))}

@@ -9,6 +9,7 @@ import { Save, Copy, TestTube, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
+import SystemInfo from "@/components/SystemInfo";
 
 interface Configuracao {
   id: string;
@@ -19,6 +20,9 @@ interface Configuracao {
   ocr_nfse_habilitado: boolean;
   ocr_nfse_api_key: string;
   permitir_nota_via_whatsapp: boolean;
+  horario_envio_relatorios: string;
+  intervalo_cobranca_nota_horas: number;
+  lembrete_periodico_horas: number;
 }
 
 export default function Configuracoes() {
@@ -28,7 +32,7 @@ export default function Configuracoes() {
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const { toast } = useToast();
 
-  const webhookUrl = `${window.location.origin}/api/webhook`;
+  const webhookUrl = `https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/webhook-handler`;
 
   useEffect(() => {
     loadConfiguracoes();
@@ -67,6 +71,9 @@ export default function Configuracoes() {
         ocr_nfse_habilitado: false,
         ocr_nfse_api_key: "",
         permitir_nota_via_whatsapp: true,
+        horario_envio_relatorios: "08:00",
+        intervalo_cobranca_nota_horas: 24,
+        lembrete_periodico_horas: 48,
       });
     } finally {
       setLoading(false);
@@ -89,6 +96,9 @@ export default function Configuracoes() {
             ocr_nfse_habilitado: config.ocr_nfse_habilitado,
             ocr_nfse_api_key: config.ocr_nfse_api_key,
             permitir_nota_via_whatsapp: config.permitir_nota_via_whatsapp,
+            horario_envio_relatorios: config.horario_envio_relatorios,
+            intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas,
+            lembrete_periodico_horas: config.lembrete_periodico_horas,
           })
           .eq("id", config.id);
 
@@ -104,6 +114,9 @@ export default function Configuracoes() {
             ocr_nfse_habilitado: config.ocr_nfse_habilitado,
             ocr_nfse_api_key: config.ocr_nfse_api_key,
             permitir_nota_via_whatsapp: config.permitir_nota_via_whatsapp,
+            horario_envio_relatorios: config.horario_envio_relatorios,
+            intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas,
+            lembrete_periodico_horas: config.lembrete_periodico_horas,
           }])
           .select()
           .single();
@@ -484,27 +497,60 @@ export default function Configuracoes() {
 
           <Card>
             <CardHeader>
+              <CardTitle>⏰ Agendamento de Relatórios</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="horario_envio_relatorios">Horário de Envio aos Gestores</Label>
+                <Input
+                  id="horario_envio_relatorios"
+                  type="time"
+                  value={config.horario_envio_relatorios}
+                  onChange={(e) => setConfig({ ...config, horario_envio_relatorios: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Horário diário para enviar relatórios via WhatsApp aos gestores
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="intervalo_cobranca">Intervalo Inicial de Cobrança (horas)</Label>
+                <Input
+                  id="intervalo_cobranca"
+                  type="number"
+                  min="1"
+                  max="72"
+                  value={config.intervalo_cobranca_nota_horas}
+                  onChange={(e) => setConfig({ ...config, intervalo_cobranca_nota_horas: parseInt(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Tempo de espera antes da primeira cobrança de nota ao médico (padrão: 24h)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lembrete_periodico">Lembretes Periódicos (horas)</Label>
+                <Input
+                  id="lembrete_periodico"
+                  type="number"
+                  min="24"
+                  max="168"
+                  value={config.lembrete_periodico_horas}
+                  onChange={(e) => setConfig({ ...config, lembrete_periodico_horas: parseInt(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Intervalo para enviar lembretes periódicos de notas pendentes (padrão: 48h)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Informações do Sistema</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Versão:</p>
-                  <p className="font-medium">1.4.0</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Último backup:</p>
-                  <p className="font-medium">Não configurado</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Total de médicos:</p>
-                  <p className="font-medium">-</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Total de pagamentos:</p>
-                  <p className="font-medium">-</p>
-                </div>
-              </div>
+              <SystemInfo />
             </CardContent>
           </Card>
 
