@@ -128,7 +128,7 @@ serve(async (req) => {
           documento
         )
       `)
-      .in('status', ['aprovado', 'nota_aprovada']);
+      .eq('status', 'aprovado');
 
     if (pagamentosError) {
       console.error('Erro ao buscar pagamentos aprovados:', pagamentosError);
