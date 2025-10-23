@@ -44,6 +44,31 @@ serve(async (req) => {
 
     console.log('Iniciando envio de lembretes diários');
 
+    // Buscar horário configurado
+    const { data: config } = await supabase
+      .from('configuracoes')
+      .select('horario_envio_relatorios')
+      .single();
+
+    if (config?.horario_envio_relatorios) {
+      const now = new Date();
+      const [horaConfig, minutoConfig] = config.horario_envio_relatorios.split(':').map(Number);
+      const horaAtual = now.getHours();
+      
+      // Verifica se está no horário configurado (mesma hora)
+      if (horaAtual !== horaConfig) {
+        console.log(`Não está no horário configurado. Hora atual: ${horaAtual}, Hora configurada: ${horaConfig}`);
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: 'Fora do horário configurado',
+          horaAtual,
+          horaConfig
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     const { data: gestores, error: gestoresError } = await supabase
       .from('profiles')
       .select('id, name, numero_whatsapp')
