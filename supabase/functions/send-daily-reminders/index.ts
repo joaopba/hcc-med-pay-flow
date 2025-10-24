@@ -45,13 +45,17 @@ serve(async (req) => {
 
     console.log('Iniciando envio de lembretes diários');
 
+    // Verificar se há parâmetro para forçar envio
+    const url = new URL(req.url);
+    const forceEnvio = url.searchParams.get('force') === 'true';
+
     // Buscar horário configurado
     const { data: config } = await supabase
       .from('configuracoes')
       .select('horario_envio_relatorios')
       .single();
 
-    if (config?.horario_envio_relatorios) {
+    if (config?.horario_envio_relatorios && !forceEnvio) {
       // Converter UTC para horário de Brasília (UTC-3)
       const now = new Date();
       const brasiliaOffset = -3; // UTC-3
@@ -75,6 +79,10 @@ serve(async (req) => {
       }
       
       console.log(`✅ No horário configurado! Hora Brasília: ${horaAtualBrasilia}:${minutoAtualBrasilia}, Configurado: ${horaConfig}:${minutoConfig}`);
+    }
+    
+    if (forceEnvio) {
+      console.log('🔥 Envio forçado ativado - ignorando verificação de horário');
     }
 
     const { data: gestores, error: gestoresError } = await supabase
