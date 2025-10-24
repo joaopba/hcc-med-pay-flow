@@ -52,22 +52,27 @@ serve(async (req) => {
       .single();
 
     if (config?.horario_envio_relatorios) {
+      // Converter UTC para horário de Brasília (UTC-3)
       const now = new Date();
+      const brasiliaOffset = -3; // UTC-3
+      const horaAtualBrasilia = (now.getUTCHours() + brasiliaOffset + 24) % 24;
+      
       const [horaConfig, minutoConfig] = config.horario_envio_relatorios.split(':').map(Number);
-      const horaAtual = now.getHours();
       
       // Verifica se está no horário configurado (mesma hora)
-      if (horaAtual !== horaConfig) {
-        console.log(`Não está no horário configurado. Hora atual: ${horaAtual}, Hora configurada: ${horaConfig}`);
+      if (horaAtualBrasilia !== horaConfig) {
+        console.log(`Não está no horário configurado. Hora atual (Brasília): ${horaAtualBrasilia}, Hora configurada: ${horaConfig}`);
         return new Response(JSON.stringify({ 
           success: true, 
           message: 'Fora do horário configurado',
-          horaAtual,
+          horaAtualBrasilia,
           horaConfig
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
+      
+      console.log(`✅ No horário configurado! Hora Brasília: ${horaAtualBrasilia}, Configurado: ${horaConfig}`);
     }
 
     const { data: gestores, error: gestoresError } = await supabase
