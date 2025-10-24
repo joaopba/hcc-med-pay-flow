@@ -56,23 +56,25 @@ serve(async (req) => {
       const now = new Date();
       const brasiliaOffset = -3; // UTC-3
       const horaAtualBrasilia = (now.getUTCHours() + brasiliaOffset + 24) % 24;
+      const minutoAtualBrasilia = now.getUTCMinutes();
       
       const [horaConfig, minutoConfig] = config.horario_envio_relatorios.split(':').map(Number);
       
-      // Verifica se está no horário configurado (mesma hora)
-      if (horaAtualBrasilia !== horaConfig) {
-        console.log(`Não está no horário configurado. Hora atual (Brasília): ${horaAtualBrasilia}, Hora configurada: ${horaConfig}`);
+      // Verifica se está no horário configurado (mesma hora E minuto entre 0-1 para enviar apenas uma vez)
+      if (horaAtualBrasilia !== horaConfig || minutoAtualBrasilia > 1) {
+        console.log(`Não está no horário configurado. Hora atual (Brasília): ${horaAtualBrasilia}:${minutoAtualBrasilia}, Hora configurada: ${horaConfig}:${minutoConfig}`);
         return new Response(JSON.stringify({ 
           success: true, 
           message: 'Fora do horário configurado',
           horaAtualBrasilia,
+          minutoAtualBrasilia,
           horaConfig
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
       
-      console.log(`✅ No horário configurado! Hora Brasília: ${horaAtualBrasilia}, Configurado: ${horaConfig}`);
+      console.log(`✅ No horário configurado! Hora Brasília: ${horaAtualBrasilia}:${minutoAtualBrasilia}, Configurado: ${horaConfig}:${minutoConfig}`);
     }
 
     const { data: gestores, error: gestoresError } = await supabase
@@ -320,14 +322,8 @@ async function enviarMensagemWhatsApp(
   numero: string,
   mensagem: string
 ): Promise<void> {
-  const { data: config } = await supabase
-    .from('configuracoes')
-    .select('api_url, auth_token')
-    .single();
-
-  if (!config) {
-    throw new Error('Configurações não encontradas');
-  }
+  const apiUrl = 'https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de';
+  const authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU';
 
   const form = new FormData();
   form.append('number', numero);
@@ -335,10 +331,10 @@ async function enviarMensagemWhatsApp(
   form.append('externalKey', `lembrete_diario_${Date.now()}`);
   form.append('isClosed', 'false');
 
-  const response = await fetch(config.api_url, {
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${config.auth_token}`
+      'Authorization': `Bearer ${authToken}`
     },
     body: form
   });
