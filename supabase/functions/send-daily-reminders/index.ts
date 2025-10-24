@@ -140,8 +140,29 @@ serve(async (req) => {
       console.error('Erro ao buscar pagamentos aprovados:', pagamentosError);
     }
 
+    const { data: pagamentosPendentes, error: pagamentosPendentesError } = await supabase
+      .from('pagamentos')
+      .select(`
+        id,
+        mes_competencia,
+        valor,
+        status,
+        medico_id,
+        medicos(
+          id,
+          nome,
+          documento
+        )
+      `)
+      .eq('status', 'pendente');
+
+    if (pagamentosPendentesError) {
+      console.error('Erro ao buscar pagamentos pendentes:', pagamentosPendentesError);
+    }
+
     console.log(`Notas pendentes: ${notasPendentes?.length || 0}`);
     console.log(`Pagamentos aprovados não pagos: ${pagamentosAprovados?.length || 0}`);
+    console.log(`Pagamentos pendentes sem nota: ${pagamentosPendentes?.length || 0}`);
 
     for (const gestor of gestores) {
       try {
@@ -157,13 +178,20 @@ serve(async (req) => {
           console.log(`Relatório de pagamentos aprovados enviado para ${gestor.name}`);
         }
 
+        if (pagamentosPendentes && pagamentosPendentes.length > 0) {
+          const mensagemPendentes = gerarRelatorioPagamentosPendentes(pagamentosPendentes, gestor.name);
+          await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemPendentes);
+          console.log(`Relatório de pagamentos pendentes enviado para ${gestor.name}`);
+        }
+
         if ((!notasPendentes || notasPendentes.length === 0) && 
-            (!pagamentosAprovados || pagamentosAprovados.length === 0)) {
+            (!pagamentosAprovados || pagamentosAprovados.length === 0) &&
+            (!pagamentosPendentes || pagamentosPendentes.length === 0)) {
           const mensagemTudoOk = `✅ *Relatório Diário - HCC Hospital*\n\n` +
             `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
             `Olá ${gestor.name}!\n\n` +
             `🎉 *Tudo em dia!*\n\n` +
-            `Não há notas pendentes de aprovação nem pagamentos aguardando processamento.`;
+            `Não há notas pendentes de aprovação, pagamentos aguardando processamento ou pagamentos sem nota solicitada.`;
           
           await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemTudoOk);
           console.log(`Mensagem "tudo OK" enviada para ${gestor.name}`);
@@ -179,7 +207,8 @@ serve(async (req) => {
       message: 'Lembretes enviados com sucesso',
       gestores: gestores.length,
       notasPendentes: notasPendentes?.length || 0,
-      pagamentosAprovados: pagamentosAprovados?.length || 0
+      pagamentosAprovados: pagamentosAprovados?.length || 0,
+      pagamentosPendentes: pagamentosPendentes?.length || 0
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -252,6 +281,36 @@ function gerarRelatorioPagamentosAprovados(pagamentos: any[], nomeGestor: string
     `🔗 Acesse o portal:\n` +
     `https://hcc.chatconquista.com/pagamentos\n\n` +
     `✅ *Finalize os pagamentos* para completar o processo.`;
+
+  return header + listaPagamentos + rodape + total;
+}
+
+function gerarRelatorioPagamentosPendentes(pagamentos: any[], nomeGestor: string): string {
+  const totalValor = pagamentos.reduce((sum, p) => sum + Number(p.valor), 0);
+  const formatValor = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  
+  const header = `⏳ *RELATÓRIO DE PAGAMENTOS PENDENTES*\n` +
+    `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
+    `Olá ${nomeGestor}!\n\n` +
+    `Você tem *${pagamentos.length} pagamento(s)* aguardando solicitação de nota.\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+  const listaPagamentos = pagamentos.slice(0, 10).map((pag, idx) => {
+    return `*${idx + 1}. ${pag.medicos.nome}*\n` +
+      `   💰 ${formatValor(pag.valor)}\n` +
+      `   📅 ${pag.mes_competencia}\n` +
+      `   ⏳ Aguardando Solicitação\n`;
+  }).join('\n');
+
+  const rodape = pagamentos.length > 10 
+    ? `\n_...e mais ${pagamentos.length - 10} pagamentos_\n\n`
+    : '\n';
+
+  const total = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `💵 *TOTAL: ${formatValor(totalValor)}*\n\n` +
+    `🔗 Acesse o portal:\n` +
+    `https://hcc.chatconquista.com/pagamentos\n\n` +
+    `⚡ *Solicite as notas* para iniciar o processo de pagamento.`;
 
   return header + listaPagamentos + rodape + total;
 }
