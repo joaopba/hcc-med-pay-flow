@@ -444,7 +444,6 @@ serve(async (req) => {
 
 Médico: ${(pagamento.medicos as any)?.nome}
 Competência: ${formatMesCompetencia(pagamento.mes_competencia)}
-Valor Bruto: R$ ${pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 Valor Líquido: ${valorLiquidoFormatado}
 
 ✅ Aprovar: ${approveUrl}
