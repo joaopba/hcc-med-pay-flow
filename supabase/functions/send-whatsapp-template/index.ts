@@ -100,15 +100,13 @@ serve(async (req) => {
       try {
         console.log(`[Background] Processando envio tipo: ${type}`);
         
-        // Buscar configurações da API
-        const { data: config, error: configError } = await supabase
-          .from('configuracoes')
-          .select('api_url, auth_token')
-          .maybeSingle();
-
-        if (configError || !config) {
-          throw new Error('Configurações não encontradas');
-        }
+        // APIs e tokens fixos
+        const TEMPLATE_API_URL = 'https://auto.hcchospital.com.br/message/sendTemplate/medico';
+        const TEMPLATE_API_KEY = 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
+        const TEXT_API_URL = 'https://auto.hcchospital.com.br/message/sendText/inovação';
+        const TEXT_API_KEY = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
+        const MEDIA_API_URL = 'https://auto.hcchospital.com.br/message/sendMedia/inovação';
+        const MEDIA_API_KEY = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
 
         let message = '';
         let phoneNumber = numero;
@@ -119,7 +117,9 @@ serve(async (req) => {
         }
 
         let payload: any;
-        let apiUrl = config.api_url;
+        let apiUrl = TEXT_API_URL;
+        let apiKey = TEXT_API_KEY;
+        let useTemplate = false;
 
         // Idempotência: evitar mensagens duplicadas em curto intervalo
         if (pagamentoId) {
@@ -148,37 +148,22 @@ serve(async (req) => {
               console.log('[Background] Dentro da janela de 24h - enviando mensagem livre');
               message = `🏥 *Solicitação de Nota Fiscal - HCC Hospital*\n\nOlá, ${nome}!\n\nPara darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: ${valor}\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\nClique no botão abaixo para receber as instruções de como enviar.`;
               payload = {
-                body: message,
                 number: phoneNumber,
-                externalKey: `${type}_${pagamentoId || Date.now()}_${Date.now()}`,
-                isClosed: false
+                text: message
               };
+              apiUrl = TEXT_API_URL;
+              apiKey = TEXT_API_KEY;
             } else {
               console.log('[Background] Fora da janela de 24h - usando template "nota_hcc"');
               payload = {
-                number: phoneNumber,
-                isClosed: false,
-                templateData: {
-                  messaging_product: "whatsapp",
-                  to: phoneNumber,
-                  type: "template",
-                  template: {
-                    name: "nota_hcc",
-                    language: { code: "pt_BR" },
-                    components: [
-                      { 
-                        type: "body", 
-                        parameters: [
-                          { type: "text", text: nome },
-                          { type: "text", text: valor },
-                          { type: "text", text: formatMesCompetencia(competencia || '') }
-                        ]
-                      }
-                    ]
-                  }
-                }
+                to: phoneNumber,
+                template: "nota_hcc",
+                language: "pt_BR",
+                variables: [nome, valor, formatMesCompetencia(competencia || '')]
               };
-              apiUrl = config.api_url + '/template';
+              apiUrl = TEMPLATE_API_URL;
+              apiKey = TEMPLATE_API_KEY;
+              useTemplate = true;
             }
             break;
           
@@ -190,29 +175,14 @@ serve(async (req) => {
               : valor;
             
             payload = {
-              number: phoneNumber,
-              isClosed: false,
-              templateData: {
-                messaging_product: "whatsapp",
-                to: phoneNumber,
-                type: "template",
-                template: {
-                  name: "nota_pendente",
-                  language: { code: "pt_BR" },
-                  components: [
-                    { 
-                      type: "body", 
-                      parameters: [
-                        { type: "text", text: medico?.nome || nome },
-                        { type: "text", text: valorFormatado },
-                        { type: "text", text: formatMesCompetencia(competencia || '') }
-                      ]
-                    }
-                  ]
-                }
-              }
+              to: phoneNumber,
+              template: "nota_pendente",
+              language: "pt_BR",
+              variables: [medico?.nome || nome, valorFormatado, formatMesCompetencia(competencia || '')]
             };
-            apiUrl = config.api_url + '/template';
+            apiUrl = TEMPLATE_API_URL;
+            apiKey = TEMPLATE_API_KEY;
+            useTemplate = true;
             break;
           
           case 'pagamento':
@@ -222,47 +192,33 @@ serve(async (req) => {
               console.log('[Background] Dentro da janela de 24h - enviando mensagem livre');
               message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
               payload = {
-                body: message,
                 number: phoneNumber,
-                externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-                isClosed: false
+                text: message
               };
+              apiUrl = TEXT_API_URL;
+              apiKey = TEXT_API_KEY;
             } else {
               console.log('[Background] Fora da janela de 24h - usando template "pagamento"');
               payload = {
-                number: phoneNumber,
-                isClosed: false,
-                templateData: {
-                  messaging_product: "whatsapp",
-                  to: phoneNumber,
-                  type: "template",
-                  template: {
-                    name: "pagamento",
-                    language: { code: "pt_BR" },
-                    components: [
-                      { 
-                        type: "body", 
-                        parameters: [
-                          { type: "text", text: nome },
-                          { type: "text", text: dataPagamento || new Date().toLocaleDateString('pt-BR') }
-                        ]
-                      }
-                    ]
-                  }
-                }
+                to: phoneNumber,
+                template: "pagamento",
+                language: "pt_BR",
+                variables: [nome, dataPagamento || new Date().toLocaleDateString('pt-BR')]
               };
-              apiUrl = config.api_url + '/template';
+              apiUrl = TEMPLATE_API_URL;
+              apiKey = TEMPLATE_API_KEY;
+              useTemplate = true;
             }
             break;
           
           case 'nota_recebida':
             message = `✅ *Nota Fiscal Recebida*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi recebida com sucesso.\n\n📋 Status: Em análise\n⏱️ Prazo: Até 24h úteis\n\nVocê será notificado assim que a análise for concluída.\n\nObrigado!`;
             payload = {
-              body: message,
               number: phoneNumber,
-              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-              isClosed: false
+              text: message
             };
+            apiUrl = TEXT_API_URL;
+            apiKey = TEXT_API_KEY;
             break;
           
           case 'nota_aprovacao':
@@ -273,42 +229,35 @@ serve(async (req) => {
             const valorLiquidoFormatado = valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado';
             
             const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}${numeroNota ? `\n🧾 Nº Nota: ${numeroNota}` : ''}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n   ⚠️ *Valor informado pelo médico - VERIFICAR*\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\n⚡ *IMPORTANTE:* Confira se o valor líquido está correto antes de aprovar!\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
-            const derivedFileName = (pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`);
             
             payload = {
               number: phoneNumber,
-              body: caption,
-              mediaData: {
-                mediaBase64: pdf_base64,
-                caption,
-                fileName: derivedFileName
-              },
-              file: {
-                data: pdf_base64,
-                fileName: derivedFileName,
-                filename: derivedFileName
-              }
+              caption: caption,
+              mediaBase64: pdf_base64,
+              filename: pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`
             };
+            apiUrl = MEDIA_API_URL;
+            apiKey = MEDIA_API_KEY;
             break;
           
           case 'nota_aprovada':
             message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
             payload = {
-              body: message,
               number: phoneNumber,
-              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-              isClosed: false
+              text: message
             };
+            apiUrl = TEXT_API_URL;
+            apiKey = TEXT_API_KEY;
             break;
           
           case 'nota_rejeitada':
             message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal:\n\n🔗 ${linkPortal || 'https://hcc.chatconquista.com/dashboard-medicos'}\n\nPrecisa de ajuda? Entre em contato conosco.`;
             payload = {
-              body: message,
               number: phoneNumber,
-              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
-              isClosed: false
+              text: message
             };
+            apiUrl = TEXT_API_URL;
+            apiKey = TEXT_API_KEY;
             break;
           
           case 'nova_mensagem_chat':
@@ -316,11 +265,11 @@ serve(async (req) => {
             const linkResposta = await shortenUrl(`https://hcc.chatconquista.com/chat?medico=${medico_id || ''}&responder=true`);
             message = `💬 *Nova Mensagem no Chat*\n\n*De:* ${medico_nome}\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Responder agora:\n${linkResposta}\n\nOu acesse o sistema para visualizar o histórico completo.`;
             payload = {
-              body: message,
               number: phoneNumber,
-              externalKey: `chat_${medico_id}_${Date.now()}`,
-              isClosed: false
+              text: message
             };
+            apiUrl = TEXT_API_URL;
+            apiKey = TEXT_API_KEY;
             break;
           
           case 'resposta_financeiro':
@@ -328,21 +277,21 @@ serve(async (req) => {
             const linkChatMedico = await shortenUrl(`https://hcc.chatconquista.com/dashboard-medicos`);
             message = `💬 *Nova Resposta do Financeiro*\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Ver conversa:\n${linkChatMedico}\n\nAcesse seu painel para continuar a conversa.`;
             payload = {
-              body: message,
               number: phoneNumber,
-              externalKey: `chat_resp_${Date.now()}`,
-              isClosed: false
+              text: message
             };
+            apiUrl = TEXT_API_URL;
+            apiKey = TEXT_API_KEY;
             break;
           
           case 'valor_ajustado':
             message = `⚠️ *Valor da Nota Ajustado*\n\nOlá ${medico?.nome}!\n\nO valor líquido da sua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi ajustado.\n\n💰 Valor Original: ${valorOriginal}\n💵 Novo Valor: ${valorNovo}\n\n📝 *Motivo do Ajuste:*\n${motivo}\n\nSe tiver dúvidas, entre em contato conosco.`;
             payload = {
-              body: message,
               number: phoneNumber,
-              externalKey: `valor_ajustado_${medico_id}_${Date.now()}`,
-              isClosed: false
+              text: message
             };
+            apiUrl = TEXT_API_URL;
+            apiKey = TEXT_API_KEY;
             break;
           
           default:
@@ -356,7 +305,7 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.auth_token}`
+            'x-api-key': apiKey
           },
           body: JSON.stringify(payload)
         });
@@ -388,18 +337,12 @@ serve(async (req) => {
             if (medicoCompleto?.numero_whatsapp_contador) {
               console.log('[Background] Enviando também para contador:', medicoCompleto.numero_whatsapp_contador);
               
-              // Criar payload para contador - ajustar conforme tipo
+              // Criar payload para contador
               let payloadContador;
               
-              if (apiUrl.includes('/template')) {
-                // Para templates, criar novo payload completo
-                payloadContador = JSON.parse(JSON.stringify(payload));
-                if (payloadContador.templateData?.to) {
-                  payloadContador.templateData.to = medicoCompleto.numero_whatsapp_contador;
-                }
-                payloadContador.number = medicoCompleto.numero_whatsapp_contador;
+              if (useTemplate) {
+                payloadContador = { ...payload, to: medicoCompleto.numero_whatsapp_contador };
               } else {
-                // Para mensagens livres
                 payloadContador = { ...payload, number: medicoCompleto.numero_whatsapp_contador };
               }
               
@@ -407,7 +350,7 @@ serve(async (req) => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${config.auth_token}`
+                  'x-api-key': apiKey
                 },
                 body: JSON.stringify(payloadContador)
               });

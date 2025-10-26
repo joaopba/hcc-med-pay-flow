@@ -330,21 +330,21 @@ async function enviarMensagemWhatsApp(
   numero: string,
   mensagem: string
 ): Promise<void> {
-  const apiUrl = 'https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de';
-  const authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU';
+  const apiUrl = 'https://auto.hcchospital.com.br/message/sendText/inovação';
+  const apiKey = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
 
-  const form = new FormData();
-  form.append('number', numero);
-  form.append('body', mensagem);
-  form.append('externalKey', `lembrete_diario_${Date.now()}`);
-  form.append('isClosed', 'false');
+  const payload = {
+    number: numero,
+    text: mensagem
+  };
 
   const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${authToken}`
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey
     },
-    body: form
+    body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
