@@ -100,9 +100,11 @@ serve(async (req) => {
       try {
         console.log(`[Background] Processando envio tipo: ${type}`);
         
-        // APIs e tokens fixos
-        const TEMPLATE_API_URL = 'https://auto.hcchospital.com.br/message/sendTemplate/medico';
-        const TEMPLATE_API_KEY = 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
+        // Meta API (templates) - direto pela Meta sem intermediário
+        const META_API_URL = 'https://graph.facebook.com/v21.0/468233466375447/messages';
+        const META_TOKEN = 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
+        
+        // API intermediária (texto e mídia)
         const TEXT_API_URL = 'https://auto.hcchospital.com.br/message/sendText/inovação';
         const TEXT_API_KEY = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
         const MEDIA_API_URL = 'https://auto.hcchospital.com.br/message/sendMedia/inovação';
@@ -154,15 +156,28 @@ serve(async (req) => {
               apiUrl = TEXT_API_URL;
               apiKey = TEXT_API_KEY;
             } else {
-              console.log('[Background] Fora da janela de 24h - usando template "nota_hcc"');
+              console.log('[Background] Fora da janela de 24h - usando template "nota_hcc" via Meta API');
               payload = {
+                messaging_product: "whatsapp",
                 to: phoneNumber,
-                template: "nota_hcc",
-                language: "pt_BR",
-                variables: [nome, valor, formatMesCompetencia(competencia || '')]
+                type: "template",
+                template: {
+                  name: "nota_hcc",
+                  language: { code: "pt_BR" },
+                  components: [
+                    {
+                      type: "body",
+                      parameters: [
+                        { type: "text", text: nome },
+                        { type: "text", text: valor },
+                        { type: "text", text: formatMesCompetencia(competencia || '') }
+                      ]
+                    }
+                  ]
+                }
               };
-              apiUrl = TEMPLATE_API_URL;
-              apiKey = TEMPLATE_API_KEY;
+              apiUrl = META_API_URL;
+              apiKey = META_TOKEN;
               useTemplate = true;
             }
             break;
@@ -175,13 +190,26 @@ serve(async (req) => {
               : valor;
             
             payload = {
+              messaging_product: "whatsapp",
               to: phoneNumber,
-              template: "nota_pendente",
-              language: "pt_BR",
-              variables: [medico?.nome || nome, valorFormatado, formatMesCompetencia(competencia || '')]
+              type: "template",
+              template: {
+                name: "nota_pendente",
+                language: { code: "pt_BR" },
+                components: [
+                  {
+                    type: "body",
+                    parameters: [
+                      { type: "text", text: medico?.nome || nome },
+                      { type: "text", text: valorFormatado },
+                      { type: "text", text: formatMesCompetencia(competencia || '') }
+                    ]
+                  }
+                ]
+              }
             };
-            apiUrl = TEMPLATE_API_URL;
-            apiKey = TEMPLATE_API_KEY;
+            apiUrl = META_API_URL;
+            apiKey = META_TOKEN;
             useTemplate = true;
             break;
           
@@ -198,15 +226,27 @@ serve(async (req) => {
               apiUrl = TEXT_API_URL;
               apiKey = TEXT_API_KEY;
             } else {
-              console.log('[Background] Fora da janela de 24h - usando template "pagamento"');
+              console.log('[Background] Fora da janela de 24h - usando template "pagamento" via Meta API');
               payload = {
+                messaging_product: "whatsapp",
                 to: phoneNumber,
-                template: "pagamento",
-                language: "pt_BR",
-                variables: [nome, dataPagamento || new Date().toLocaleDateString('pt-BR')]
+                type: "template",
+                template: {
+                  name: "pagamento",
+                  language: { code: "pt_BR" },
+                  components: [
+                    {
+                      type: "body",
+                      parameters: [
+                        { type: "text", text: nome },
+                        { type: "text", text: dataPagamento || new Date().toLocaleDateString('pt-BR') }
+                      ]
+                    }
+                  ]
+                }
               };
-              apiUrl = TEMPLATE_API_URL;
-              apiKey = TEMPLATE_API_KEY;
+              apiUrl = META_API_URL;
+              apiKey = META_TOKEN;
               useTemplate = true;
             }
             break;
@@ -301,12 +341,20 @@ serve(async (req) => {
         console.log('[Background] Enviando para API WhatsApp:', apiUrl);
 
         // Enviar mensagem principal
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json'
+        };
+        
+        // Usar cabeçalho correto dependendo da API
+        if (useTemplate) {
+          headers['Authorization'] = `Bearer ${apiKey}`;
+        } else {
+          headers['x-api-key'] = apiKey;
+        }
+        
         const response = await fetch(apiUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey
-          },
+          headers,
           body: JSON.stringify(payload)
         });
 
@@ -346,12 +394,19 @@ serve(async (req) => {
                 payloadContador = { ...payload, number: medicoCompleto.numero_whatsapp_contador };
               }
               
+              const headersContador: Record<string, string> = {
+                'Content-Type': 'application/json'
+              };
+              
+              if (useTemplate) {
+                headersContador['Authorization'] = `Bearer ${apiKey}`;
+              } else {
+                headersContador['x-api-key'] = apiKey;
+              }
+              
               await fetch(apiUrl, {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'x-api-key': apiKey
-                },
+                headers: headersContador,
                 body: JSON.stringify(payloadContador)
               });
               
