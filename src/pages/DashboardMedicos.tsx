@@ -108,6 +108,8 @@ export default function DashboardMedicos() {
   const [pendingTicket, setPendingTicket] = useState<any>(null);
   const [valorLiquido, setValorLiquido] = useState("");
   const [ocrHabilitado, setOcrHabilitado] = useState(false);
+  const [modoManutencao, setModoManutencao] = useState(false);
+  const [mensagemManutencao, setMensagemManutencao] = useState("");
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -259,14 +261,16 @@ export default function DashboardMedicos() {
     try {
       const cpfNumeros = cpf.replace(/\D/g, '');
 
-      // Buscar configurações OCR
+      // Buscar configurações OCR e modo de manutenção
       const { data: configData } = await supabase
         .from('configuracoes')
-        .select('ocr_nfse_habilitado')
+        .select('ocr_nfse_habilitado, modo_manutencao, mensagem_manutencao')
         .single();
       
       if (configData) {
         setOcrHabilitado(configData.ocr_nfse_habilitado || false);
+        setModoManutencao(configData.modo_manutencao || false);
+        setMensagemManutencao(configData.mensagem_manutencao || "Sistema em manutenção. Voltaremos em breve.");
       }
 
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
@@ -788,6 +792,22 @@ export default function DashboardMedicos() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <div className="max-w-7xl mx-auto">
+        {/* Aviso de Manutenção */}
+        {modoManutencao && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
+          >
+            <Alert className="border-warning bg-warning/10">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              <AlertDescription className="text-foreground">
+                <strong>Atenção:</strong> {mensagemManutencao}
+              </AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
+
         {/* Seção especial para médicos com notas pendentes */}
         {pagamentosPendentes.length > 0 && (
           <Card className="mb-8 border-warning/30 bg-warning/5">

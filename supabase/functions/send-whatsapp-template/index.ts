@@ -95,20 +95,25 @@ serve(async (req) => {
     const requestData: WhatsAppRequest = await req.json();
     const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero, valorBruto, valorLiquido, valorOriginal, valorNovo, numeroNota } = requestData;
 
+    // Buscar configurações do banco
+    const { data: config } = await supabase
+      .from('configuracoes')
+      .select('meta_api_url, meta_token, meta_phone_number_id, template_nome, text_api_url, text_api_key, media_api_url, media_api_key')
+      .single();
+
+    // Usar configurações do banco ou fallbacks
+    const META_API_URL = config?.meta_api_url || 'https://graph.facebook.com/v21.0/468233466375447/messages';
+    const META_TOKEN = config?.meta_token || 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
+    const TEMPLATE_NOME = config?.template_nome || 'nota_hcc';
+    const TEXT_API_URL = config?.text_api_url || 'https://auto.hcchospital.com.br/message/sendText/inovação';
+    const TEXT_API_KEY = config?.text_api_key || 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
+    const MEDIA_API_URL = config?.media_api_url || 'https://auto.hcchospital.com.br/message/sendMedia/inovação';
+    const MEDIA_API_KEY = config?.media_api_key || 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
+
     // Função para processar o envio em background
     async function processarEnvio() {
       try {
         console.log(`[Background] Processando envio tipo: ${type}`);
-        
-        // Meta API (templates) - direto pela Meta sem intermediário
-        const META_API_URL = 'https://graph.facebook.com/v21.0/468233466375447/messages';
-        const META_TOKEN = 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
-        
-        // API intermediária (texto e mídia)
-        const TEXT_API_URL = 'https://auto.hcchospital.com.br/message/sendText/inovação';
-        const TEXT_API_KEY = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
-        const MEDIA_API_URL = 'https://auto.hcchospital.com.br/message/sendMedia/inovação';
-        const MEDIA_API_KEY = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
 
         let message = '';
         let phoneNumber = numero;
@@ -156,13 +161,13 @@ serve(async (req) => {
               apiUrl = TEXT_API_URL;
               apiKey = TEXT_API_KEY;
             } else {
-              console.log('[Background] Fora da janela de 24h - usando template "nota_hcc" via Meta API');
+              console.log('[Background] Fora da janela de 24h - usando template via Meta API');
               payload = {
                 messaging_product: "whatsapp",
                 to: phoneNumber,
                 type: "template",
                 template: {
-                  name: "nota_hcc",
+                  name: TEMPLATE_NOME,
                   language: { code: "pt_BR" },
                   components: [
                     {

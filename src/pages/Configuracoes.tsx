@@ -23,6 +23,17 @@ interface Configuracao {
   horario_envio_relatorios: string;
   intervalo_cobranca_nota_horas: number;
   lembrete_periodico_horas: number;
+  modo_manutencao: boolean;
+  mensagem_manutencao: string;
+  meta_api_url: string;
+  meta_token: string;
+  meta_phone_number_id: string;
+  meta_waba_id: string;
+  template_nome: string;
+  text_api_url: string;
+  text_api_key: string;
+  media_api_url: string;
+  media_api_key: string;
 }
 
 export default function Configuracoes() {
@@ -74,6 +85,17 @@ export default function Configuracoes() {
         horario_envio_relatorios: "08:00",
         intervalo_cobranca_nota_horas: 24,
         lembrete_periodico_horas: 48,
+        modo_manutencao: false,
+        mensagem_manutencao: "Sistema em manutenção. Voltaremos em breve.",
+        meta_api_url: "https://graph.facebook.com/v21.0/468233466375447/messages",
+        meta_token: "EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD",
+        meta_phone_number_id: "468233466375447",
+        meta_waba_id: "421395757718205",
+        template_nome: "nota_hcc",
+        text_api_url: "https://auto.hcchospital.com.br/message/sendText/inovação",
+        text_api_key: "BA6138D0B74C-4AED-8E91-8B3B2C337811",
+        media_api_url: "https://auto.hcchospital.com.br/message/sendMedia/inovação",
+        media_api_key: "BA6138D0B74C-4AED-8E91-8B3B2C337811",
       });
     } finally {
       setLoading(false);
@@ -85,45 +107,67 @@ export default function Configuracoes() {
 
     setSaving(true);
     try {
-      if (config.id) {
-        const { error } = await supabase
-          .from("configuracoes")
-          .update({
-            api_url: config.api_url,
-            auth_token: config.auth_token,
-            webhook_url: config.webhook_url,
-            email_notificacoes: config.email_notificacoes,
-            ocr_nfse_habilitado: config.ocr_nfse_habilitado,
-            ocr_nfse_api_key: config.ocr_nfse_api_key,
-            permitir_nota_via_whatsapp: config.permitir_nota_via_whatsapp,
-            horario_envio_relatorios: config.horario_envio_relatorios,
-            intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas,
-            lembrete_periodico_horas: config.lembrete_periodico_horas,
-          })
-          .eq("id", config.id);
+        if (config.id) {
+          const { error } = await supabase
+            .from("configuracoes")
+            .update({
+              api_url: config.api_url,
+              auth_token: config.auth_token,
+              webhook_url: config.webhook_url,
+              email_notificacoes: config.email_notificacoes,
+              ocr_nfse_habilitado: config.ocr_nfse_habilitado,
+              ocr_nfse_api_key: config.ocr_nfse_api_key,
+              permitir_nota_via_whatsapp: config.permitir_nota_via_whatsapp,
+              horario_envio_relatorios: config.horario_envio_relatorios,
+              intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas,
+              lembrete_periodico_horas: config.lembrete_periodico_horas,
+              modo_manutencao: config.modo_manutencao,
+              mensagem_manutencao: config.mensagem_manutencao,
+              meta_api_url: config.meta_api_url,
+              meta_token: config.meta_token,
+              meta_phone_number_id: config.meta_phone_number_id,
+              meta_waba_id: config.meta_waba_id,
+              template_nome: config.template_nome,
+              text_api_url: config.text_api_url,
+              text_api_key: config.text_api_key,
+              media_api_url: config.media_api_url,
+              media_api_key: config.media_api_key,
+            })
+            .eq("id", config.id);
 
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from("configuracoes")
-          .insert([{
-            api_url: config.api_url,
-            auth_token: config.auth_token,
-            webhook_url: config.webhook_url,
-            email_notificacoes: config.email_notificacoes,
-            ocr_nfse_habilitado: config.ocr_nfse_habilitado,
-            ocr_nfse_api_key: config.ocr_nfse_api_key,
-            permitir_nota_via_whatsapp: config.permitir_nota_via_whatsapp,
-            horario_envio_relatorios: config.horario_envio_relatorios,
-            intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas,
-            lembrete_periodico_horas: config.lembrete_periodico_horas,
-          }])
-          .select()
-          .single();
+          if (error) throw error;
+        } else {
+          const { data, error } = await supabase
+            .from("configuracoes")
+            .insert([{
+              api_url: config.api_url,
+              auth_token: config.auth_token,
+              webhook_url: config.webhook_url,
+              email_notificacoes: config.email_notificacoes,
+              ocr_nfse_habilitado: config.ocr_nfse_habilitado,
+              ocr_nfse_api_key: config.ocr_nfse_api_key,
+              permitir_nota_via_whatsapp: config.permitir_nota_via_whatsapp,
+              horario_envio_relatorios: config.horario_envio_relatorios,
+              intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas,
+              lembrete_periodico_horas: config.lembrete_periodico_horas,
+              modo_manutencao: config.modo_manutencao,
+              mensagem_manutencao: config.mensagem_manutencao,
+              meta_api_url: config.meta_api_url,
+              meta_token: config.meta_token,
+              meta_phone_number_id: config.meta_phone_number_id,
+              meta_waba_id: config.meta_waba_id,
+              template_nome: config.template_nome,
+              text_api_url: config.text_api_url,
+              text_api_key: config.text_api_key,
+              media_api_url: config.media_api_url,
+              media_api_key: config.media_api_key,
+            }])
+            .select()
+            .single();
 
-        if (error) throw error;
-        setConfig({ ...config, id: data.id });
-      }
+          if (error) throw error;
+          setConfig({ ...config, id: data.id });
+        }
 
       toast({
         title: "Sucesso",
@@ -237,9 +281,160 @@ export default function Configuracoes() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>🔧 Modo de Manutenção</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="modo_manutencao">Ativar Modo de Manutenção</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Quando ativado, médicos verão um aviso no dashboard
+                  </p>
+                </div>
+                <Switch
+                  id="modo_manutencao"
+                  checked={config.modo_manutencao}
+                  onCheckedChange={(checked) => 
+                    setConfig({ ...config, modo_manutencao: checked })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mensagem_manutencao">Mensagem de Manutenção</Label>
+                <Textarea
+                  id="mensagem_manutencao"
+                  value={config.mensagem_manutencao}
+                  onChange={(e) => setConfig({ ...config, mensagem_manutencao: e.target.value })}
+                  rows={3}
+                  placeholder="Sistema em manutenção. Voltaremos em breve."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Esta mensagem será exibida no dashboard dos médicos durante a manutenção
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>📱 Configurações Meta WhatsApp (Templates)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="meta_api_url">URL da API Meta</Label>
+                  <Input
+                    id="meta_api_url"
+                    value={config.meta_api_url}
+                    onChange={(e) => setConfig({ ...config, meta_api_url: e.target.value })}
+                    placeholder="https://graph.facebook.com/v21.0/..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="meta_phone_number_id">Phone Number ID</Label>
+                  <Input
+                    id="meta_phone_number_id"
+                    value={config.meta_phone_number_id}
+                    onChange={(e) => setConfig({ ...config, meta_phone_number_id: e.target.value })}
+                    placeholder="468233466375447"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="meta_waba_id">WhatsApp Business Account ID</Label>
+                  <Input
+                    id="meta_waba_id"
+                    value={config.meta_waba_id}
+                    onChange={(e) => setConfig({ ...config, meta_waba_id: e.target.value })}
+                    placeholder="421395757718205"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="template_nome">Nome do Template</Label>
+                  <Input
+                    id="template_nome"
+                    value={config.template_nome}
+                    onChange={(e) => setConfig({ ...config, template_nome: e.target.value })}
+                    placeholder="nota_hcc"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="meta_token">Token de Acesso Meta</Label>
+                <Textarea
+                  id="meta_token"
+                  value={config.meta_token}
+                  onChange={(e) => setConfig({ ...config, meta_token: e.target.value })}
+                  rows={3}
+                  placeholder="EAAXSNrvzpbABP..."
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
-              <CardTitle>API do WhatsApp</CardTitle>
+              <CardTitle>💬 API de Mensagens de Texto</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="text_api_url">URL da API</Label>
+                <Input
+                  id="text_api_url"
+                  value={config.text_api_url}
+                  onChange={(e) => setConfig({ ...config, text_api_url: e.target.value })}
+                  placeholder="https://auto.hcchospital.com.br/message/sendText/inovação"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="text_api_key">Chave da API</Label>
+                <Input
+                  id="text_api_key"
+                  value={config.text_api_key}
+                  onChange={(e) => setConfig({ ...config, text_api_key: e.target.value })}
+                  placeholder="BA6138D0B74C-4AED-8E91-8B3B2C337811"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>📎 API de Envio de Mídia</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="media_api_url">URL da API</Label>
+                <Input
+                  id="media_api_url"
+                  value={config.media_api_url}
+                  onChange={(e) => setConfig({ ...config, media_api_url: e.target.value })}
+                  placeholder="https://auto.hcchospital.com.br/message/sendMedia/inovação"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="media_api_key">Chave da API</Label>
+                <Input
+                  id="media_api_key"
+                  value={config.media_api_key}
+                  onChange={(e) => setConfig({ ...config, media_api_key: e.target.value })}
+                  placeholder="BA6138D0B74C-4AED-8E91-8B3B2C337811"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>API do WhatsApp (Legado)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
