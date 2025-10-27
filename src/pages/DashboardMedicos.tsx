@@ -689,6 +689,77 @@ export default function DashboardMedicos() {
     { name: 'Rejeitadas', value: stats.notasRejeitadas, color: statusColors.rejeitado }
   ].filter(item => item.value > 0);
 
+  // Tela de bloqueio por manutenção
+  if (modoManutencao) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-destructive/5 via-background to-destructive/10 flex items-center justify-center p-4">
+        <div className="absolute top-6 right-6 z-20">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="glass-effect border-border/50 hover:bg-accent/50 transition-all"
+          >
+            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-2xl"
+        >
+          <Card className="border-destructive/50 bg-destructive/5 shadow-2xl">
+            <CardContent className="p-8 md:p-12 text-center space-y-6">
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  repeatDelay: 1
+                }}
+                className="flex justify-center mb-4"
+              >
+                <div className="p-6 bg-destructive/20 rounded-full">
+                  <AlertTriangle className="h-16 w-16 md:h-24 md:w-24 text-destructive" />
+                </div>
+              </motion.div>
+
+              <div className="space-y-4">
+                <h1 className="text-2xl md:text-4xl font-bold text-destructive">
+                  Sistema em Manutenção
+                </h1>
+                
+                <div className="p-6 bg-destructive/10 border border-destructive/30 rounded-lg">
+                  <p className="text-base md:text-lg text-foreground font-medium leading-relaxed">
+                    {mensagemManutencao}
+                  </p>
+                </div>
+
+                <p className="text-sm md:text-base text-muted-foreground pt-4">
+                  O acesso ao sistema de notas fiscais está temporariamente indisponível. 
+                  Por favor, tente novamente mais tarde.
+                </p>
+              </div>
+
+              <div className="flex justify-center pt-4">
+                <img 
+                  src={conquistaLogo} 
+                  alt="Conquista Inovação" 
+                  className="h-6 opacity-40"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (!medico) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
@@ -792,21 +863,6 @@ export default function DashboardMedicos() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Aviso de Manutenção */}
-        {modoManutencao && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6"
-          >
-            <Alert className="border-warning bg-warning/10">
-              <AlertTriangle className="h-5 w-5 text-warning" />
-              <AlertDescription className="text-foreground">
-                <strong>Atenção:</strong> {mensagemManutencao}
-              </AlertDescription>
-            </Alert>
-          </motion.div>
-        )}
 
         {/* Seção especial para médicos com notas pendentes */}
         {pagamentosPendentes.length > 0 && (
