@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { motion } from "framer-motion";
 
 interface NotaMedico {
   id: string;
@@ -552,8 +553,14 @@ export default function NotasAprovacao() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {notasFiltradas.map((nota) => (
-              <TableRow key={nota.id}>
+            {notasFiltradas.map((nota, index) => (
+              <motion.tr
+                key={nota.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="hover:bg-muted/30 transition-colors"
+              >
                 <TableCell className="font-medium">{nota.medicos.nome}</TableCell>
                 <TableCell>
                   {nota.medicos.documento ? 
@@ -724,7 +731,7 @@ export default function NotasAprovacao() {
                     )}
                   </div>
                 </TableCell>
-              </TableRow>
+              </motion.tr>
             ))}
           </TableBody>
         </Table>

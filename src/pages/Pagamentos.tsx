@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/table";
 import ExcelImport from "@/components/ExcelImport";
 import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
 
 interface Medico {
   id: string;
@@ -616,6 +617,9 @@ export default function Pagamentos() {
             <Skeleton className="h-40" />
             <Skeleton className="h-40" />
           </div>
+          <Skeleton className="h-64 w-full" /> {/* Skeleton for NotasAprovacao */}
+          <Skeleton className="h-10 w-full" /> {/* Skeleton for filters */}
+          <Skeleton className="h-96 w-full" /> {/* Skeleton for main table */}
         </div>
       </AppLayout>
     );
@@ -625,7 +629,11 @@ export default function Pagamentos() {
     <AppLayout>
       <div className="p-6">
         {errorMsg && (
-          <div className="mb-4 p-4 border border-destructive/30 rounded-lg bg-destructive/5">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-4 border border-destructive/30 rounded-lg bg-destructive/5"
+          >
             <p className="text-destructive font-medium">Erro ao carregar dados</p>
             <p className="text-sm text-muted-foreground">{errorMsg}</p>
             <div className="mt-2">
@@ -633,7 +641,7 @@ export default function Pagamentos() {
                 Tentar novamente
               </Button>
             </div>
-          </div>
+          </motion.div>
         )}
         <div className="flex flex-col gap-4 mb-6">
           <div>
@@ -733,13 +741,18 @@ export default function Pagamentos() {
         </div>
 
           {/* Seção de Aprovação de Notas */}
-          <div className="mb-6">
-            <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-6"
+          >
+            <Suspense fallback={<Skeleton className="h-64 w-full" />}>
               <ErrorBoundary pageName="Aprovação de Notas">
                 <NotasAprovacaoLazy />
               </ErrorBoundary>
             </Suspense>
-          </div>
+          </motion.div>
 
           <Card className="mb-4">
           <CardHeader>
@@ -836,7 +849,7 @@ export default function Pagamentos() {
                     <TableHead className="min-w-[150px]">Médico</TableHead>
                     <TableHead className="min-w-[100px]">Nº Nota</TableHead>
                     <TableHead className="min-w-[100px]">Competência</TableHead>
-                    <TableHead className="min-w-[100px]">Valor Bruto</TableHead>
+                    <TableHead className="min-w-[120px]">Valor Bruto</TableHead>
                     <TableHead className="min-w-[120px]">Status</TableHead>
                     <TableHead className="min-w-[100px]">Valor Líquido</TableHead>
                     <TableHead className="min-w-[120px]">Data Pagamento</TableHead>
@@ -844,8 +857,14 @@ export default function Pagamentos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPagamentos.map((pagamento) => (
-                    <TableRow key={pagamento.id}>
+                  {filteredPagamentos.map((pagamento, index) => (
+                    <motion.tr
+                      key={pagamento.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="hover:bg-muted/30 transition-colors"
+                    >
                       <TableCell>
                         <Checkbox
                           checked={selectedPagamentos.includes(pagamento.id)}
@@ -861,7 +880,7 @@ export default function Pagamentos() {
                       </TableCell>
                       <TableCell className="font-medium">{pagamento.medicos?.nome || '—'}</TableCell>
                       <TableCell className="text-center">{pagamento.numero_nota || '-'}</TableCell>
-                      <TableCell>{pagamento.mes_competencia}</TableCell>
+                      <TableCell>{formatMesCompetencia(pagamento.mes_competencia)}</TableCell>
                       <TableCell>{formatCurrency(pagamento.valor)}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusColor(pagamento.status)}>
@@ -899,7 +918,7 @@ export default function Pagamentos() {
                           )}
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </motion.tr>
                   ))}
                 </TableBody>
               </Table>
