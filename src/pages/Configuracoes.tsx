@@ -25,6 +25,7 @@ interface Configuracao {
   lembrete_periodico_horas: number;
   modo_manutencao: boolean;
   mensagem_manutencao: string;
+  horario_previsto_retorno: string;
   meta_api_url: string;
   meta_token: string;
   meta_phone_number_id: string;
@@ -87,6 +88,7 @@ export default function Configuracoes() {
         lembrete_periodico_horas: 48,
         modo_manutencao: false,
         mensagem_manutencao: "Sistema em manutenção. Voltaremos em breve.",
+        horario_previsto_retorno: "",
         meta_api_url: "https://graph.facebook.com/v21.0/468233466375447/messages",
         meta_token: "EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD",
         meta_phone_number_id: "468233466375447",
@@ -123,6 +125,7 @@ export default function Configuracoes() {
               lembrete_periodico_horas: config.lembrete_periodico_horas,
               modo_manutencao: config.modo_manutencao,
               mensagem_manutencao: config.mensagem_manutencao,
+              horario_previsto_retorno: config.horario_previsto_retorno || null,
               meta_api_url: config.meta_api_url,
               meta_token: config.meta_token,
               meta_phone_number_id: config.meta_phone_number_id,
@@ -152,6 +155,7 @@ export default function Configuracoes() {
               lembrete_periodico_horas: config.lembrete_periodico_horas,
               modo_manutencao: config.modo_manutencao,
               mensagem_manutencao: config.mensagem_manutencao,
+              horario_previsto_retorno: config.horario_previsto_retorno || null,
               meta_api_url: config.meta_api_url,
               meta_token: config.meta_token,
               meta_phone_number_id: config.meta_phone_number_id,
@@ -313,6 +317,19 @@ export default function Configuracoes() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Esta mensagem será exibida no dashboard dos médicos durante a manutenção
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="horario_previsto_retorno">Horário Previsto de Retorno (Opcional)</Label>
+                <Input
+                  id="horario_previsto_retorno"
+                  type="datetime-local"
+                  value={config.horario_previsto_retorno}
+                  onChange={(e) => setConfig({ ...config, horario_previsto_retorno: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Informe quando o sistema deve voltar ao normal. Deixe em branco se não souber.
                 </p>
               </div>
             </CardContent>

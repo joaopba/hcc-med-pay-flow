@@ -116,6 +116,7 @@ export type Database = {
           created_at: string
           email_notificacoes: boolean
           horario_envio_relatorios: string | null
+          horario_previsto_retorno: string | null
           id: string
           intervalo_cobranca_nota_horas: number | null
           lembrete_periodico_horas: number | null
@@ -142,6 +143,7 @@ export type Database = {
           created_at?: string
           email_notificacoes?: boolean
           horario_envio_relatorios?: string | null
+          horario_previsto_retorno?: string | null
           id?: string
           intervalo_cobranca_nota_horas?: number | null
           lembrete_periodico_horas?: number | null
@@ -168,6 +170,7 @@ export type Database = {
           created_at?: string
           email_notificacoes?: boolean
           horario_envio_relatorios?: string | null
+          horario_previsto_retorno?: string | null
           id?: string
           intervalo_cobranca_nota_horas?: number | null
           lembrete_periodico_horas?: number | null

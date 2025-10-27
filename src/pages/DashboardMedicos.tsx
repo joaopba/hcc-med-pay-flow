@@ -110,8 +110,34 @@ export default function DashboardMedicos() {
   const [ocrHabilitado, setOcrHabilitado] = useState(false);
   const [modoManutencao, setModoManutencao] = useState(false);
   const [mensagemManutencao, setMensagemManutencao] = useState("");
+  const [horarioPrevisto, setHorarioPrevisto] = useState<string | null>(null);
+  const [checkingMaintenance, setCheckingMaintenance] = useState(true);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
+
+  // Verificar modo de manutenção antes de qualquer coisa
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      try {
+        const { data: configData } = await supabase
+          .from('configuracoes')
+          .select('modo_manutencao, mensagem_manutencao, horario_previsto_retorno')
+          .single();
+        
+        if (configData) {
+          setModoManutencao(configData.modo_manutencao || false);
+          setMensagemManutencao(configData.mensagem_manutencao || "Sistema em manutenção. Voltaremos em breve.");
+          setHorarioPrevisto(configData.horario_previsto_retorno);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar manutenção:', error);
+      } finally {
+        setCheckingMaintenance(false);
+      }
+    };
+
+    checkMaintenance();
+  }, []);
 
   const formatCPF = (value: string) => {
     const numeros = value.replace(/\D/g, '');
@@ -261,16 +287,14 @@ export default function DashboardMedicos() {
     try {
       const cpfNumeros = cpf.replace(/\D/g, '');
 
-      // Buscar configurações OCR e modo de manutenção
+      // Buscar configurações OCR
       const { data: configData } = await supabase
         .from('configuracoes')
-        .select('ocr_nfse_habilitado, modo_manutencao, mensagem_manutencao')
+        .select('ocr_nfse_habilitado')
         .single();
       
       if (configData) {
         setOcrHabilitado(configData.ocr_nfse_habilitado || false);
-        setModoManutencao(configData.modo_manutencao || false);
-        setMensagemManutencao(configData.mensagem_manutencao || "Sistema em manutenção. Voltaremos em breve.");
       }
 
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
@@ -690,6 +714,19 @@ export default function DashboardMedicos() {
   ].filter(item => item.value > 0);
 
   // Tela de bloqueio por manutenção
+  if (checkingMaintenance) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        >
+          <BarChart3 className="h-12 w-12 text-primary" />
+        </motion.div>
+      </div>
+    );
+  }
+
   if (modoManutencao) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-destructive/5 via-background to-destructive/10 flex items-center justify-center p-4">
@@ -739,6 +776,21 @@ export default function DashboardMedicos() {
                     {mensagemManutencao}
                   </p>
                 </div>
+
+                {horarioPrevisto && (
+                  <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Previsão de retorno:</p>
+                    <p className="text-lg font-semibold text-foreground">
+                      {new Date(horarioPrevisto).toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                )}
 
                 <p className="text-sm md:text-base text-muted-foreground pt-4">
                   O acesso ao sistema de notas fiscais está temporariamente indisponível. 
