@@ -1354,6 +1354,88 @@ export default function DashboardMedicos() {
           </DialogContent>
         </Dialog>
 
+        {/* Modal de confirmação de upload */}
+        <Dialog open={showConfirmUpload} onOpenChange={setShowConfirmUpload}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileCheck className="h-5 w-5 text-primary" />
+                Confirmar Envio
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {selectedFile && (
+                <Alert>
+                  <AlertDescription>
+                    <strong>Arquivo selecionado:</strong><br/>
+                    {selectedFile.name}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {!ocrHabilitado && (
+                <div className="space-y-2">
+                  <Label htmlFor="valor-liquido">
+                    Valor Líquido da Nota Fiscal *
+                  </Label>
+                  <Input
+                    id="valor-liquido"
+                    type="number"
+                    step="0.01"
+                    placeholder="Ex: 1000.50"
+                    value={valorLiquido}
+                    onChange={(e) => setValorLiquido(e.target.value)}
+                    disabled={uploading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Informe o valor líquido que consta na nota fiscal
+                  </p>
+                </div>
+              )}
+
+              {ocrHabilitado && (
+                <Alert>
+                  <AlertDescription className="text-sm">
+                    <strong>OCR Habilitado:</strong> O sistema irá extrair automaticamente os dados da nota fiscal.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex gap-3 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowConfirmUpload(false);
+                    setSelectedFile(null);
+                    setValorLiquido("");
+                  }}
+                  disabled={uploading}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleConfirmUpload}
+                  disabled={uploading || (!ocrHabilitado && !valorLiquido)}
+                  className="gap-2"
+                >
+                  {uploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      Confirmar e Enviar
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Dialog de Histórico - já existe componente TicketHistory, sem precisar wrapper */}
         
         {/* Fim do dashboard */}
