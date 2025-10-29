@@ -1089,6 +1089,15 @@ export default function DashboardMedicos() {
                 </div>
 
                 <CardContent className="p-8 space-y-6">
+                  {/* Card informativo sobre o código */}
+                  <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                    <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <AlertTitle className="text-blue-900 dark:text-blue-100">Código de Verificação via WhatsApp</AlertTitle>
+                    <AlertDescription className="text-blue-800 dark:text-blue-200">
+                      Enviamos um código de 6 dígitos para seu(s) WhatsApp cadastrado(s). Digite o código recebido para acessar o dashboard de forma segura.
+                    </AlertDescription>
+                  </Alert>
+
                   {/* Lista de telefones com design moderno */}
                   <motion.div
                     initial={{ y: 20, opacity: 0 }}
@@ -1276,13 +1285,6 @@ export default function DashboardMedicos() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                      <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <AlertTitle className="text-blue-900 dark:text-blue-100">Código de Verificação via WhatsApp</AlertTitle>
-                      <AlertDescription className="text-blue-800 dark:text-blue-200">
-                        Após informar seu CPF ou CNPJ, você receberá um código de verificação no seu WhatsApp cadastrado para acessar o dashboard de forma segura.
-                      </AlertDescription>
-                    </Alert>
                     <div className="space-y-2">
                       <Label htmlFor="cpf" className="text-sm font-medium">CPF ou CNPJ</Label>
                       <Input
