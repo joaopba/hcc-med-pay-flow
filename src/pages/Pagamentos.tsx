@@ -212,6 +212,22 @@ export default function Pagamentos() {
     e.preventDefault();
     
     try {
+      // Buscar empresa_id do usuário logado
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("empresa_id")
+        .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+        .maybeSingle() as { data: { empresa_id: string } | null };
+
+      if (!profile?.empresa_id) {
+        toast({
+          title: "Erro",
+          description: "Empresa não encontrada no seu perfil",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Verificar se já existe pagamento para este médico e mês
       const { data: existingPayment } = await supabase
         .from("pagamentos")
@@ -235,6 +251,7 @@ export default function Pagamentos() {
           medico_id: formData.medico_id,
           mes_competencia: formData.mes_competencia,
           valor: parseFloat(formData.valor),
+          empresa_id: profile.empresa_id,
         }]);
       
       if (error) {
