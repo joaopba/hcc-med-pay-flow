@@ -121,44 +121,58 @@ serve(async (req) => {
       numerosParaEnviar.push(normalized);
     }
 
-    // Enviar código via WhatsApp para TODOS os números
+    // Enviar código via WhatsApp para TODOS os números usando API Meta
     let enviosSucesso = 0;
     
-    // Enviar via API dos gestores (template)
-    const apiUrl = 'https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de/template';
+    // API Meta WhatsApp
+    const META_PHONE_ID = '468233466375447';
+    const META_TOKEN = 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
+    const apiUrl = `https://graph.facebook.com/v21.0/${META_PHONE_ID}/messages`;
     
     for (const numero of numerosParaEnviar) {
       try {
-        // Payload no mesmo formato usado para template "nota_hcc"
+        // Payload da API Meta com código no body e no button
         const templatePayload = {
-          number: numero,
-          isClosed: false,
-          templateData: {
-            messaging_product: "whatsapp",
-            to: numero,
-            type: "template",
-            template: {
-              name: config.verificacao_medico_template_nome || 'verificamedico',
-              language: { code: "pt_BR" },
-              components: [
-                { 
-                  type: "body", 
-                  parameters: [
-                    { type: "text", text: codigo }
-                  ]
-                }
-              ]
-            }
+          messaging_product: "whatsapp",
+          to: numero,
+          type: "template",
+          template: {
+            name: config.verificacao_medico_template_nome || 'verificamedico',
+            language: {
+              code: "pt_BR"
+            },
+            components: [
+              {
+                type: "body",
+                parameters: [
+                  {
+                    type: "text",
+                    text: codigo
+                  }
+                ]
+              },
+              {
+                type: "button",
+                sub_type: "url",
+                index: "0",
+                parameters: [
+                  {
+                    type: "text",
+                    text: codigo
+                  }
+                ]
+              }
+            ]
           }
         };
 
-        console.log(`📤 Enviando código ${codigo} para ${numero}`);
+        console.log(`📤 Enviando código ${codigo} para ${numero} via Meta API`);
 
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU'
+            'Authorization': `Bearer ${META_TOKEN}`
           },
           body: JSON.stringify(templatePayload)
         });
@@ -166,52 +180,6 @@ serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`❌ Falha ao enviar para ${numero}:`, response.status, errorText);
-
-          // Tentativa 2: alguns templates usam variável no HEADER
-          try {
-            const headerPayload = {
-              number: numero,
-              isClosed: false,
-              templateData: {
-                messaging_product: "whatsapp",
-                to: numero,
-                type: "template",
-                template: {
-                  name: config.verificacao_medico_template_nome || 'verificamedico',
-                  language: { code: "pt_BR" },
-                  components: [
-                    { 
-                      type: "header", 
-                      parameters: [
-                        { type: "text", text: codigo }
-                      ]
-                    }
-                  ]
-                }
-              }
-            };
-
-            console.log(`🔁 Tentando novamente com parâmetro no HEADER para ${numero}`);
-            const retry = await fetch(apiUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${config.auth_token}`
-              },
-              body: JSON.stringify(headerPayload)
-            });
-
-            if (retry.ok) {
-              const retryData = await retry.json();
-              enviosSucesso++;
-              console.log(`✅ Código ${codigo} enviado (HEADER) para ${numero}`, retryData);
-            } else {
-              const retryText = await retry.text();
-              console.error(`❌ Segunda tentativa falhou para ${numero}:`, retry.status, retryText);
-            }
-          } catch (retryErr) {
-            console.error(`❌ Erro na tentativa alternativa para ${numero}:`, retryErr);
-          }
         } else {
           const responseData = await response.json();
           enviosSucesso++;
