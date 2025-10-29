@@ -111,6 +111,8 @@ export default function DashboardMedicos() {
   const [manutencao, setManutencao] = useState(false);
   const [mensagemManutencao, setMensagemManutencao] = useState("");
   const [previsaoRetorno, setPrevisaoRetorno] = useState<string | null>(null);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [showDashboard, setShowDashboard] = useState(false);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -129,6 +131,31 @@ export default function DashboardMedicos() {
     }
     return value;
   };
+
+  // Carregar configurações de manutenção ANTES de tudo
+  useEffect(() => {
+    const fetchConfig = async () => {
+      setLoadingConfig(true);
+      try {
+        const { data } = await supabase
+          .from('configuracoes')
+          .select('dashboard_medicos_manutencao, dashboard_medicos_mensagem_manutencao, dashboard_medicos_previsao_retorno')
+          .single();
+        
+        if (data) {
+          setManutencao(data.dashboard_medicos_manutencao || false);
+          setMensagemManutencao(data.dashboard_medicos_mensagem_manutencao || "");
+          setPrevisaoRetorno(data.dashboard_medicos_previsao_retorno || null);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar configurações:', error);
+      } finally {
+        setLoadingConfig(false);
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     if (medico && pagamentosPendentes.length > 0) {
@@ -249,6 +276,15 @@ export default function DashboardMedicos() {
   };
 
   const buscarDados = async () => {
+    if (manutencao) {
+      toast({
+        title: "Sistema em manutenção",
+        description: "O dashboard está temporariamente indisponível.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!cpf || cpf.length < 14) {
       toast({
         title: "Erro",
@@ -296,6 +332,9 @@ export default function DashboardMedicos() {
 
       const medicoData = result.medico;
       setMedico(medicoData);
+
+      // Animação de entrada do dashboard
+      setTimeout(() => setShowDashboard(true), 100);
 
       // Verificar se há ticket pendente de avaliação
       checkPendingRating(medicoData.id);
@@ -1272,129 +1311,19 @@ export default function DashboardMedicos() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal de confirmação de upload */}
-        <Dialog open={showConfirmUpload} onOpenChange={setShowConfirmUpload}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                Confirmar Envio
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <h4 className="font-medium mb-2 text-sm sm:text-base">Arquivo selecionado:</h4>
-                <p className="text-sm text-muted-foreground break-words overflow-hidden">
-                  {selectedFile?.name}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Tamanho: {selectedFile ? (selectedFile.size / 1024 / 1024).toFixed(2) : 0} MB
-                </p>
-              </div>
-
-              {!ocrHabilitado && (
-                <div className="space-y-2">
-                  <Label htmlFor="valorLiquido" className="text-sm font-medium">
-                    Valor Líquido da Nota *
-                  </Label>
-                  <Input
-                    id="valorLiquido"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0,00"
-                    value={valorLiquido}
-                    onChange={(e) => setValorLiquido(e.target.value)}
-                    className="text-base"
-                    disabled={uploading}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Informe o valor líquido que consta na nota fiscal
-                  </p>
-                </div>
-              )}
-
-              {ocrHabilitado && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-900">
-                    <strong>✨ OCR Automático Ativado</strong>
-                  </p>
-                  <p className="text-xs text-blue-800 mt-1">
-                    O sistema irá extrair automaticamente o número da nota, valor bruto e valor líquido. 
-                    Você não precisa preencher o valor líquido manualmente.
-                  </p>
-                </div>
-              )}
-
-              <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                <p className="text-sm font-medium text-foreground">
-                  <strong>Confirme antes de enviar:</strong>
-                </p>
-                <ul className="text-xs text-muted-foreground mt-2 space-y-1">
-                  <li>• O arquivo está correto e completo?</li>
-                  {!ocrHabilitado && <li>• O valor líquido informado está correto?</li>}
-                  <li>• Os dados conferem com o pagamento?</li>
-                  <li>• O PDF não possui problemas de visualização?</li>
-                </ul>
-              </div>
-
-              <div className="flex flex-col sm:flex-row justify-end gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowConfirmUpload(false);
-                    setSelectedFile(null);
-                    setValorLiquido("");
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  Cancelar
-                </Button>
-                <Button 
-                  onClick={handleConfirmUpload}
-                  disabled={uploading || (!ocrHabilitado && (!valorLiquido || parseFloat(valorLiquido) <= 0))}
-                  className="w-full sm:w-auto"
-                >
-                  {uploading ? "Enviando..." : "Confirmar e Enviar"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Dialog de Histórico - já existe componente TicketHistory, sem precisar wrapper */}
+        
+        {/* Fim do dashboard */}
+      </div>
       
       {/* Chat Component */}
-      {medico && (
-        <>
-          <ChatWithFinanceiro
-            medicoId={medico.id} 
-            medicoNome={medico.nome}
-            isGestor={false}
-            gestorNome={pendingTicket?.profiles?.name}
-          />
-          
-          {/* Rating Dialog */}
-          <RatingDialog
-            open={ratingDialogOpen}
-            onClose={() => setRatingDialogOpen(false)}
-            onSubmit={handleSubmitRating}
-            gestorNome={pendingTicket?.profiles?.name}
-          />
-        </>
+      {medico && showDashboard && (
+        <ChatWithFinanceiro
+          medicoId={medico.id} 
+          medicoNome={medico.nome}
+          isGestor={false}
+        />
       )}
-
-      {/* Footer with Conquista Logo */}
-      {medico && (
-        <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-center gap-3">
-          <span className="text-xs text-muted-foreground">Desenvolvido por</span>
-          <img 
-            src={conquistaLogo} 
-            alt="Conquista Inovação" 
-            className="h-5 opacity-60 hover:opacity-100 transition-opacity"
-          />
-        </div>
-      )}
-      </div>
     </div>
   );
 }

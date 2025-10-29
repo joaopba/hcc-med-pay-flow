@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Copy, TestTube, Mail, Wrench } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Save, Copy, TestTube, Mail, Wrench, Settings, MessageSquare, Bell, Calendar, Cog } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -41,7 +42,6 @@ export default function Configuracoes() {
   useEffect(() => {
     loadConfiguracoes();
     
-    // Realtime updates
     const channel = supabase
       .channel('configuracoes-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracoes' }, () => {
@@ -65,7 +65,6 @@ export default function Configuracoes() {
       setConfig(data);
     } catch (error) {
       console.error("Erro ao carregar configurações:", error);
-      // Se não existe configuração, criar uma padrão
       setConfig({
         id: "",
         api_url: "https://api.hcchospital.com.br/v2/api/external/43e14118-b615-419a-b827-23480915ddcb",
@@ -125,29 +124,29 @@ export default function Configuracoes() {
             ocr_nfse_habilitado: config.ocr_nfse_habilitado,
             ocr_nfse_api_key: config.ocr_nfse_api_key,
             permitir_nota_via_whatsapp: config.permitir_nota_via_whatsapp,
-            horario_envio_relatorios: config.horario_envio_relatorios,
-            intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas,
-            lembrete_periodico_horas: config.lembrete_periodico_horas,
-            dashboard_medicos_manutencao: config.dashboard_medicos_manutencao,
-            dashboard_medicos_mensagem_manutencao: config.dashboard_medicos_mensagem_manutencao,
+            horario_envio_relatorios: config.horario_envio_relatorios || "08:00",
+            intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas || 24,
+            lembrete_periodico_horas: config.lembrete_periodico_horas || 48,
+            dashboard_medicos_manutencao: config.dashboard_medicos_manutencao || false,
+            dashboard_medicos_mensagem_manutencao: config.dashboard_medicos_mensagem_manutencao || "",
             dashboard_medicos_previsao_retorno: config.dashboard_medicos_previsao_retorno || null,
           }])
           .select()
           .single();
 
         if (error) throw error;
-        setConfig({ ...config, id: data.id });
+        if (data) setConfig(data);
       }
 
       toast({
-        title: "Sucesso",
-        description: "Configurações salvas com sucesso!",
+        title: "Configurações salvas",
+        description: "As configurações foram atualizadas com sucesso.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao salvar configurações:", error);
       toast({
         title: "Erro",
-        description: "Falha ao salvar configurações",
+        description: "Erro ao salvar configurações. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -155,61 +154,30 @@ export default function Configuracoes() {
     }
   };
 
-  const copyWebhookUrl = () => {
-    navigator.clipboard.writeText(webhookUrl);
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
     toast({
       title: "Copiado!",
-      description: "URL do webhook copiada para a área de transferência",
+      description: "URL copiada para a área de transferência.",
     });
   };
 
-  const testConnection = async () => {
-    if (!config) return;
-
-    try {
-      const response = await fetch(`${config.api_url}/test`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${config.auth_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Sucesso",
-          description: "Conexão com a API funcionando corretamente!",
-        });
-      } else {
-        throw new Error('Falha na conexão');
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Falha ao conectar com a API. Verifique as configurações.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const testEmail = async () => {
+  const handleTestEmail = async () => {
     setSendingTestEmail(true);
     try {
-      const { data, error } = await supabase.functions.invoke('test-email', {
-        body: {}
-      });
-
+      const { error } = await supabase.functions.invoke('test-email');
+      
       if (error) throw error;
 
       toast({
-        title: "Email de teste enviado!",
-        description: "Verifique sua caixa de entrada em suporte@chatconquista.com",
+        title: "E-mail de teste enviado",
+        description: "Verifique a caixa de entrada de suporte@chatconquista.com",
       });
     } catch (error: any) {
-      console.error("Erro ao enviar email de teste:", error);
+      console.error("Erro ao enviar e-mail de teste:", error);
       toast({
-        title: "Erro ao enviar email",
-        description: error.message || "Falha ao enviar email de teste",
+        title: "Erro",
+        description: error.message || "Erro ao enviar e-mail de teste",
         variant: "destructive",
       });
     } finally {
@@ -217,483 +185,406 @@ export default function Configuracoes() {
     }
   };
 
-  if (loading || !config) {
+  if (loading) {
     return (
       <AppLayout>
-        <div className="p-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-muted rounded mb-4"></div>
-            <div className="space-y-4">
-              <div className="h-32 bg-muted rounded"></div>
-              <div className="h-32 bg-muted rounded"></div>
-            </div>
-          </div>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </AppLayout>
     );
   }
 
+  if (!config) return null;
+
   return (
     <AppLayout>
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Configurações</h1>
-            <p className="text-muted-foreground">
-              Configurar integrações e parâmetros do sistema
+            <h1 className="text-3xl font-bold">Configurações do Sistema</h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie as configurações da API, notificações e integrações
             </p>
           </div>
-          
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? "Salvando..." : "Salvar"}
+          <Button onClick={handleSave} disabled={saving} size="lg">
+            {saving ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Salvar Tudo
+              </>
+            )}
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>API do WhatsApp</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="api_url">URL da API</Label>
-                <Input
-                  id="api_url"
-                  value={config.api_url}
-                  onChange={(e) => setConfig({ ...config, api_url: e.target.value })}
-                  placeholder="https://api.hcchospital.com.br/v2/api/external/..."
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="auth_token">Token de Autenticação</Label>
-                <Textarea
-                  id="auth_token"
-                  value={config.auth_token}
-                  onChange={(e) => setConfig({ ...config, auth_token: e.target.value })}
-                  rows={3}
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                />
-              </div>
+        <Tabs defaultValue="api" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="api" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">API</span>
+            </TabsTrigger>
+            <TabsTrigger value="notificacoes" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Notificações</span>
+            </TabsTrigger>
+            <TabsTrigger value="whatsapp" className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </TabsTrigger>
+            <TabsTrigger value="manutencao" className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              <span className="hidden sm:inline">Manutenção</span>
+            </TabsTrigger>
+            <TabsTrigger value="sistema" className="flex items-center gap-2">
+              <Cog className="h-4 w-4" />
+              <span className="hidden sm:inline">Sistema</span>
+            </TabsTrigger>
+          </TabsList>
 
-              <Button onClick={testConnection} variant="outline" className="w-full">
-                <TestTube className="h-4 w-4 mr-2" />
-                Testar Conexão
-              </Button>
-              
-              <Button 
-                onClick={async () => {
-                  try {
-                    const { data, error } = await supabase.functions.invoke('test-webhook');
-                    if (error) throw error;
-                    toast({
-                      title: "Teste do Webhook",
-                      description: "Webhook testado com sucesso! Verifique os logs.",
-                    });
-                  } catch (error: any) {
-                    toast({
-                      title: "Erro no teste",
-                      description: error.message,
-                      variant: "destructive",
-                    });
-                  }
-                }}
-                variant="outline" 
-                className="w-full"
-              >
-                <TestTube className="h-4 w-4 mr-2" />
-                Testar Webhook
-              </Button>
-            </CardContent>
-          </Card>
+          {/* API Configuration */}
+          <TabsContent value="api" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Configurações da API WhatsApp</CardTitle>
+                <CardDescription>
+                  Configure a URL e token de autenticação da API
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="api_url">URL da API</Label>
+                  <Input
+                    id="api_url"
+                    value={config.api_url}
+                    onChange={(e) => setConfig({ ...config, api_url: e.target.value })}
+                    placeholder="https://api.example.com/v1/messages"
+                  />
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Webhook</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>URL do Webhook</Label>
-                <p className="text-sm text-muted-foreground">
-                  Configure esta URL no seu sistema de WhatsApp para receber notificações de notas:
-                </p>
-                <div className="flex space-x-2">
+                <div className="space-y-2">
+                  <Label htmlFor="auth_token">Token de Autenticação</Label>
+                  <Textarea
+                    id="auth_token"
+                    value={config.auth_token}
+                    onChange={(e) => setConfig({ ...config, auth_token: e.target.value })}
+                    placeholder="Bearer token..."
+                    className="font-mono text-sm"
+                    rows={4}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Webhook URL</CardTitle>
+                <CardDescription>
+                  URL do webhook para receber atualizações do WhatsApp
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
                   <Input
                     value={webhookUrl}
                     readOnly
                     className="font-mono text-sm"
                   />
-                  <Button size="sm" variant="outline" onClick={copyWebhookUrl}>
+                  <Button
+                    variant="outline"
+                    onClick={() => copyToClipboard(webhookUrl)}
+                  >
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="webhook_url">URL de Callback (Opcional)</Label>
-                <Input
-                  id="webhook_url"
-                  value={config.webhook_url}
-                  onChange={(e) => setConfig({ ...config, webhook_url: e.target.value })}
-                  placeholder="https://seudominio.com/webhook"
-                />
-                <p className="text-xs text-muted-foreground">
-                  URL para receber notificações de eventos do sistema
+                <p className="text-sm text-muted-foreground">
+                  Configure esta URL no seu provedor de WhatsApp para receber webhooks
                 </p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Notificações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email_notificacoes">Notificações por Email</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receber emails quando novas notas chegarem e pagamentos forem realizados
-                  </p>
-                </div>
-                <Switch
-                  id="email_notificacoes"
-                  checked={config.email_notificacoes}
-                  onCheckedChange={(checked) => 
-                    setConfig({ ...config, email_notificacoes: checked })
-                  }
-                />
-              </div>
-              
-              <div className="pt-4 border-t">
-                <h4 className="font-medium mb-2">Configuração do Email</h4>
-                <div className="space-y-4 mb-4">
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <h5 className="font-medium text-sm mb-2">Configuração SMTP Atual:</h5>
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <p><strong>Servidor:</strong> smtp.hostinger.com</p>
-                      <p><strong>Porta:</strong> 465 (SSL)</p>
-                      <p><strong>Usuário:</strong> suporte@chatconquista.com</p>
-                      <p><strong>Status:</strong> Configurado ✅</p>
-                    </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>OCR NFS-e (Leitura Automática)</CardTitle>
+                <CardDescription>
+                  Configure a API de OCR para leitura automática de notas fiscais
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Habilitar OCR</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Permite leitura automática de valores em NFS-e
+                    </p>
                   </div>
+                  <Switch
+                    checked={config.ocr_nfse_habilitado}
+                    onCheckedChange={(checked) =>
+                      setConfig({ ...config, ocr_nfse_habilitado: checked })
+                    }
+                  />
+                </div>
+
+                {config.ocr_nfse_habilitado && (
+                  <div className="space-y-2">
+                    <Label htmlFor="ocr_api_key">Chave da API OCR</Label>
+                    <Input
+                      id="ocr_api_key"
+                      type="password"
+                      value={config.ocr_nfse_api_key}
+                      onChange={(e) =>
+                        setConfig({ ...config, ocr_nfse_api_key: e.target.value })
+                      }
+                      placeholder="sk-..."
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Notifications */}
+          <TabsContent value="notificacoes" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Notificações por E-mail</CardTitle>
+                <CardDescription>
+                  Configure o envio de notificações por e-mail para gestores
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Enviar E-mails</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Notifica gestores por e-mail sobre novas notas
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.email_notificacoes}
+                    onCheckedChange={(checked) =>
+                      setConfig({ ...config, email_notificacoes: checked })
+                    }
+                  />
+                </div>
+
+                <Button
+                  variant="outline"
+                  onClick={handleTestEmail}
+                  disabled={sendingTestEmail}
+                  className="w-full"
+                >
+                  {sendingTestEmail ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-primary"></div>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <TestTube className="mr-2 h-4 w-4" />
+                      Enviar E-mail de Teste
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Relatórios Automáticos</CardTitle>
+                <CardDescription>
+                  Configure o horário de envio dos relatórios diários
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="horario_relatorios">Horário de Envio (Brasília)</Label>
+                  <Input
+                    id="horario_relatorios"
+                    type="time"
+                    value={config.horario_envio_relatorios}
+                    onChange={(e) =>
+                      setConfig({ ...config, horario_envio_relatorios: e.target.value })
+                    }
+                  />
                   <p className="text-sm text-muted-foreground">
-                    O sistema está configurado para usar seu servidor SMTP da Hostinger.
-                    As notificações serão enviadas do endereço suporte@chatconquista.com.
+                    Os relatórios serão enviados diariamente neste horário
                   </p>
                 </div>
-                <div className="space-y-4">
-                  <Button 
-                    onClick={testEmail}
-                    disabled={sendingTestEmail}
-                    size="lg"
-                    className="w-full"
-                  >
-                    <Mail className="mr-2 h-4 w-4" />
-                    {sendingTestEmail ? "Enviando Email de Teste..." : "📧 Testar Envio de Email"}
-                  </Button>
-                  
-                  <p className="text-xs text-muted-foreground text-center">
-                    Clique para enviar um email de teste usando o servidor SMTP configurado
-                  </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* WhatsApp */}
+          <TabsContent value="whatsapp" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Notificações WhatsApp</CardTitle>
+                <CardDescription>
+                  Configure o comportamento das mensagens WhatsApp
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Permitir Nota via WhatsApp</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Médicos podem enviar notas diretamente pelo WhatsApp
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.permitir_nota_via_whatsapp}
+                    onCheckedChange={(checked) =>
+                      setConfig({ ...config, permitir_nota_via_whatsapp: checked })
+                    }
+                  />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>🔍 OCR NFS-e (Reconhecimento Automático)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-                <p className="text-sm text-blue-900 mb-2">
-                  <strong>📝 O que é OCR NFS-e?</strong>
-                </p>
-                <p className="text-xs text-blue-800">
-                  Sistema que extrai automaticamente dados das notas fiscais (número, valor bruto, valor líquido) 
-                  e valida se o valor está correto antes de enviar para aprovação. Reduz erros e acelera o processo.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="ocr_nfse_habilitado">Habilitar OCR NFS-e</Label>
+            <Card>
+              <CardHeader>
+                <CardTitle>Cobrança e Lembretes</CardTitle>
+                <CardDescription>
+                  Configure os intervalos de cobrança automática
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="intervalo_cobranca">
+                    Intervalo de Cobrança de Nota (horas)
+                  </Label>
+                  <Input
+                    id="intervalo_cobranca"
+                    type="number"
+                    min="1"
+                    value={config.intervalo_cobranca_nota_horas}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        intervalo_cobranca_nota_horas: parseInt(e.target.value),
+                      })
+                    }
+                  />
                   <p className="text-sm text-muted-foreground">
-                    Ativar reconhecimento automático de dados nas notas fiscais
+                    Tempo entre solicitações automáticas de nota
                   </p>
                 </div>
-                <Switch
-                  id="ocr_nfse_habilitado"
-                  checked={config.ocr_nfse_habilitado}
-                  onCheckedChange={(checked) => 
-                    setConfig({ ...config, ocr_nfse_habilitado: checked })
-                  }
-                />
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="ocr_nfse_api_key">Chave da API OCR</Label>
-                <Textarea
-                  id="ocr_nfse_api_key"
-                  value={config.ocr_nfse_api_key}
-                  onChange={(e) => setConfig({ ...config, ocr_nfse_api_key: e.target.value })}
-                  rows={4}
-                  placeholder="Cole aqui sua chave de API do serviço OCR..."
-                  disabled={!config.ocr_nfse_habilitado}
-                />
-                <p className="text-xs text-muted-foreground">
-                  ⚠️ Mantenha esta chave segura. Será usada para processar as notas fiscais.
-                </p>
-              </div>
-
-              {config.ocr_nfse_habilitado && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-900 mb-2">
-                    <strong>✅ Quando OCR está ativo:</strong>
-                  </p>
-                  <ul className="text-xs text-green-800 space-y-1 list-disc list-inside">
-                    <li>Sistema extrai automaticamente número da nota, valor bruto e líquido</li>
-                    <li>Valida se o valor bruto está correto antes de aprovar</li>
-                    <li>Não pede valor líquido ao médico (calcula automaticamente)</li>
-                    <li>Rejeita automaticamente notas com valor incorreto</li>
-                  </ul>
-                </div>
-              )}
-
-              {!config.ocr_nfse_habilitado && (
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-700 mb-2">
-                    <strong>ℹ️ Quando OCR está desativado:</strong>
-                  </p>
-                  <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
-                    <li>Sistema pergunta ao médico o valor líquido da nota</li>
-                    <li>Gestor precisa conferir manualmente os valores na aprovação</li>
-                    <li>Processo mais manual, mas sem custos de API OCR</li>
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>📱 Upload de Notas via WhatsApp</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="permitir_nota_via_whatsapp">Permitir envio via WhatsApp</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="lembrete_periodico">
+                    Lembrete Periódico (horas)
+                  </Label>
+                  <Input
+                    id="lembrete_periodico"
+                    type="number"
+                    min="1"
+                    value={config.lembrete_periodico_horas}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        lembrete_periodico_horas: parseInt(e.target.value),
+                      })
+                    }
+                  />
                   <p className="text-sm text-muted-foreground">
-                    Médicos podem enviar notas direto por mensagem no WhatsApp
+                    Intervalo de lembretes para notas pendentes
                   </p>
                 </div>
-                <Switch
-                  id="permitir_nota_via_whatsapp"
-                  checked={config.permitir_nota_via_whatsapp}
-                  onCheckedChange={(checked) => 
-                    setConfig({ ...config, permitir_nota_via_whatsapp: checked })
-                  }
-                />
-              </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              {!config.permitir_nota_via_whatsapp && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-sm text-amber-900">
-                    <strong>⚠️ Atenção:</strong> Quando desativado, médicos receberão uma mensagem 
-                    informando que devem enviar a nota apenas pelo portal web.
-                  </p>
+          {/* Maintenance */}
+          <TabsContent value="manutencao" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Manutenção do Dashboard Médicos</CardTitle>
+                <CardDescription>
+                  Ative a manutenção para bloquear o acesso temporariamente
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Modo Manutenção</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Bloqueia o acesso ao dashboard dos médicos
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.dashboard_medicos_manutencao}
+                    onCheckedChange={(checked) =>
+                      setConfig({ ...config, dashboard_medicos_manutencao: checked })
+                    }
+                  />
                 </div>
-              )}
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>⏰ Agendamento de Relatórios</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="horario_envio_relatorios">Horário de Envio aos Gestores</Label>
-                <Input
-                  id="horario_envio_relatorios"
-                  type="time"
-                  value={config.horario_envio_relatorios}
-                  onChange={(e) => setConfig({ ...config, horario_envio_relatorios: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Horário diário para enviar relatórios via WhatsApp aos gestores
-                </p>
-              </div>
+                {config.dashboard_medicos_manutencao && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="mensagem_manutencao">
+                        Mensagem de Manutenção
+                      </Label>
+                      <Textarea
+                        id="mensagem_manutencao"
+                        value={config.dashboard_medicos_mensagem_manutencao}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            dashboard_medicos_mensagem_manutencao: e.target.value,
+                          })
+                        }
+                        placeholder="Digite a mensagem que será exibida..."
+                        rows={4}
+                      />
+                    </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="intervalo_cobranca">Intervalo Inicial de Cobrança (horas)</Label>
-                <Input
-                  id="intervalo_cobranca"
-                  type="number"
-                  min="1"
-                  max="72"
-                  value={config.intervalo_cobranca_nota_horas}
-                  onChange={(e) => setConfig({ ...config, intervalo_cobranca_nota_horas: parseInt(e.target.value) })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Tempo de espera antes da primeira cobrança de nota ao médico (padrão: 24h)
-                </p>
-              </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="previsao_retorno">
+                        Previsão de Retorno
+                      </Label>
+                      <Input
+                        id="previsao_retorno"
+                        type="datetime-local"
+                        value={config.dashboard_medicos_previsao_retorno || ""}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            dashboard_medicos_previsao_retorno: e.target.value,
+                          })
+                        }
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Data e hora estimada para o sistema voltar
+                      </p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <div className="space-y-2">
-                <Label htmlFor="lembrete_periodico">Lembretes Periódicos (horas)</Label>
-                <Input
-                  id="lembrete_periodico"
-                  type="number"
-                  min="24"
-                  max="168"
-                  value={config.lembrete_periodico_horas}
-                  onChange={(e) => setConfig({ ...config, lembrete_periodico_horas: parseInt(e.target.value) })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Intervalo para enviar lembretes periódicos de notas pendentes (padrão: 48h)
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wrench className="h-5 w-5" />
-                🔧 Manutenção do Dashboard Médicos
-              </CardTitle>
-              <CardDescription>
-                Configure alertas de manutenção para o portal dos médicos
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="dashboard_manutencao">Ativar Modo Manutenção</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Bloqueia acesso ao dashboard e exibe mensagem personalizada
-                  </p>
-                </div>
-                <Switch
-                  id="dashboard_manutencao"
-                  checked={config.dashboard_medicos_manutencao}
-                  onCheckedChange={(checked) => 
-                    setConfig({ ...config, dashboard_medicos_manutencao: checked })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="mensagem_manutencao">Mensagem de Manutenção</Label>
-                <Textarea
-                  id="mensagem_manutencao"
-                  value={config.dashboard_medicos_mensagem_manutencao}
-                  onChange={(e) => setConfig({ ...config, dashboard_medicos_mensagem_manutencao: e.target.value })}
-                  rows={3}
-                  placeholder="Dashboard em manutenção. Por favor, tente novamente mais tarde."
-                />
-                <p className="text-xs text-muted-foreground">
-                  Esta mensagem será exibida para os médicos durante a manutenção
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="previsao_retorno">Previsão de Retorno</Label>
-                <Input
-                  id="previsao_retorno"
-                  type="datetime-local"
-                  value={config.dashboard_medicos_previsao_retorno || ""}
-                  onChange={(e) => setConfig({ ...config, dashboard_medicos_previsao_retorno: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Data e hora prevista para o retorno do sistema (opcional)
-                </p>
-              </div>
-
-              {config.dashboard_medicos_manutencao && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-sm text-amber-900 mb-2">
-                    <strong>⚠️ Modo Manutenção Ativo</strong>
-                  </p>
-                  <p className="text-xs text-amber-800">
-                    O dashboard dos médicos está bloqueado e exibindo a mensagem de manutenção.
-                    Não esqueça de desativar quando concluir!
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações do Sistema</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <SystemInfo />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Como usar a API de Relatórios</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Use esta API para alimentar o Google Sheets via Apps Script.
-              </p>
-
-              <div>
-                <Label>Endpoint</Label>
-                <Input
-                  readOnly
-                  value={"https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/get-relatorio-data"}
-                  className="font-mono text-xs"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Parâmetros opcionais: startDate, endDate (formato ISO). Exemplo:
-                </p>
-                <Input
-                  readOnly
-                  value={"...?startDate=2024-01-01&endDate=2024-12-31"}
-                  className="font-mono text-xs mt-1"
-                />
-              </div>
-
-              <div className="p-3 bg-muted/50 rounded">
-                <p className="text-xs font-medium mb-2">Resposta (JSON):</p>
-                <pre className="text-xs overflow-auto"><code>{`{
-  "success": true,
-  "solicitacao_de_dados": [ { id, medico_nome, medico_cpf, mes_competencia, valor, data_solicitacao, status } ],
-  "dados_resposta": [ { id, medico_nome, medico_cpf, mes_competencia, valor, data_resposta, status, observacoes } ],
-  "pagamento_de_dados": [ { id, medico_nome, medico_cpf, mes_competencia, valor_bruto, valor_liquido, data_pagamento, status } ],
-  "estatisticas": { total_pagamentos, pagamentos_pagos, pendentes, valor_total_bruto, valor_total_pago },
-  "data_geracao": "ISO"
-}`}</code></pre>
-              </div>
-
-              <div className="p-3 bg-muted/50 rounded">
-                <p className="text-xs font-medium mb-2">Exemplo (Apps Script):</p>
-                <pre className="text-xs overflow-auto"><code>{`function importarDados() {
-  const url = 'https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/get-relatorio-data?startDate=2024-01-01&endDate=2024-12-31';
-  const res = UrlFetchApp.fetch(url, { method: 'get', headers: { 'apikey': '${supabase.auth.getSession ? 'SUA_ANON_KEY' : 'SUA_ANON_KEY'}' }});
-  const json = JSON.parse(res.getContentText());
-  const aba = SpreadsheetApp.getActive().getSheetByName('Relatorio') || SpreadsheetApp.getActive().insertSheet('Relatorio');
-  aba.clearContents();
-  aba.getRange(1,1,1,7).setValues([[
-    'ID','Médico','CPF','Competência','Valor','Data','Status'
-  ]]);
-  const linhas = json.pagamento_de_dados.map(i => [i.id, i.medico_nome, i.medico_cpf, i.mes_competencia, i.valor_liquido, i.data_pagamento, i.status]);
-  if (linhas.length) aba.getRange(2,1,linhas.length,7).setValues(linhas);
-}`}</code></pre>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          {/* System Info */}
+          <TabsContent value="sistema">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informações do Sistema</CardTitle>
+                <CardDescription>
+                  Detalhes técnicos e diagnósticos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SystemInfo />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );
