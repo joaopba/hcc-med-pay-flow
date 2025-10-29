@@ -669,7 +669,7 @@ export default function DashboardMedicos() {
 
       // Disparar notificações em background (não bloquear UI)
       Promise.all([
-        // WhatsApp
+        // WhatsApp para médico
         supabase.functions.invoke('send-whatsapp-template', {
           body: {
             type: 'nota_recebida',
@@ -682,9 +682,9 @@ export default function DashboardMedicos() {
             valorBruto: selectedPagamento.valor,
             valorLiquido: valorParaNotificacao
           }
-        }).then(res => console.log('WhatsApp enviado:', res)).catch(err => console.error('Erro WhatsApp:', err)),
+        }).then(res => console.log('WhatsApp médico enviado:', res)).catch(err => console.error('Erro WhatsApp médico:', err)),
         
-        // Email
+        // Email para gestores
         supabase.functions.invoke('send-email-notification', {
           body: {
             type: 'nova_nota',
@@ -694,7 +694,76 @@ export default function DashboardMedicos() {
             valorLiquido: valorParaNotificacao,
             pdfPath: filePath
           }
-        }).then(res => console.log('Email enviado:', res)).catch(err => console.error('Erro email:', err))
+        }).then(res => console.log('Email gestores enviado:', res)).catch(err => console.error('Erro email gestores:', err)),
+        
+        // WhatsApp para gestores com PDF
+        (async () => {
+          try {
+            // Buscar dados do médico incluindo especialidade
+            const { data: medicoData } = await supabase
+              .from('medicos')
+              .select('nome, especialidade, documento')
+              .eq('id', medico.id)
+              .single();
+            
+            // Buscar gestores
+            const { data: gestores } = await supabase
+              .from('profiles')
+              .select('numero_whatsapp')
+              .eq('role', 'gestor')
+              .not('numero_whatsapp', 'is', null);
+            
+            if (!gestores?.length) {
+              console.warn('Nenhum gestor com WhatsApp cadastrado');
+              return;
+            }
+            
+            // Baixar PDF do storage
+            const { data: pdfData, error: downloadError } = await supabase.storage
+              .from('notas')
+              .download(filePath);
+            
+            if (downloadError || !pdfData) {
+              throw new Error('Erro ao baixar PDF');
+            }
+            
+            // Converter para base64
+            const arrayBuffer = await pdfData.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            let binary = '';
+            for (let i = 0; i < uint8Array.length; i++) {
+              binary += String.fromCharCode(uint8Array[i]);
+            }
+            const pdfBase64 = btoa(binary);
+            
+            // Enviar para cada gestor
+            const promises = gestores.map(async (gestor) => {
+              const message = `🔔 *Nova Nota Fiscal Recebida*\n\n` +
+                `👨‍⚕️ *Médico:* ${medicoData?.nome || medico.nome}\n` +
+                `📋 *Especialidade:* ${medicoData?.especialidade || 'Não informada'}\n` +
+                `📄 *Documento:* ${medicoData?.documento || 'Não informado'}\n` +
+                `📅 *Competência:* ${competencia}\n` +
+                `💰 *Valor Bruto:* R$ ${selectedPagamento.valor.toFixed(2)}\n` +
+                `💵 *Valor Líquido:* R$ ${valorParaNotificacao ? valorParaNotificacao.toFixed(2) : 'A definir'}\n\n` +
+                `📎 *Anexo:* Nota fiscal em PDF\n\n` +
+                `⚠️ Por favor, analise a nota fiscal anexada.`;
+              
+              return supabase.functions.invoke('send-notification-gestores', {
+                body: {
+                  phoneNumber: gestor.numero_whatsapp,
+                  message: message,
+                  pdf_base64: pdfBase64,
+                  pdf_filename: selectedFile.name
+                }
+              });
+            });
+            
+            await Promise.all(promises);
+            console.log('WhatsApp gestores enviado com PDF');
+          } catch (err) {
+            console.error('Erro WhatsApp gestores:', err);
+          }
+        })()
       ]).catch(err => console.warn('Erro nas notificações:', err));
 
       // UI Update imediato
