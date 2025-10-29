@@ -136,24 +136,66 @@ serve(async (req) => {
 
         switch (type) {
           case 'nota':
-            console.log('[Background] Enviando solicitação de nota');
-            message = `🏥 *Solicitação de Nota Fiscal - HCC Hospital*\n\nOlá, ${nome}!\n\nPara darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: ${valor}\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\nClique no botão abaixo para receber as instruções de como enviar.`;
+            console.log('[Background] Enviando template nota_hcc com botão');
+            // Formato Evolution API para template com botão
             payload = {
               number: phoneNumber,
-              text: message
+              templateMessage: {
+                name: "nota_hcc",
+                language: "pt_BR",
+                components: [
+                  {
+                    type: "body",
+                    parameters: [
+                      { type: "text", text: nome },
+                      { type: "text", text: valor },
+                      { type: "text", text: formatMesCompetencia(competencia || '') }
+                    ]
+                  },
+                  {
+                    type: "button",
+                    sub_type: "quick_reply",
+                    index: "0",
+                    parameters: [
+                      { type: "payload", payload: "Encaminhar Nota" }
+                    ]
+                  }
+                ]
+              }
             };
             break;
           
           case 'nota_pendente':
-            console.log('[Background] Enviando lembrete de nota pendente');
+            console.log('[Background] Enviando template nota_pendente com botão');
             const valorFormatado = typeof valor === 'number' 
               ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)
               : valor;
             
-            message = `⏰ *Lembrete - Nota Fiscal Pendente*\n\nOlá ${medico?.nome || nome}!\n\nIdentificamos que sua nota fiscal ainda está pendente.\n\n💰 Valor: ${valorFormatado}\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\nPor favor, envie sua nota o quanto antes para não atrasar seu pagamento.\n\nClique no botão abaixo para receber as instruções.`;
+            // Formato Evolution API para template com botão
             payload = {
               number: phoneNumber,
-              text: message
+              templateMessage: {
+                name: "nota_pendente",
+                language: "pt_BR",
+                components: [
+                  {
+                    type: "body",
+                    parameters: [
+                      { type: "text", text: medico?.nome || nome },
+                      { type: "text", text: valorFormatado },
+                      { type: "text", text: formatMesCompetencia(competencia || '') }
+                    ]
+                  },
+                  {
+                    type: "button",
+                    sub_type: "quick_reply",
+                    index: "0",
+                    parameters: [
+                      { type: "payload", payload: "Encaminhar Nota" }
+                    ]
+                  }
+                ]
+              }
             };
             break;
           
