@@ -912,13 +912,41 @@ export default function DashboardMedicos() {
     );
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
+    <motion.div 
+      className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+    >
       <div className="max-w-7xl mx-auto">
 
         {/* Seção especial para médicos com notas pendentes */}
         {pagamentosPendentes.length > 0 && (
-          <Card className="mb-8 border-warning/30 bg-warning/5">
+          <motion.div variants={itemVariants}>
+            <Card className="mb-8 border-warning/30 bg-warning/5">
             <CardContent className="p-4 md:p-6">
               <div className="flex flex-col md:flex-row items-start gap-4">
                 <div className="flex-shrink-0 w-12 h-12 bg-warning/20 rounded-xl flex items-center justify-center">
@@ -987,10 +1015,12 @@ export default function DashboardMedicos() {
               </div>
             </CardContent>
           </Card>
+          </motion.div>
         )}
 
         {/* Header */}
-        <Card className="mb-8 glass-effect border-primary/20">
+        <motion.div variants={itemVariants}>
+          <Card className="mb-8 glass-effect border-primary/20">
           <CardContent className="p-4 md:p-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="flex items-center gap-3 md:gap-4">
@@ -1032,6 +1062,7 @@ export default function DashboardMedicos() {
               </div>
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Dialog para notas rejeitadas */}
         <Dialog open={showRejectedAlert} onOpenChange={setShowRejectedAlert}>
@@ -1121,8 +1152,12 @@ export default function DashboardMedicos() {
         )}
 
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          variants={itemVariants}
+        >
+          <motion.div variants={itemVariants}>
+            <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total de Notas</CardTitle>
               <FileCheck className="h-4 w-4 text-muted-foreground" />
@@ -1134,8 +1169,10 @@ export default function DashboardMedicos() {
               </p>
             </CardContent>
           </Card>
+          </motion.div>
 
-          <Card>
+          <motion.div variants={itemVariants}>
+            <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -1147,8 +1184,10 @@ export default function DashboardMedicos() {
               </p>
             </CardContent>
           </Card>
+          </motion.div>
 
-          <Card>
+          <motion.div variants={itemVariants}>
+            <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Valor Aprovado</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
@@ -1162,8 +1201,10 @@ export default function DashboardMedicos() {
               </p>
             </CardContent>
           </Card>
+          </motion.div>
 
-          <Card>
+          <motion.div variants={itemVariants}>
+            <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Valor Pendente</CardTitle>
               <Clock className="h-4 w-4 text-yellow-600" />
@@ -1177,12 +1218,17 @@ export default function DashboardMedicos() {
               </p>
             </CardContent>
           </Card>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Gráficos */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <motion.div 
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
+          variants={itemVariants}
+        >
           {/* Valores por mês */}
-          <Card>
+          <motion.div variants={itemVariants}>
+            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
@@ -1206,9 +1252,11 @@ export default function DashboardMedicos() {
               </div>
             </CardContent>
           </Card>
+          </motion.div>
 
           {/* Distribuição por status */}
-          <Card>
+          <motion.div variants={itemVariants}>
+            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
@@ -1239,15 +1287,17 @@ export default function DashboardMedicos() {
               </div>
             </CardContent>
           </Card>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Histórico de Tickets do Chat */}
-        <div className="mb-8">
+        <motion.div className="mb-8" variants={itemVariants}>
           <TicketHistory medicoId={medico.id} medicoNome={medico.nome} />
-        </div>
+        </motion.div>
 
         {/* Histórico de notas */}
-        <Card>
+        <motion.div variants={itemVariants}>
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileCheck className="h-5 w-5" />
@@ -1298,6 +1348,7 @@ export default function DashboardMedicos() {
             </div>
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Modal para upload de notas */}
         <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
@@ -1511,6 +1562,6 @@ export default function DashboardMedicos() {
           />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
