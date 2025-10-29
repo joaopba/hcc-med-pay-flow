@@ -230,93 +230,167 @@ serve(async (req) => {
 
 function gerarRelatorioNotasPendentes(notas: any[], nomeGestor: string): string {
   const totalValor = notas.reduce((sum, n) => sum + Number(n.pagamentos.valor), 0);
+  const valorMedio = totalValor / notas.length;
   const formatValor = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
   
-  const header = `📋 *RELATÓRIO DE NOTAS PENDENTES*\n` +
-    `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
-    `Olá ${nomeGestor}!\n\n` +
-    `Você tem *${notas.length} nota(s)* aguardando aprovação.\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  // Calcular tempo médio de espera
+  const tempoMedioEspera = notas.reduce((sum, n) => {
+    const dias = Math.floor((Date.now() - new Date(n.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    return sum + dias;
+  }, 0) / notas.length;
+  
+  // Notas críticas (mais de 5 dias)
+  const notasCriticas = notas.filter(n => {
+    const dias = Math.floor((Date.now() - new Date(n.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    return dias > 5;
+  }).length;
+  
+  const header = `📄 *NOTAS FISCAIS PENDENTES*\n` +
+    `${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `Olá *${nomeGestor}*!\n\n` +
+    `📊 *RESUMO EXECUTIVO*\n` +
+    `   • Total de Notas: *${notas.length}*\n` +
+    `   • Valor Total: *${formatValor(totalValor)}*\n` +
+    `   • Valor Médio: ${formatValor(valorMedio)}\n` +
+    `   • Tempo Médio: ${tempoMedioEspera.toFixed(1)} dias\n` +
+    (notasCriticas > 0 ? `   • ⚠️ Críticas (>5d): ${notasCriticas}\n` : '') +
+    `\n━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `📋 *NOTAS AGUARDANDO APROVAÇÃO*\n\n`;
 
-  const listaNotas = notas.slice(0, 10).map((nota, idx) => {
+  const listaNotas = notas.slice(0, 8).map((nota, idx) => {
     const diasPendente = Math.floor((Date.now() - new Date(nota.created_at).getTime()) / (1000 * 60 * 60 * 24));
-    return `*${idx + 1}. ${nota.pagamentos.medicos.nome}*\n` +
-      `   💰 ${formatValor(nota.pagamentos.valor)}\n` +
-      `   📅 ${nota.pagamentos.mes_competencia}\n` +
+    const emoji = diasPendente > 5 ? '🔴' : diasPendente > 3 ? '🟡' : '🟢';
+    return `${emoji} *${idx + 1}. ${nota.pagamentos.medicos.nome}*\n` +
+      `   💰 ${formatValor(nota.pagamentos.valor)} • ${nota.pagamentos.mes_competencia}\n` +
       `   ⏱️ ${diasPendente} dia(s) aguardando\n`;
   }).join('\n');
 
-  const rodape = notas.length > 10 
-    ? `\n_...e mais ${notas.length - 10} notas_\n\n`
+  const rodape = notas.length > 8
+    ? `\n_...e mais ${notas.length - 8} notas_\n\n`
     : '\n';
 
   const total = `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `💵 *TOTAL: ${formatValor(totalValor)}*\n\n` +
-    `🔗 Acesse o portal:\n` +
-    `https://hcc.chatconquista.com\n\n` +
-    `⚡ *Ação Necessária* para liberar os pagamentos.`;
+    `💵 *VALOR TOTAL: ${formatValor(totalValor)}*\n\n` +
+    `🔗 *Portal:* https://hcc.chatconquista.com\n\n` +
+    `⚡ *Ação Urgente:* Aprovar ${notas.length} nota(s) para liberar pagamentos\n\n` +
+    `_Impacto financeiro de ${formatValor(totalValor)} aguardando processamento_`;
 
   return header + listaNotas + rodape + total;
 }
 
 function gerarRelatorioPagamentosAprovados(pagamentos: any[], nomeGestor: string): string {
   const totalValor = pagamentos.reduce((sum, p) => sum + Number(p.valor), 0);
+  const valorMedio = totalValor / pagamentos.length;
   const formatValor = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
   
-  const header = `💰 *RELATÓRIO DE PAGAMENTOS APROVADOS*\n` +
-    `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
-    `Olá ${nomeGestor}!\n\n` +
-    `Você tem *${pagamentos.length} pagamento(s)* aprovado(s) aguardando processamento.\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  // Agrupar por mês de competência
+  const porMes = pagamentos.reduce((acc, p) => {
+    const mes = p.mes_competencia;
+    if (!acc[mes]) acc[mes] = { count: 0, valor: 0 };
+    acc[mes].count++;
+    acc[mes].valor += Number(p.valor);
+    return acc;
+  }, {} as Record<string, { count: number; valor: number }>);
+  
+  const mesesDistintos = Object.keys(porMes).length;
+  
+  const header = `✅ *PAGAMENTOS APROVADOS*\n` +
+    `${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `Olá *${nomeGestor}*!\n\n` +
+    `📊 *ANÁLISE FINANCEIRA*\n` +
+    `   • Total Aprovado: *${formatValor(totalValor)}*\n` +
+    `   • Quantidade: ${pagamentos.length} pagamento(s)\n` +
+    `   • Valor Médio: ${formatValor(valorMedio)}\n` +
+    `   • Competências: ${mesesDistintos} mês(es)\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `💰 *PAGAMENTOS PRONTOS PARA PROCESSAR*\n\n`;
 
-  const listaPagamentos = pagamentos.slice(0, 10).map((pag, idx) => {
-    return `*${idx + 1}. ${pag.medicos.nome}*\n` +
-      `   💰 ${formatValor(pag.valor)}\n` +
-      `   📅 ${pag.mes_competencia}\n` +
-      `   ✅ ${pag.status === 'aprovado' ? 'Aprovado' : 'Nota Aprovada'}\n`;
+  const listaPagamentos = pagamentos.slice(0, 8).map((pag, idx) => {
+    return `✅ *${idx + 1}. ${pag.medicos.nome}*\n` +
+      `   💵 ${formatValor(pag.valor)} • ${pag.mes_competencia}\n` +
+      `   📋 Aprovado - Pronto para Pagar\n`;
   }).join('\n');
 
-  const rodape = pagamentos.length > 10 
-    ? `\n_...e mais ${pagamentos.length - 10} pagamentos_\n\n`
+  const rodape = pagamentos.length > 8
+    ? `\n_...e mais ${pagamentos.length - 8} pagamentos_\n\n`
     : '\n';
+  
+  // Breakdown por mês
+  let breakdownMes = `━━━━━━━━━━━━━━━━━━━━━━\n\n📅 *BREAKDOWN POR MÊS*\n`;
+  Object.entries(porMes).slice(0, 3).forEach(([mes, info]: [string, any]) => {
+    breakdownMes += `   • ${mes}: ${info.count} pag(s) • ${formatValor(info.valor)}\n`;
+  });
+  breakdownMes += `\n`;
 
   const total = `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `💵 *TOTAL: ${formatValor(totalValor)}*\n\n` +
-    `🔗 Acesse o portal:\n` +
-    `https://hcc.chatconquista.com/pagamentos\n\n` +
-    `✅ *Finalize os pagamentos* para completar o processo.`;
+    `💵 *TOTAL A PROCESSAR: ${formatValor(totalValor)}*\n\n` +
+    `🔗 *Portal:* https://hcc.chatconquista.com/pagamentos\n\n` +
+    `🚀 *Próxima Ação:* Processar ${pagamentos.length} pagamento(s) aprovado(s)\n\n` +
+    `_Valores prontos para transferência bancária_`;
 
-  return header + listaPagamentos + rodape + total;
+  return header + listaPagamentos + rodape + breakdownMes + total;
 }
 
 function gerarRelatorioPagamentosPendentes(pagamentos: any[], nomeGestor: string): string {
   const totalValor = pagamentos.reduce((sum, p) => sum + Number(p.valor), 0);
+  const valorMedio = totalValor / pagamentos.length;
   const formatValor = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
   
-  const header = `📋 *PAGAMENTOS SEM SOLICITAÇÃO DE NOTA*\n` +
-    `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
-    `Olá ${nomeGestor}!\n\n` +
-    `Você tem *${pagamentos.length} pagamento(s)* que ainda não teve nota solicitada.\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  // Calcular tempo de espera
+  const tempoMedio = pagamentos.reduce((sum, p) => {
+    const dias = Math.floor((Date.now() - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    return sum + dias;
+  }, 0) / pagamentos.length;
+  
+  // Agrupar por mês
+  const porMes = pagamentos.reduce((acc, p) => {
+    const mes = p.mes_competencia;
+    if (!acc[mes]) acc[mes] = { count: 0, valor: 0 };
+    acc[mes].count++;
+    acc[mes].valor += Number(p.valor);
+    return acc;
+  }, {} as Record<string, { count: number; valor: number }>);
+  
+  const header = `⏳ *PAGAMENTOS AGUARDANDO NOTA*\n` +
+    `${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `Olá *${nomeGestor}*!\n\n` +
+    `📊 *SITUAÇÃO ATUAL*\n` +
+    `   • Pagamentos Parados: *${pagamentos.length}*\n` +
+    `   • Valor Bloqueado: *${formatValor(totalValor)}*\n` +
+    `   • Valor Médio: ${formatValor(valorMedio)}\n` +
+    `   • Tempo Médio: ${tempoMedio.toFixed(1)} dias\n\n` +
+    `⚠️ *Estes valores estão aguardando solicitação de nota para processamento*\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `📋 *PAGAMENTOS SEM NOTA SOLICITADA*\n\n`;
 
-  const listaPagamentos = pagamentos.slice(0, 10).map((pag, idx) => {
-    return `*${idx + 1}. ${pag.medicos.nome}*\n` +
-      `   💰 ${formatValor(pag.valor)}\n` +
-      `   📅 ${pag.mes_competencia}\n` +
-      `   ⏳ Aguardando Solicitação\n`;
+  const listaPagamentos = pagamentos.slice(0, 8).map((pag, idx) => {
+    const diasEspera = Math.floor((Date.now() - new Date(pag.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    return `⏳ *${idx + 1}. ${pag.medicos.nome}*\n` +
+      `   💰 ${formatValor(pag.valor)} • ${pag.mes_competencia}\n` +
+      `   📅 ${diasEspera}d sem solicitação\n`;
   }).join('\n');
 
-  const rodape = pagamentos.length > 10 
-    ? `\n_...e mais ${pagamentos.length - 10} pagamentos_\n\n`
+  const rodape = pagamentos.length > 8
+    ? `\n_...e mais ${pagamentos.length - 8} pagamentos_\n\n`
     : '\n';
 
-  const total = `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `💵 *TOTAL: ${formatValor(totalValor)}*\n\n` +
-    `🔗 Acesse o portal:\n` +
-    `https://hcc.chatconquista.com/pagamentos\n\n` +
-    `⚡ *Solicite as notas* para iniciar o processo de pagamento.`;
+  // Análise por mês
+  let analise = `━━━━━━━━━━━━━━━━━━━━━━\n\n📅 *ANÁLISE POR COMPETÊNCIA*\n`;
+  Object.entries(porMes).slice(0, 3).forEach(([mes, info]: [string, any]) => {
+    analise += `   • ${mes}: ${info.count} • ${formatValor(info.valor)}\n`;
+  });
+  analise += `\n`;
 
-  return header + listaPagamentos + rodape + total;
+  const total = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `💵 *VALOR TOTAL PARADO: ${formatValor(totalValor)}*\n\n` +
+    `🔗 *Portal:* https://hcc.chatconquista.com/pagamentos\n\n` +
+    `🚀 *Ação Requerida:* Solicitar ${pagamentos.length} nota(s) para desbloquear fluxo\n\n` +
+    `_${formatValor(totalValor)} aguardando início do processo de pagamento_`;
+
+  return header + listaPagamentos + rodape + analise + total;
 }
 
 async function enviarMensagemWhatsApp(

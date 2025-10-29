@@ -52,44 +52,192 @@ serve(async (req) => {
 
     for (const gestor of gestores) {
       try {
-        // Buscar estatísticas para o relatório
-        const { data: pagamentosPendentes } = await supabase
+        // Buscar todas as estatísticas necessárias
+        const { data: todosPagamentos } = await supabase
           .from('pagamentos')
-          .select('id, mes_competencia, medico_id, medicos!inner(nome)')
+          .select('id, mes_competencia, valor, status, medico_id, created_at, data_solicitacao, data_resposta, medicos!inner(nome)')
           .eq('empresa_id', gestor.empresa_id)
-          .in('status', ['pendente', 'solicitado'])
           .order('created_at', { ascending: false });
 
         const { data: notasPendentes } = await supabase
           .from('notas_medicos')
-          .select('id, medico_id, medicos!inner(nome, empresa_id)')
+          .select('id, medico_id, created_at, pagamentos(valor, mes_competencia, medicos(nome, empresa_id))')
           .eq('status', 'pendente')
-          .eq('medicos.empresa_id', gestor.empresa_id);
+          .eq('pagamentos.medicos.empresa_id', gestor.empresa_id);
 
-        const totalPendentes = (pagamentosPendentes?.length || 0) + (notasPendentes?.length || 0);
+        const { data: notasAprovadas } = await supabase
+          .from('notas_medicos')
+          .select('id, created_at, pagamentos(valor)')
+          .eq('status', 'aprovado')
+          .eq('pagamentos.empresa_id', gestor.empresa_id)
+          .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
-        if (totalPendentes === 0) {
-          console.log(`✅ Gestor ${gestor.name}: Nenhuma pendência`);
+        // Calcular KPIs
+        const pagamentosPendentes = todosPagamentos?.filter(p => ['pendente', 'solicitado'].includes(p.status)) || [];
+        const pagamentosAprovados = todosPagamentos?.filter(p => p.status === 'aprovado') || [];
+        const pagamentosPagos = todosPagamentos?.filter(p => p.status === 'pago') || [];
+        
+        const valorTotalPendente = pagamentosPendentes.reduce((sum, p) => sum + Number(p.valor || 0), 0);
+        const valorTotalAprovado = pagamentosAprovados.reduce((sum, p) => sum + Number(p.valor || 0), 0);
+        const valorTotalPago = pagamentosPagos.reduce((sum, p) => sum + Number(p.valor || 0), 0);
+        const valorTotalNotas = notasPendentes?.reduce((sum, n: any) => sum + Number(n.pagamentos?.valor || 0), 0) || 0;
+
+        const totalPendentes = pagamentosPendentes.length + (notasPendentes?.length || 0);
+
+        // Calcular tempo médio de resposta dos médicos
+        const pagamentosComResposta = todosPagamentos?.filter(p => p.data_solicitacao && p.data_resposta) || [];
+        const tempoMedioResposta = pagamentosComResposta.length > 0
+          ? pagamentosComResposta.reduce((sum, p) => {
+              const diff = new Date(p.data_resposta!).getTime() - new Date(p.data_solicitacao!).getTime();
+              return sum + diff / (1000 * 60 * 60); // em horas
+            }, 0) / pagamentosComResposta.length
+          : 0;
+
+        // Taxa de aprovação (últimos 30 dias)
+        const totalNotasUltimos30 = (notasPendentes?.length || 0) + (notasAprovadas?.length || 0);
+        const taxaAprovacao = totalNotasUltimos30 > 0 
+          ? ((notasAprovadas?.length || 0) / totalNotasUltimos30 * 100) 
+          : 0;
+
+        // Formatar valores - mover ANTES do primeiro if
+        const formatValor = (v: number) => new Intl.NumberFormat('pt-BR', { 
+          style: 'currency', 
+          currency: 'BRL' 
+        }).format(v);
+
+        const dataHoje = new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' });
+
+        if (totalPendentes === 0 && pagamentosAprovados.length === 0) {
+          // Enviar mensagem de "tudo OK" profissional
+          const mensagemSucesso = `✅ *RELATÓRIO GERENCIAL DIÁRIO*\n` +
+            `${dataHoje}\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `👋 Olá, *${gestor.name}*!\n\n` +
+            `🎉 *SISTEMA EM DIA*\n\n` +
+            `Todas as operações estão em conformidade:\n\n` +
+            `✓ Sem notas pendentes de aprovação\n` +
+            `✓ Sem pagamentos aguardando nota\n` +
+            `✓ Sem pagamentos pendentes de processamento\n\n` +
+            `💰 *Resumo Financeiro:*\n` +
+            `   • Pagos (mês): ${formatValor(valorTotalPago)}\n` +
+            `   • Pendências: R$ 0,00\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `📊 *Operações fluxo normal*\n\n` +
+            `_Relatório automático • ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}_`;
+          
+          try {
+            const response = await fetch(`${config.api_url}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.auth_token}`
+              },
+              body: JSON.stringify({
+                number: gestor.numero_whatsapp,
+                body: mensagemSucesso,
+                externalKey: `relatorio_ok_${gestor.id}_${Date.now()}`,
+                isClosed: false
+              })
+            });
+
+            if (response.ok) {
+              console.log(`✅ Relatório "tudo OK" enviado para ${gestor.name}`);
+              enviosRealizados++;
+            } else {
+              console.error(`❌ Erro ao enviar para ${gestor.name}`);
+              erros++;
+            }
+          } catch (error) {
+            console.error(`❌ Erro ao enviar para ${gestor.name}:`, error);
+            erros++;
+          }
+          
           continue;
         }
 
-        // Montar mensagem do relatório
-        const dataHoje = new Date().toLocaleDateString('pt-BR');
-        let mensagem = `📊 *RELATÓRIO DIÁRIO - ${dataHoje}*\n\n`;
-        mensagem += `👋 Olá, ${gestor.name}!\n\n`;
-        mensagem += `📌 *Resumo de Pendências:*\n`;
-        mensagem += `• Total de itens pendentes: *${totalPendentes}*\n\n`;
-
-        if (pagamentosPendentes && pagamentosPendentes.length > 0) {
-          mensagem += `💰 *Pagamentos Aguardando Nota:* ${pagamentosPendentes.length}\n`;
+        
+        // Montar relatório gerencial completo
+        let mensagem = `📊 *RELATÓRIO GERENCIAL DIÁRIO*\n`;
+        mensagem += `${dataHoje}\n`;
+        mensagem += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        mensagem += `👋 Olá, *${gestor.name}*!\n\n`;
+        
+        // KPIs Principais
+        mensagem += `📈 *INDICADORES PRINCIPAIS*\n\n`;
+        
+        if (totalPendentes > 0) {
+          mensagem += `⚠️ *Itens Aguardando Ação:* ${totalPendentes}\n`;
+          mensagem += `   • Pagamentos: ${pagamentosPendentes.length}\n`;
+          mensagem += `   • Notas: ${notasPendentes?.length || 0}\n\n`;
+        }
+        
+        mensagem += `💰 *VALORES FINANCEIROS*\n`;
+        mensagem += `   • Pendente: ${formatValor(valorTotalPendente)}\n`;
+        
+        if (valorTotalNotas > 0) {
+          mensagem += `   • Notas Análise: ${formatValor(valorTotalNotas)}\n`;
+        }
+        
+        if (valorTotalAprovado > 0) {
+          mensagem += `   • Aprovado: ${formatValor(valorTotalAprovado)}\n`;
+        }
+        
+        mensagem += `   • Pago (mês): ${formatValor(valorTotalPago)}\n\n`;
+        
+        // Métricas de Performance
+        mensagem += `📊 *PERFORMANCE OPERACIONAL*\n`;
+        
+        if (tempoMedioResposta > 0) {
+          const horas = Math.floor(tempoMedioResposta);
+          mensagem += `   • Tempo Médio Resposta: ${horas}h\n`;
+        }
+        
+        if (totalNotasUltimos30 > 0) {
+          mensagem += `   • Taxa Aprovação (30d): ${taxaAprovacao.toFixed(1)}%\n`;
+          mensagem += `   • Notas Processadas: ${totalNotasUltimos30}\n`;
+        }
+        
+        mensagem += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        // Detalhamento de pendências
+        if (pagamentosPendentes.length > 0) {
+          mensagem += `⏳ *PAGAMENTOS AGUARDANDO NOTA*\n\n`;
+          
+          const top5Pagamentos = pagamentosPendentes.slice(0, 5);
+          top5Pagamentos.forEach((pag: any, idx: number) => {
+            mensagem += `${idx + 1}. ${pag.medicos?.nome}\n`;
+            mensagem += `   ${formatValor(Number(pag.valor))} • ${pag.mes_competencia}\n`;
+          });
+          
+          if (pagamentosPendentes.length > 5) {
+            mensagem += `\n_...e mais ${pagamentosPendentes.length - 5} pagamentos_\n`;
+          }
+          
+          mensagem += `\n`;
         }
 
         if (notasPendentes && notasPendentes.length > 0) {
-          mensagem += `📄 *Notas Aguardando Aprovação:* ${notasPendentes.length}\n`;
+          mensagem += `📄 *NOTAS AGUARDANDO APROVAÇÃO*\n\n`;
+          
+          const top5Notas = notasPendentes.slice(0, 5);
+          top5Notas.forEach((nota: any, idx: number) => {
+            const diasPendente = Math.floor((Date.now() - new Date(nota.created_at).getTime()) / (1000 * 60 * 60 * 24));
+            mensagem += `${idx + 1}. ${nota.pagamentos?.medicos?.nome}\n`;
+            mensagem += `   ${formatValor(Number(nota.pagamentos?.valor || 0))} • ${diasPendente}d aguardando\n`;
+          });
+          
+          if (notasPendentes.length > 5) {
+            mensagem += `\n_...e mais ${notasPendentes.length - 5} notas_\n`;
+          }
+          
+          mensagem += `\n`;
         }
-
-        mensagem += `\n⚠️ *Ação Necessária:* Acesse o sistema para processar as pendências.\n`;
-        mensagem += `\n_Relatório gerado automaticamente pelo sistema_`;
+        
+        mensagem += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        mensagem += `🔗 *Portal:* https://hcc.chatconquista.com\n\n`;
+        mensagem += `⚡ *Ações necessárias para processar ${totalPendentes} item(ns)*\n\n`;
+        mensagem += `_Relatório automático • ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}_`;
 
         // Enviar via WhatsApp diretamente para a API
         try {
