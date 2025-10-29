@@ -133,10 +133,10 @@ serve(async (req) => {
             form.append('externalKey', `relatorio_ok_${gestor.id}_${Date.now()}`);
             form.append('isClosed', 'false');
 
-            const response = await fetch(`${config.api_url}`, {
+            const response = await fetch('https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${config.auth_token}`
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU'
               },
               body: form
             });
@@ -249,10 +249,10 @@ serve(async (req) => {
           form.append('externalKey', `relatorio_diario_${gestor.id}_${Date.now()}`);
           form.append('isClosed', 'false');
 
-          const response = await fetch(`${config.api_url}`, {
+          const response = await fetch('https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${config.auth_token}`
+              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU'
             },
             body: form
           });

@@ -124,8 +124,8 @@ serve(async (req) => {
     // Enviar código via WhatsApp para TODOS os números
     let enviosSucesso = 0;
     
-    // Buscar configurações da API (já temos config mas precisamos de api_url e auth_token)
-    const apiUrl = config.api_url + '/template';
+    // Enviar via API dos gestores (template)
+    const apiUrl = 'https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de/template';
     
     for (const numero of numerosParaEnviar) {
       try {
@@ -158,7 +158,7 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.auth_token}`
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU'
           },
           body: JSON.stringify(templatePayload)
         });
