@@ -61,32 +61,39 @@ serve(async (req) => {
       .eq('empresa_id', medico.empresa_id)
       .single();
 
-    // VALIDAÇÃO: apenas quando verificação está habilitada E há token fornecido
-    if (config?.verificacao_medico_habilitada && token) {
+    // VALIDAÇÃO OBRIGATÓRIA: quando verificação está habilitada, SEMPRE exigir token válido
+    if (config?.verificacao_medico_habilitada) {
       const authHeader = req.headers.get('authorization') || '';
       const headerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : undefined;
       const providedToken = token || headerToken;
 
-      if (providedToken) {
-        const { data: sessao, error: sessaoError } = await supabase
-          .from('sessoes_medico')
-          .select('id, expires_at')
-          .eq('token', providedToken)
-          .eq('medico_id', medico.id)
-          .gt('expires_at', new Date().toISOString())
-          .maybeSingle();
-
-        if (sessaoError) throw sessaoError;
-        
-        if (!sessao) {
-          return new Response(
-            JSON.stringify({ error: 'Sessão inválida ou expirada', code: 'INVALID_SESSION' }),
-            { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-          );
-        }
-
-        console.log(`Sessão validada para médico ${medico.nome} até ${sessao.expires_at}`);
+      // Se não forneceu token, retornar erro
+      if (!providedToken) {
+        return new Response(
+          JSON.stringify({ error: 'Token de autenticação obrigatório', code: 'SESSION_REQUIRED' }),
+          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
       }
+
+      // Validar o token fornecido
+      const { data: sessao, error: sessaoError } = await supabase
+        .from('sessoes_medico')
+        .select('id, expires_at')
+        .eq('token', providedToken)
+        .eq('medico_id', medico.id)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (sessaoError) throw sessaoError;
+      
+      if (!sessao) {
+        return new Response(
+          JSON.stringify({ error: 'Sessão inválida ou expirada', code: 'INVALID_SESSION' }),
+          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+
+      console.log(`✅ Sessão validada para médico ${medico.nome} até ${sessao.expires_at}`);
     }
 
     // Pagamentos do médico com notas associadas - SEGURANÇA REFORÇADA

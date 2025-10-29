@@ -410,7 +410,7 @@ export default function DashboardMedicos() {
           return;
         }
 
-        // Se verificação está habilitada, enviar código
+        // AUTENTICAÇÃO OBRIGATÓRIA: Sempre enviar código quando verificação está habilitada
         if (configData.verificacao_medico_habilitada) {
           const { data: verificationData, error: verificationError } = await supabase.functions.invoke(
             'send-verification-code',
@@ -436,11 +436,16 @@ export default function DashboardMedicos() {
             });
             return;
           }
+        } else {
+          // Se verificação não está habilitada, bloquear acesso
+          toast({
+            title: "Sistema desabilitado",
+            description: "O sistema de validação está desabilitado no momento",
+            variant: "destructive",
+          });
+          return;
         }
       }
-
-      // Se não precisa de verificação, buscar dados direto
-      await loadMedicoData(cpfNumeros);
 
     } catch (error: any) {
       console.error("Erro ao buscar dados:", error);
@@ -633,17 +638,30 @@ export default function DashboardMedicos() {
 
   const loadMedicoData = async (cpfNumeros: string) => {
     try {
-      // Não enviar token na primeira tentativa (quando ainda não tem sessão)
+      // SEMPRE exigir token para buscar dados
       const savedToken = sessionToken || localStorage.getItem('medico_session_token');
       const savedCpf = localStorage.getItem('medico_validated_cpf');
       
-      // Apenas enviar token se o CPF é o mesmo da sessão salva
-      const shouldSendToken = savedToken && savedCpf === cpfNumeros;
+      // Verificar se há token válido
+      if (!savedToken || savedCpf !== cpfNumeros) {
+        localStorage.removeItem('medico_session_token');
+        localStorage.removeItem('medico_validated_cpf');
+        setSessionToken(null);
+        setMedico(null);
+        setShowDashboard(false);
+        
+        toast({
+          title: "Autenticação necessária",
+          description: "Por favor, faça login para acessar seus dados",
+          variant: "destructive",
+        });
+        return;
+      }
       
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
         body: { 
           cpf: cpfNumeros, 
-          ...(shouldSendToken && { token: savedToken })
+          token: savedToken
         }
       });
 
