@@ -175,13 +175,38 @@ export default function DashboardMedicos() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Verificar se há sessão ativa ao carregar
+  // Verificar se há sessão ativa ao carregar e buscar dados automaticamente
   useEffect(() => {
     const savedToken = localStorage.getItem('medico_session_token');
     if (savedToken) {
-      validateSession(savedToken);
+      validateAndLoadSession(savedToken);
     }
   }, []);
+
+  const validateAndLoadSession = async (token: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-medico-session', {
+        body: { token }
+      });
+
+      if (error || !data?.valid) {
+        localStorage.removeItem('medico_session_token');
+        setSessionToken(null);
+        return false;
+      }
+
+      // Se há sessão válida, carregar dados do médico automaticamente
+      setSessionToken(token);
+      if (data.medicoId) {
+        await loadMedicoDataById(data.medicoId);
+      }
+      return true;
+    } catch (error) {
+      console.error('Erro ao validar sessão:', error);
+      localStorage.removeItem('medico_session_token');
+      return false;
+    }
+  };
 
   const validateSession = async (token: string) => {
     try {
@@ -471,6 +496,127 @@ export default function DashboardMedicos() {
     }
   };
 
+  const processarDadosMedico = (result: any) => {
+    // Consolidar notas por pagamento para decidir corretamente se ainda precisa enviar
+    const notasRaw = result.notas || [];
+    const notasPorPagamento = (notasRaw as any[]).reduce((acc: Record<string, { temPendente: boolean; temAprovado: boolean; temRejeitado: boolean }>, nota: any) => {
+      const pid = nota.pagamento_id || nota.pagamentos?.id;
+      if (!pid) return acc;
+      if (!acc[pid]) acc[pid] = { temPendente: false, temAprovado: false, temRejeitado: false };
+      if (nota.status === 'pendente') acc[pid].temPendente = true;
+      if (nota.status === 'aprovado') acc[pid].temAprovado = true;
+      if (nota.status === 'rejeitado') acc[pid].temRejeitado = true;
+      return acc;
+    }, {} as Record<string, { temPendente: boolean; temAprovado: boolean; temRejeitado: boolean }>)
+
+    const pagamentosPendentesData = result.pagamentos || [];
+
+    const pagamentosPendentesProcessados = pagamentosPendentesData?.filter((p: any) => {
+      const s = notasPorPagamento[p.id];
+      // Mostrar como pendente quando: não há nota enviada ainda OU houve rejeição
+      if (!s) return ['pendente','solicitado'].includes(p.status || 'pendente');
+      if (s.temAprovado || s.temPendente) return false; // já enviado/aprovado → não mostrar
+      if (s.temRejeitado && !s.temPendente && !s.temAprovado) return true; // precisa reenviar
+      return false;
+    }).map((p: any) => ({
+      id: p.id,
+      mes_competencia: p.mes_competencia,
+      valor: p.valor,
+      status: p.status,
+      temNotaRejeitada: !!notasPorPagamento[p.id]?.temRejeitado,
+      temNotaPendente: !!notasPorPagamento[p.id]?.temPendente
+    })) || [];
+
+    setPagamentosPendentes(pagamentosPendentesProcessados);
+
+    const notasData = result.notas || [];
+    const notasProcessadas = notasData.map((nota: any) => ({
+      id: nota.id,
+      status: nota.status,
+      nome_arquivo: nota.nome_arquivo,
+      created_at: nota.created_at,
+      observacoes: nota.observacoes,
+      pagamento: {
+        valor: nota.pagamentos.valor,
+        mes_competencia: nota.pagamentos.mes_competencia,
+        data_pagamento: nota.pagamentos.data_pagamento
+      }
+    }));
+
+    setNotas(notasProcessadas);
+
+    const notasRejeitadas = notasProcessadas.filter((n: any) => n.status === 'rejeitado');
+    if (notasRejeitadas.length > 0) {
+      setRejectedNotes(notasRejeitadas);
+      setShowRejectedAlert(true);
+    }
+
+    const totalNotas = notasProcessadas.length;
+    const notasAprovadas = notasProcessadas.filter((n: any) => n.status === 'aprovado').length;
+    const notasPendentes = notasProcessadas.filter((n: any) => n.status === 'pendente').length;
+    const rejeitadasCount = notasProcessadas.filter((n: any) => n.status === 'rejeitado').length;
+
+    const valorTotal = notasProcessadas.reduce((sum: number, nota: any) => sum + nota.pagamento.valor, 0);
+    const valorAprovado = notasProcessadas
+      .filter((n: any) => n.status === 'aprovado')
+      .reduce((sum: number, nota: any) => sum + nota.pagamento.valor, 0);
+    const valorPendente = notasProcessadas
+      .filter((n: any) => n.status === 'pendente')
+      .reduce((sum: number, nota: any) => sum + nota.pagamento.valor, 0);
+
+    setStats({
+      totalNotas,
+      notasAprovadas,
+      notasPendentes,
+      notasRejeitadas: rejeitadasCount,
+      valorTotal,
+      valorAprovado,
+      valorPendente
+    });
+
+    const monthlyData = notasProcessadas.reduce((acc: Record<string, any>, nota: any) => {
+      const mes = nota.pagamento.mes_competencia;
+      if (!acc[mes]) {
+        acc[mes] = { mes, valor: 0, status: nota.status };
+      }
+      acc[mes].valor += nota.pagamento.valor;
+      return acc;
+    }, {} as Record<string, any>);
+
+    setChartData((Object.values(monthlyData) as ChartData[]).sort((a, b) => a.mes.localeCompare(b.mes)));
+  };
+
+  const loadMedicoDataById = async (medicoId: string) => {
+    try {
+      const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
+        body: { medicoId }
+      });
+
+      if (fnError || !result?.medico) {
+        // Se falhar, limpar sessão e pedir login novamente
+        localStorage.removeItem('medico_session_token');
+        setSessionToken(null);
+        return;
+      }
+
+      const medicoData = result.medico;
+      setMedico(medicoData);
+      setCpf(formatCPF(medicoData.documento || ''));
+
+      // Animação de entrada do dashboard
+      setTimeout(() => setShowDashboard(true), 100);
+
+      // Verificar se há ticket pendente de avaliação
+      checkPendingRating(medicoData.id);
+
+      processarDadosMedico(result);
+    } catch (error: any) {
+      console.error("Erro ao buscar dados do médico:", error);
+      localStorage.removeItem('medico_session_token');
+      setSessionToken(null);
+    }
+  };
+
   const loadMedicoData = async (cpfNumeros: string) => {
     try {
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
@@ -495,93 +641,7 @@ export default function DashboardMedicos() {
       // Verificar se há ticket pendente de avaliação
       checkPendingRating(medicoData.id);
 
-      // Consolidar notas por pagamento para decidir corretamente se ainda precisa enviar
-      const notasRaw = result.notas || [];
-      const notasPorPagamento = (notasRaw as any[]).reduce((acc: Record<string, { temPendente: boolean; temAprovado: boolean; temRejeitado: boolean }>, nota: any) => {
-        const pid = nota.pagamento_id || nota.pagamentos?.id;
-        if (!pid) return acc;
-        if (!acc[pid]) acc[pid] = { temPendente: false, temAprovado: false, temRejeitado: false };
-        if (nota.status === 'pendente') acc[pid].temPendente = true;
-        if (nota.status === 'aprovado') acc[pid].temAprovado = true;
-        if (nota.status === 'rejeitado') acc[pid].temRejeitado = true;
-        return acc;
-      }, {} as Record<string, { temPendente: boolean; temAprovado: boolean; temRejeitado: boolean }>)
-
-      const pagamentosPendentesData = result.pagamentos || [];
-
-      const pagamentosPendentesProcessados = pagamentosPendentesData?.filter((p: any) => {
-        const s = notasPorPagamento[p.id];
-        // Mostrar como pendente quando: não há nota enviada ainda OU houve rejeição
-        if (!s) return ['pendente','solicitado'].includes(p.status || 'pendente');
-        if (s.temAprovado || s.temPendente) return false; // já enviado/aprovado → não mostrar
-        if (s.temRejeitado && !s.temPendente && !s.temAprovado) return true; // precisa reenviar
-        return false;
-      }).map((p: any) => ({
-        id: p.id,
-        mes_competencia: p.mes_competencia,
-        valor: p.valor,
-        status: p.status,
-        temNotaRejeitada: !!notasPorPagamento[p.id]?.temRejeitado,
-        temNotaPendente: !!notasPorPagamento[p.id]?.temPendente
-      })) || [];
-
-      setPagamentosPendentes(pagamentosPendentesProcessados);
-
-      const notasData = result.notas || [];
-       const notasProcessadas = notasData.map((nota: any) => ({
-         id: nota.id,
-         status: nota.status,
-         nome_arquivo: nota.nome_arquivo,
-         created_at: nota.created_at,
-         observacoes: nota.observacoes,
-         pagamento: {
-           valor: nota.pagamentos.valor,
-           mes_competencia: nota.pagamentos.mes_competencia,
-           data_pagamento: nota.pagamentos.data_pagamento
-         }
-       }));
-
-      setNotas(notasProcessadas);
-
-      const notasRejeitadas = notasProcessadas.filter((n: any) => n.status === 'rejeitado');
-      if (notasRejeitadas.length > 0) {
-        setRejectedNotes(notasRejeitadas);
-        setShowRejectedAlert(true);
-      }
-
-      const totalNotas = notasProcessadas.length;
-      const notasAprovadas = notasProcessadas.filter((n: any) => n.status === 'aprovado').length;
-      const notasPendentes = notasProcessadas.filter((n: any) => n.status === 'pendente').length;
-      const rejeitadasCount = notasProcessadas.filter((n: any) => n.status === 'rejeitado').length;
-
-      const valorTotal = notasProcessadas.reduce((sum: number, nota: any) => sum + nota.pagamento.valor, 0);
-      const valorAprovado = notasProcessadas
-        .filter((n: any) => n.status === 'aprovado')
-        .reduce((sum: number, nota: any) => sum + nota.pagamento.valor, 0);
-      const valorPendente = notasProcessadas
-        .filter((n: any) => n.status === 'pendente')
-        .reduce((sum: number, nota: any) => sum + nota.pagamento.valor, 0);
-
-      setStats({
-        totalNotas,
-        notasAprovadas,
-        notasPendentes,
-        notasRejeitadas: rejeitadasCount,
-        valorTotal,
-        valorAprovado,
-        valorPendente
-      });
-
-      const monthlyData = notasProcessadas.reduce((acc: Record<string, any>, nota: any) => {
-        const mes = nota.pagamento.mes_competencia;
-        if (!acc[mes]) {
-          acc[mes] = { mes, valor: 0, status: nota.status };
-        }
-        acc[mes].valor += nota.pagamento.valor;
-        return acc;
-      }, {} as Record<string, any>);
-
-      setChartData((Object.values(monthlyData) as ChartData[]).sort((a, b) => a.mes.localeCompare(b.mes)));
+      processarDadosMedico(result);
 
     } catch (error: any) {
       console.error("Erro ao carregar dados:", error);

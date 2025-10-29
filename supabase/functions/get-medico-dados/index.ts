@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface RequestBody { cpf: string }
+interface RequestBody { cpf?: string; medicoId?: string }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -13,9 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    const { cpf }: RequestBody = await req.json();
-    if (!cpf) {
-      return new Response(JSON.stringify({ error: 'CPF é obrigatório' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    const { cpf, medicoId }: RequestBody = await req.json();
+    if (!cpf && !medicoId) {
+      return new Response(JSON.stringify({ error: 'CPF ou medicoId é obrigatório' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
@@ -24,17 +24,32 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const cpfNumeros = cpf.replace(/\D/g, '');
-
-    // Buscar médico ativo por documento (CPF ou CNPJ)
-    const { data: medico, error: medicoError } = await supabase
-      .from('medicos')
-      .select('*')
-      .eq('ativo', true)
-      .eq('documento', cpfNumeros)
-      .maybeSingle();
-
-    if (medicoError) throw medicoError;
+    let medico;
+    
+    if (medicoId) {
+      // Buscar médico ativo por ID
+      const { data, error: medicoError } = await supabase
+        .from('medicos')
+        .select('*')
+        .eq('ativo', true)
+        .eq('id', medicoId)
+        .maybeSingle();
+      
+      if (medicoError) throw medicoError;
+      medico = data;
+    } else {
+      // Buscar médico ativo por documento (CPF ou CNPJ)
+      const cpfNumeros = cpf!.replace(/\D/g, '');
+      const { data, error: medicoError } = await supabase
+        .from('medicos')
+        .select('*')
+        .eq('ativo', true)
+        .eq('documento', cpfNumeros)
+        .maybeSingle();
+      
+      if (medicoError) throw medicoError;
+      medico = data;
+    }
     if (!medico) {
       return new Response(JSON.stringify({ medico: null }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
