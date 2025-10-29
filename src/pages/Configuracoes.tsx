@@ -85,7 +85,7 @@ export default function Configuracoes() {
         dashboard_medicos_previsao_retorno: "",
         verificacao_medico_habilitada: false,
         verificacao_medico_template_nome: "verificamedico",
-        verificacao_medico_duracao_sessao_horas: 24,
+        verificacao_medico_duracao_sessao_horas: 1,
       });
     } finally {
       setLoading(false);
@@ -141,7 +141,7 @@ export default function Configuracoes() {
             dashboard_medicos_previsao_retorno: config.dashboard_medicos_previsao_retorno || null,
             verificacao_medico_habilitada: config.verificacao_medico_habilitada || false,
             verificacao_medico_template_nome: config.verificacao_medico_template_nome || "verificamedico",
-            verificacao_medico_duracao_sessao_horas: config.verificacao_medico_duracao_sessao_horas || 24,
+            verificacao_medico_duracao_sessao_horas: config.verificacao_medico_duracao_sessao_horas || 1,
           }])
           .select()
           .single();
