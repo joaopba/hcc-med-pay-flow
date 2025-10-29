@@ -141,7 +141,7 @@ serve(async (req) => {
             payload = {
               number: phoneNumber,
               isClosed: false,
-              externalKey: `nota_${pagamentoId || 'temp'}_${Date.now()}`,
+              externalKey: `nota_${pagamentoId || Date.now()}`,
               templateData: {
                 messaging_product: "whatsapp",
                 to: phoneNumber,
@@ -172,6 +172,7 @@ serve(async (req) => {
                 }
               }
             };
+            console.log('[Background] Payload completo:', JSON.stringify(payload, null, 2));
             break;
           
           case 'nota_pendente':
