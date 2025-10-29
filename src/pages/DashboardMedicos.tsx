@@ -633,8 +633,18 @@ export default function DashboardMedicos() {
 
   const loadMedicoData = async (cpfNumeros: string) => {
     try {
+      // Não enviar token na primeira tentativa (quando ainda não tem sessão)
+      const savedToken = sessionToken || localStorage.getItem('medico_session_token');
+      const savedCpf = localStorage.getItem('medico_validated_cpf');
+      
+      // Apenas enviar token se o CPF é o mesmo da sessão salva
+      const shouldSendToken = savedToken && savedCpf === cpfNumeros;
+      
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
-        body: { cpf: cpfNumeros, token: sessionToken || localStorage.getItem('medico_session_token') }
+        body: { 
+          cpf: cpfNumeros, 
+          ...(shouldSendToken && { token: savedToken })
+        }
       });
 
       // Tratar erros de validação de sessão

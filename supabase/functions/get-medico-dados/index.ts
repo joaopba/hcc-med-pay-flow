@@ -61,58 +61,31 @@ serve(async (req) => {
       .eq('empresa_id', medico.empresa_id)
       .single();
 
-    // VALIDAÇÃO POR CPF/CNPJ: verificar se existe sessão válida
-    if (config?.verificacao_medico_habilitada && cpf) {
-      // Buscar sessão válida (não expirada) para este médico
-      const { data: sessaoValida, error: sessaoError } = await supabase
-        .from('sessoes_medico')
-        .select('id, expires_at')
-        .eq('medico_id', medico.id)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (sessaoError) throw sessaoError;
-
-      // Se não existe sessão válida, exige validação
-      if (!sessaoValida) {
-        return new Response(
-          JSON.stringify({ error: 'Validação necessária', code: 'VALIDATION_REQUIRED' }),
-          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
-      }
-
-      console.log(`Sessão válida encontrada para médico ${medico.nome} até ${sessaoValida.expires_at}`);
-    }
-
-    // VALIDAÇÃO POR TOKEN: quando usa medicoId ou token explícito
-    if (config?.verificacao_medico_habilitada && !cpf && (medicoId || token)) {
+    // VALIDAÇÃO: apenas quando verificação está habilitada E há token fornecido
+    if (config?.verificacao_medico_habilitada && token) {
       const authHeader = req.headers.get('authorization') || '';
       const headerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : undefined;
       const providedToken = token || headerToken;
 
-      if (!providedToken) {
-        return new Response(
-          JSON.stringify({ error: 'Sessão requerida', code: 'SESSION_REQUIRED' }),
-          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
-      }
+      if (providedToken) {
+        const { data: sessao, error: sessaoError } = await supabase
+          .from('sessoes_medico')
+          .select('id, expires_at')
+          .eq('token', providedToken)
+          .eq('medico_id', medico.id)
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle();
 
-      const { data: sessao, error: sessaoError } = await supabase
-        .from('sessoes_medico')
-        .select('id')
-        .eq('token', providedToken)
-        .eq('medico_id', medico.id)
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
+        if (sessaoError) throw sessaoError;
+        
+        if (!sessao) {
+          return new Response(
+            JSON.stringify({ error: 'Sessão inválida ou expirada', code: 'INVALID_SESSION' }),
+            { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          );
+        }
 
-      if (sessaoError) throw sessaoError;
-      if (!sessao) {
-        return new Response(
-          JSON.stringify({ error: 'Sessão inválida ou expirada', code: 'INVALID_SESSION' }),
-          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
+        console.log(`Sessão validada para médico ${medico.nome} até ${sessao.expires_at}`);
       }
     }
 
