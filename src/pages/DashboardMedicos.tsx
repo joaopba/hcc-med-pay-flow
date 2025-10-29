@@ -30,7 +30,8 @@ import {
   X,
   Building2,
   Moon,
-  Sun
+  Sun,
+  MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -117,6 +118,11 @@ export default function DashboardMedicos() {
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showInitialAnimation, setShowInitialAnimation] = useState(true);
+  const [showVerificationStep, setShowVerificationStep] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [phoneNumbers, setPhoneNumbers] = useState<string[]>([]);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -168,6 +174,35 @@ export default function DashboardMedicos() {
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Verificar se há sessão ativa ao carregar
+  useEffect(() => {
+    const savedToken = localStorage.getItem('medico_session_token');
+    if (savedToken) {
+      validateSession(savedToken);
+    }
+  }, []);
+
+  const validateSession = async (token: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-medico-session', {
+        body: { token }
+      });
+
+      if (error || !data?.valid) {
+        localStorage.removeItem('medico_session_token');
+        setSessionToken(null);
+        return false;
+      }
+
+      setSessionToken(token);
+      return true;
+    } catch (error) {
+      console.error('Erro ao validar sessão:', error);
+      localStorage.removeItem('medico_session_token');
+      return false;
+    }
+  };
 
   useEffect(() => {
     if (medico && pagamentosPendentes.length > 0) {
@@ -310,10 +345,21 @@ export default function DashboardMedicos() {
     try {
       const cpfNumeros = cpf.replace(/\D/g, '');
 
-      // Buscar configurações OCR e manutenção
+      // Verificar se há sessão ativa
+      const savedToken = localStorage.getItem('medico_session_token');
+      if (savedToken) {
+        const isValid = await validateSession(savedToken);
+        if (isValid) {
+          // Sessão válida, buscar dados direto
+          await loadMedicoData(cpfNumeros);
+          return;
+        }
+      }
+
+      // Buscar configurações OCR, manutenção e verificação
       const { data: configData } = await supabase
         .from('configuracoes')
-        .select('ocr_nfse_habilitado, dashboard_medicos_manutencao, dashboard_medicos_mensagem_manutencao, dashboard_medicos_previsao_retorno')
+        .select('ocr_nfse_habilitado, dashboard_medicos_manutencao, dashboard_medicos_mensagem_manutencao, dashboard_medicos_previsao_retorno, verificacao_medico_habilitada')
         .single();
       
       if (configData) {
@@ -327,8 +373,105 @@ export default function DashboardMedicos() {
           setLoading(false);
           return;
         }
+
+        // Se verificação está habilitada, enviar código
+        if (configData.verificacao_medico_habilitada) {
+          const { data: verificationData, error: verificationError } = await supabase.functions.invoke(
+            'send-verification-code',
+            { body: { cpf: cpfNumeros } }
+          );
+
+          if (verificationError || !verificationData?.success) {
+            toast({
+              title: "Erro",
+              description: "Erro ao enviar código de verificação",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (verificationData.verificacaoNecessaria) {
+            setPhoneNumbers(verificationData.telefones || []);
+            setShowVerificationStep(true);
+            toast({
+              title: "Código enviado",
+              description: `Código de verificação enviado para seus telefones cadastrados`,
+            });
+            return;
+          }
+        }
       }
 
+      // Se não precisa de verificação, buscar dados direto
+      await loadMedicoData(cpfNumeros);
+
+    } catch (error: any) {
+      console.error("Erro ao buscar dados:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao carregar dados",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode || verificationCode.length !== 6) {
+      toast({
+        title: "Erro",
+        description: "Digite o código de 6 dígitos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setVerificationLoading(true);
+    try {
+      const cpfNumeros = cpf.replace(/\D/g, '');
+      
+      const { data, error } = await supabase.functions.invoke('verify-medico-code', {
+        body: { cpf: cpfNumeros, codigo: verificationCode }
+      });
+
+      if (error || !data?.success) {
+        toast({
+          title: "Código inválido",
+          description: data?.error || "Código inválido ou expirado",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Salvar token da sessão
+      localStorage.setItem('medico_session_token', data.token);
+      setSessionToken(data.token);
+      setShowVerificationStep(false);
+      setVerificationCode("");
+
+      toast({
+        title: "Verificado!",
+        description: "Código verificado com sucesso",
+      });
+
+      // Carregar dados do médico
+      await loadMedicoData(cpfNumeros);
+
+    } catch (error: any) {
+      console.error("Erro ao verificar código:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao verificar código",
+        variant: "destructive",
+      });
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const loadMedicoData = async (cpfNumeros: string) => {
+    try {
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
         body: { cpf: cpfNumeros }
       });
@@ -440,14 +583,12 @@ export default function DashboardMedicos() {
       setChartData((Object.values(monthlyData) as ChartData[]).sort((a, b) => a.mes.localeCompare(b.mes)));
 
     } catch (error: any) {
-      console.error("Erro ao buscar dados:", error);
+      console.error("Erro ao carregar dados:", error);
       toast({
         title: "Erro",
         description: error.message || "Falha ao carregar dados",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -910,81 +1051,190 @@ export default function DashboardMedicos() {
             )}
           </AnimatePresence>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Card className="glass-effect border-primary/20 shadow-elegant">
-              <CardHeader className="text-center pb-6 space-y-6">
-                {/* Logo dentro do card */}
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.2, duration: 0.5 }}
-                  className="flex justify-center"
-                >
-                  <img src={logo} alt="HCC Hospital" className="h-20 w-auto" />
-                </motion.div>
+          {/* Tela de Verificação de Código */}
+          {showVerificationStep ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Card className="glass-effect border-primary/20 shadow-elegant">
+                <CardHeader className="text-center pb-6 space-y-6">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2, duration: 0.5 }}
+                    className="flex justify-center"
+                  >
+                    <img src={logo} alt="HCC Hospital" className="h-20 w-auto" />
+                  </motion.div>
 
-                <div>
-                  <CardTitle className="text-2xl gradient-text mb-2">Dashboard Médicos</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Digite seu CPF ou CNPJ para visualizar suas informações
-                  </p>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cpf" className="text-sm font-medium">CPF ou CNPJ</Label>
-                    <Input
-                      id="cpf"
-                      placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                      value={cpf}
-                      onChange={handleCPFChange}
-                      maxLength={18}
-                      className="text-lg text-center font-semibold"
+                  <div>
+                    <CardTitle className="text-2xl gradient-text mb-2">Verificação de Segurança</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Digite o código de verificação enviado via WhatsApp
+                    </p>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {/* Números de telefone mascarados */}
+                    <Alert className="bg-primary/5 border-primary/20">
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                      <AlertTitle className="text-sm font-semibold">Código enviado para:</AlertTitle>
+                      <AlertDescription className="text-sm text-muted-foreground mt-2">
+                        {phoneNumbers.map((phone, idx) => (
+                          <div key={idx} className="font-mono">📱 {phone}</div>
+                        ))}
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="verification_code" className="text-sm font-medium">
+                        Código de Verificação
+                      </Label>
+                      <Input
+                        id="verification_code"
+                        placeholder="000000"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        maxLength={6}
+                        className="text-2xl text-center font-bold tracking-widest"
+                      />
+                      <p className="text-xs text-muted-foreground text-center">
+                        Digite o código de 6 dígitos recebido
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={() => {
+                          setShowVerificationStep(false);
+                          setVerificationCode("");
+                          setPhoneNumbers([]);
+                        }}
+                        variant="outline"
+                        className="flex-1"
+                        disabled={verificationLoading}
+                      >
+                        Voltar
+                      </Button>
+                      <Button 
+                        onClick={handleVerifyCode}
+                        disabled={verificationLoading || verificationCode.length !== 6}
+                        className="flex-1 shadow-elegant hover:shadow-glow transition-all"
+                      >
+                        {verificationLoading ? (
+                          <>
+                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                            Verificando...
+                          </>
+                        ) : (
+                          <>Verificar</>
+                        )}
+                      </Button>
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={buscarDados}
+                      disabled={verificationLoading}
+                    >
+                      Reenviar código
+                    </Button>
+                  </div>
+                </CardContent>
+                <div className="px-6 pb-6 pt-4 border-t border-border/30">
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+                    <img 
+                      src={conquistaLogo} 
+                      alt="Conquista Inovação" 
+                      className="h-5 opacity-60 hover:opacity-100 transition-opacity"
                     />
                   </div>
-                  <Button 
-                    onClick={buscarDados} 
-                    disabled={loading}
-                    className="w-full shadow-elegant hover:shadow-glow transition-all"
-                    size="lg"
+                </div>
+              </Card>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Card className="glass-effect border-primary/20 shadow-elegant">
+                <CardHeader className="text-center pb-6 space-y-6">
+                  {/* Logo dentro do card */}
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2, duration: 0.5 }}
+                    className="flex justify-center"
                   >
-                    {loading ? (
-                      <>
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="mr-2"
-                        >
-                          <BarChart3 className="h-5 w-5" />
-                        </motion.div>
-                        Carregando...
-                      </>
-                    ) : (
-                      <>
-                        <BarChart3 className="h-5 w-5 mr-2" />
-                        Acessar Dashboard
-                      </>
-                    )}
-                  </Button>
+                    <img src={logo} alt="HCC Hospital" className="h-20 w-auto" />
+                  </motion.div>
+
+                  <div>
+                    <CardTitle className="text-2xl gradient-text mb-2">Dashboard Médicos</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Digite seu CPF ou CNPJ para visualizar suas informações
+                    </p>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cpf" className="text-sm font-medium">CPF ou CNPJ</Label>
+                      <Input
+                        id="cpf"
+                        placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                        value={cpf}
+                        onChange={handleCPFChange}
+                        maxLength={18}
+                        className="text-lg text-center font-semibold"
+                      />
+                    </div>
+                    <Button 
+                      onClick={buscarDados} 
+                      disabled={loading}
+                      className="w-full shadow-elegant hover:shadow-glow transition-all"
+                      size="lg"
+                    >
+                      {loading ? (
+                        <>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="mr-2"
+                          >
+                            <BarChart3 className="h-5 w-5" />
+                          </motion.div>
+                          Carregando...
+                        </>
+                      ) : (
+                        <>
+                          <BarChart3 className="h-5 w-5 mr-2" />
+                          Acessar Dashboard
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+                <div className="px-6 pb-6 pt-4 border-t border-border/30">
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-xs text-muted-foreground">Desenvolvido por</span>
+                    <img 
+                      src={conquistaLogo} 
+                      alt="Conquista Inovação" 
+                      className="h-5 opacity-60 hover:opacity-100 transition-opacity"
+                    />
+                  </div>
                 </div>
-              </CardContent>
-              <div className="px-6 pb-6 pt-4 border-t border-border/30">
-                <div className="flex items-center justify-center gap-3">
-                  <span className="text-xs text-muted-foreground">Desenvolvido por</span>
-                  <img 
-                    src={conquistaLogo} 
-                    alt="Conquista Inovação" 
-                    className="h-5 opacity-60 hover:opacity-100 transition-opacity"
-                  />
-                </div>
-              </div>
-            </Card>
-          </motion.div>
+              </Card>
+            </motion.div>
+          )}
         </div>
       </div>
     );

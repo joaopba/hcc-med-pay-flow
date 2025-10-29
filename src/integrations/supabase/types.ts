@@ -165,6 +165,9 @@ export type Database = {
           text_api_key: string | null
           text_api_url: string | null
           updated_at: string
+          verificacao_medico_duracao_sessao_horas: number | null
+          verificacao_medico_habilitada: boolean | null
+          verificacao_medico_template_nome: string | null
           webhook_url: string | null
         }
         Insert: {
@@ -202,6 +205,9 @@ export type Database = {
           text_api_key?: string | null
           text_api_url?: string | null
           updated_at?: string
+          verificacao_medico_duracao_sessao_horas?: number | null
+          verificacao_medico_habilitada?: boolean | null
+          verificacao_medico_template_nome?: string | null
           webhook_url?: string | null
         }
         Update: {
@@ -239,6 +245,9 @@ export type Database = {
           text_api_key?: string | null
           text_api_url?: string | null
           updated_at?: string
+          verificacao_medico_duracao_sessao_horas?: number | null
+          verificacao_medico_habilitada?: boolean | null
+          verificacao_medico_template_nome?: string | null
           webhook_url?: string | null
         }
         Relationships: [
@@ -630,6 +639,73 @@ export type Database = {
           },
         ]
       }
+      sessoes_medico: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          medico_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          medico_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          medico_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessoes_medico_medico_id_fkey"
+            columns: ["medico_id"]
+            isOneToOne: false
+            referencedRelation: "medicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verificacao_medico: {
+        Row: {
+          codigo: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          medico_id: string
+          verificado: boolean | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          medico_id: string
+          verificado?: boolean | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          medico_id?: string
+          verificado?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verificacao_medico_medico_id_fkey"
+            columns: ["medico_id"]
+            isOneToOne: false
+            referencedRelation: "medicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_debug_logs: {
         Row: {
           content_type: string | null
@@ -750,6 +826,7 @@ export type Database = {
     }
     Functions: {
       check_whatsapp_rate_limit: { Args: never; Returns: boolean }
+      cleanup_expired_verification: { Args: never; Returns: undefined }
       cleanup_old_whatsapp_queue: { Args: never; Returns: undefined }
       get_user_empresa_id: { Args: never; Returns: string }
       increment_whatsapp_rate_limit: { Args: never; Returns: undefined }

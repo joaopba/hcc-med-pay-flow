@@ -28,6 +28,9 @@ interface Configuracao {
   dashboard_medicos_manutencao: boolean;
   dashboard_medicos_mensagem_manutencao: string;
   dashboard_medicos_previsao_retorno: string;
+  verificacao_medico_habilitada: boolean;
+  verificacao_medico_template_nome: string;
+  verificacao_medico_duracao_sessao_horas: number;
 }
 
 export default function Configuracoes() {
@@ -80,6 +83,9 @@ export default function Configuracoes() {
         dashboard_medicos_manutencao: false,
         dashboard_medicos_mensagem_manutencao: "Dashboard em manutenção. Por favor, tente novamente mais tarde.",
         dashboard_medicos_previsao_retorno: "",
+        verificacao_medico_habilitada: false,
+        verificacao_medico_template_nome: "verificamedico",
+        verificacao_medico_duracao_sessao_horas: 24,
       });
     } finally {
       setLoading(false);
@@ -108,6 +114,9 @@ export default function Configuracoes() {
             dashboard_medicos_manutencao: config.dashboard_medicos_manutencao,
             dashboard_medicos_mensagem_manutencao: config.dashboard_medicos_mensagem_manutencao,
             dashboard_medicos_previsao_retorno: config.dashboard_medicos_previsao_retorno || null,
+            verificacao_medico_habilitada: config.verificacao_medico_habilitada,
+            verificacao_medico_template_nome: config.verificacao_medico_template_nome,
+            verificacao_medico_duracao_sessao_horas: config.verificacao_medico_duracao_sessao_horas,
           })
           .eq("id", config.id);
 
@@ -130,6 +139,9 @@ export default function Configuracoes() {
             dashboard_medicos_manutencao: config.dashboard_medicos_manutencao || false,
             dashboard_medicos_mensagem_manutencao: config.dashboard_medicos_mensagem_manutencao || "",
             dashboard_medicos_previsao_retorno: config.dashboard_medicos_previsao_retorno || null,
+            verificacao_medico_habilitada: config.verificacao_medico_habilitada || false,
+            verificacao_medico_template_nome: config.verificacao_medico_template_nome || "verificamedico",
+            verificacao_medico_duracao_sessao_horas: config.verificacao_medico_duracao_sessao_horas || 24,
           }])
           .select()
           .single();
@@ -496,6 +508,74 @@ export default function Configuracoes() {
                     Intervalo de lembretes para notas pendentes
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Verificação de Acesso ao Dashboard</CardTitle>
+                <CardDescription>
+                  Configure a verificação por código via WhatsApp para médicos
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Habilitar Verificação</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Exigir código de verificação via WhatsApp ao acessar o dashboard
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.verificacao_medico_habilitada}
+                    onCheckedChange={(checked) =>
+                      setConfig({ ...config, verificacao_medico_habilitada: checked })
+                    }
+                  />
+                </div>
+
+                {config.verificacao_medico_habilitada && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="verificacao_template">
+                        Nome do Template WhatsApp
+                      </Label>
+                      <Input
+                        id="verificacao_template"
+                        value={config.verificacao_medico_template_nome}
+                        onChange={(e) =>
+                          setConfig({ ...config, verificacao_medico_template_nome: e.target.value })
+                        }
+                        placeholder="verificamedico"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        O template deve conter o parâmetro {`{{1}}`} para o código
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="duracao_sessao">
+                        Duração da Sessão (horas)
+                      </Label>
+                      <Input
+                        id="duracao_sessao"
+                        type="number"
+                        min="1"
+                        max="168"
+                        value={config.verificacao_medico_duracao_sessao_horas}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            verificacao_medico_duracao_sessao_horas: parseInt(e.target.value),
+                          })
+                        }
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Tempo até solicitar nova verificação (1-168 horas)
+                      </p>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
