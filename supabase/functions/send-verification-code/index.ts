@@ -108,36 +108,37 @@ serve(async (req) => {
 
     // Enviar código via WhatsApp para TODOS os números
     let enviosSucesso = 0;
+    
+    // Buscar configurações da API (já temos config mas precisamos de api_url e auth_token)
+    const apiUrl = config.api_url + '/template';
+    
     for (const numero of numerosParaEnviar) {
       try {
-        // Payload correto para template Meta/Evolution
+        // Payload no mesmo formato usado para template "nota_hcc"
         const templatePayload = {
           number: numero,
-          options: {
-            delay: 0,
-            presence: 'composing'
-          },
-          template: {
-            name: config.verificacao_medico_template_nome || 'verificamedico',
-            language: {
-              code: 'pt_BR'
-            },
-            components: [
-              {
-                type: 'body',
-                parameters: [
-                  {
-                    type: 'text',
-                    text: codigo
-                  }
-                ]
-              }
-            ]
+          isClosed: false,
+          templateData: {
+            messaging_product: "whatsapp",
+            to: numero,
+            type: "template",
+            template: {
+              name: config.verificacao_medico_template_nome || 'verificamedico',
+              language: { code: "pt_BR" },
+              components: [
+                { 
+                  type: "body", 
+                  parameters: [
+                    { type: "text", text: codigo }
+                  ]
+                }
+              ]
+            }
           }
         };
 
-        // Enviar direto para a mesma API usada pelos templates de nota (sem fila)
-        const apiUrl = (config.api_url?.endsWith('/template') ? config.api_url : `${config.api_url}/template`);
+        console.log(`📤 Enviando código ${codigo} para ${numero}`);
+
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -149,10 +150,11 @@ serve(async (req) => {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`❌ Falha ao enviar para ${numero}:`, errorText);
+          console.error(`❌ Falha ao enviar para ${numero}:`, response.status, errorText);
         } else {
+          const responseData = await response.json();
           enviosSucesso++;
-          console.log(`✅ Código ${codigo} enviado para ${numero}`);
+          console.log(`✅ Código ${codigo} enviado para ${numero}`, responseData);
         }
       } catch (error) {
         console.error(`❌ Erro ao processar envio para ${numero}:`, error);
