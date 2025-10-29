@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.send-daily-reminders]
 verify_jwt = false
+
+[functions.resend-nota-gestores]
+verify_jwt = false

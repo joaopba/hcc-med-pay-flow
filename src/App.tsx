@@ -14,6 +14,7 @@ import Usuarios from "./pages/Usuarios";
 import TesteWhatsApp from "./pages/TesteWhatsApp";
 import TesteEmail from "./pages/TesteEmail";
 import TestWhatsAppMessage from "./pages/TestWhatsAppMessage";
+import TesteReenvioNotas from "./pages/TesteReenvioNotas";
 import UserProfile from "./pages/UserProfile";
 import NotasMedicos from "./pages/NotasMedicos";
 import DashboardMedicos from "./pages/DashboardMedicos";
@@ -76,6 +77,11 @@ const App = () => (
           <Route path="/test-whatsapp-message" element={
             <ProtectedRoute>
               <TestWhatsAppMessage />
+            </ProtectedRoute>
+          } />
+          <Route path="/teste-reenvio-notas" element={
+            <ProtectedRoute>
+              <TesteReenvioNotas />
             </ProtectedRoute>
           } />
           <Route path="/usuarios" element={

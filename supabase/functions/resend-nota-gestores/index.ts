@@ -1,0 +1,202 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+function formatMesCompetencia(mesCompetencia: string): string {
+  const [ano, mes] = mesCompetencia.split('-');
+  const meses = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ];
+  return `${meses[parseInt(mes) - 1]} - ${ano}`;
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { nota_ids }: { nota_ids: string[] } = await req.json();
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    console.log(`📧 Reenviando notificações para ${nota_ids.length} nota(s)`);
+
+    const results = [];
+
+    for (const notaId of nota_ids) {
+      try {
+        // Buscar dados da nota
+        const { data: nota, error: notaError } = await supabase
+          .from('notas_medicos')
+          .select(`
+            id,
+            nome_arquivo,
+            arquivo_url,
+            pagamento_id,
+            pagamentos (
+              id,
+              valor,
+              mes_competencia,
+              medico_id,
+              medicos (
+                nome,
+                especialidade
+              )
+            )
+          `)
+          .eq('id', notaId)
+          .single();
+
+        if (notaError) throw notaError;
+        if (!nota) throw new Error('Nota não encontrada');
+
+        const pagamento = nota.pagamentos as any;
+        const medico = pagamento.medicos;
+
+        // Buscar gestores
+        const { data: gestores } = await supabase
+          .from('profiles')
+          .select('numero_whatsapp, name')
+          .eq('role', 'gestor')
+          .not('numero_whatsapp', 'is', null);
+
+        if (!gestores || gestores.length === 0) {
+          throw new Error('Nenhum gestor com WhatsApp encontrado');
+        }
+
+        console.log(`📱 Enviando para ${gestores.length} gestor(es)`);
+
+        // Baixar PDF - remover 'medicos/' se presente
+        let filePath = nota.arquivo_url;
+        if (filePath.startsWith('medicos/')) {
+          filePath = filePath.replace('medicos/', '');
+        }
+        console.log(`📥 Baixando PDF: ${filePath}`);
+        
+        const { data: pdfData, error: pdfError } = await supabase.storage
+          .from('notas')
+          .download(filePath);
+
+        if (pdfError) {
+          console.error('❌ Erro ao baixar PDF:', pdfError);
+          throw pdfError;
+        }
+
+        // Converter PDF para base64
+        const arrayBuffer = await pdfData.arrayBuffer();
+        const pdfBase64 = btoa(
+          new Uint8Array(arrayBuffer)
+            .reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+
+        console.log(`✅ PDF convertido: ${pdfBase64.length} chars`);
+
+        // Preparar mensagem
+        const mesFormatado = formatMesCompetencia(pagamento.mes_competencia);
+        const valorFormatado = new Intl.NumberFormat('pt-BR', { 
+          style: 'currency', 
+          currency: 'BRL' 
+        }).format(pagamento.valor);
+
+        const especialidadeInfo = medico.especialidade ? `\n🩺 *Especialidade:* ${medico.especialidade}` : '';
+        const mensagem = `🏥 *Nova Nota Fiscal Recebida - HCC Hospital*\n\n` +
+          `📋 *Médico:* ${medico.nome}${especialidadeInfo}\n` +
+          `📅 *Competência:* ${mesFormatado}\n` +
+          `💰 *Valor:* ${valorFormatado}\n` +
+          `📄 *Arquivo:* ${nota.nome_arquivo}\n\n` +
+          `⚠️ *Aguardando aprovação*\n\n` +
+          `🔗 Acesse o portal para aprovar/rejeitar:\n` +
+          `https://hcc.chatconquista.com/pagamentos`;
+
+        // Enviar para cada gestor
+        const gestorResults = [];
+        for (const gestor of gestores) {
+          try {
+            console.log(`📤 Enviando para ${gestor.name} (${gestor.numero_whatsapp})`);
+            
+            const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-notification-gestores', {
+              body: {
+                phoneNumber: gestor.numero_whatsapp,
+                message: mensagem,
+                pdf_base64: pdfBase64,
+                pdf_filename: nota.nome_arquivo
+              }
+            });
+
+            console.log('Resultado do envio:', { sendResult, sendError });
+
+            if (sendError) {
+              console.error(`❌ Erro ao enviar para ${gestor.name}:`, sendError);
+              gestorResults.push({
+                gestor: gestor.name,
+                success: false,
+                error: sendError?.message || String(sendError)
+              });
+            } else {
+              console.log(`✅ Enviado para ${gestor.name}`);
+              gestorResults.push({
+                gestor: gestor.name,
+                success: true,
+                data: sendResult
+              });
+            }
+          } catch (gestorError: any) {
+            console.error(`❌ Exceção ao enviar para gestor ${gestor.name}:`, gestorError);
+            gestorResults.push({
+              gestor: gestor.name,
+              success: false,
+              error: gestorError?.message || String(gestorError)
+            });
+          }
+        }
+
+        results.push({
+          nota_id: notaId,
+          medico: medico.nome,
+          arquivo: nota.nome_arquivo,
+          gestores: gestorResults
+        });
+
+      } catch (notaError: any) {
+        console.error(`❌ Erro ao processar nota ${notaId}:`, notaError);
+        results.push({
+          nota_id: notaId,
+          success: false,
+          error: notaError?.message || String(notaError)
+        });
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Notificações reenviadas para ${nota_ids.length} nota(s)`,
+      results
+    }), {
+      headers: { 
+        'Content-Type': 'application/json',
+        ...corsHeaders 
+      },
+    });
+
+  } catch (error: any) {
+    console.error('❌ Erro geral:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      status: 500,
+      headers: { 
+        'Content-Type': 'application/json',
+        ...corsHeaders 
+      },
+    });
+  }
+});
