@@ -137,30 +137,39 @@ serve(async (req) => {
         switch (type) {
           case 'nota':
             console.log('[Background] Enviando template nota_hcc com botão');
-            // Formato Evolution API para template com botão
+            // Formato do Postman personalizado
             payload = {
               number: phoneNumber,
-              templateMessage: {
-                name: "nota_hcc",
-                language: "pt_BR",
-                components: [
-                  {
-                    type: "body",
-                    parameters: [
-                      { type: "text", text: nome },
-                      { type: "text", text: valor },
-                      { type: "text", text: formatMesCompetencia(competencia || '') }
-                    ]
+              isClosed: false,
+              externalKey: `nota_${pagamentoId || 'temp'}_${Date.now()}`,
+              templateData: {
+                messaging_product: "whatsapp",
+                to: phoneNumber,
+                type: "template",
+                template: {
+                  name: "nota_hcc",
+                  language: {
+                    code: "pt_BR"
                   },
-                  {
-                    type: "button",
-                    sub_type: "quick_reply",
-                    index: "0",
-                    parameters: [
-                      { type: "payload", payload: "Encaminhar Nota" }
-                    ]
-                  }
-                ]
+                  components: [
+                    {
+                      type: "body",
+                      parameters: [
+                        { type: "text", text: nome },
+                        { type: "text", text: valor },
+                        { type: "text", text: formatMesCompetencia(competencia || '') }
+                      ]
+                    },
+                    {
+                      type: "button",
+                      sub_type: "quick_reply",
+                      index: "0",
+                      parameters: [
+                        { type: "payload", payload: "Encaminhar Nota" }
+                      ]
+                    }
+                  ]
+                }
               }
             };
             break;
@@ -171,30 +180,39 @@ serve(async (req) => {
               ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)
               : valor;
             
-            // Formato Evolution API para template com botão
+            // Formato do Postman personalizado
             payload = {
               number: phoneNumber,
-              templateMessage: {
-                name: "nota_pendente",
-                language: "pt_BR",
-                components: [
-                  {
-                    type: "body",
-                    parameters: [
-                      { type: "text", text: medico?.nome || nome },
-                      { type: "text", text: valorFormatado },
-                      { type: "text", text: formatMesCompetencia(competencia || '') }
-                    ]
+              isClosed: false,
+              externalKey: `nota_pendente_${pagamentoId || 'temp'}_${Date.now()}`,
+              templateData: {
+                messaging_product: "whatsapp",
+                to: phoneNumber,
+                type: "template",
+                template: {
+                  name: "nota_pendente",
+                  language: {
+                    code: "pt_BR"
                   },
-                  {
-                    type: "button",
-                    sub_type: "quick_reply",
-                    index: "0",
-                    parameters: [
-                      { type: "payload", payload: "Encaminhar Nota" }
-                    ]
-                  }
-                ]
+                  components: [
+                    {
+                      type: "body",
+                      parameters: [
+                        { type: "text", text: medico?.nome || nome },
+                        { type: "text", text: valorFormatado },
+                        { type: "text", text: formatMesCompetencia(competencia || '') }
+                      ]
+                    },
+                    {
+                      type: "button",
+                      sub_type: "quick_reply",
+                      index: "0",
+                      parameters: [
+                        { type: "payload", payload: "Encaminhar Nota" }
+                      ]
+                    }
+                  ]
+                }
               }
             };
             break;
