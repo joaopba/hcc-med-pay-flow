@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface RequestBody { cpf?: string; medicoId?: string }
+interface RequestBody { cpf?: string; medicoId?: string; token?: string }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { cpf, medicoId }: RequestBody = await req.json();
+    const { cpf, medicoId, token }: RequestBody = await req.json();
     if (!cpf && !medicoId) {
       return new Response(JSON.stringify({ error: 'CPF ou medicoId é obrigatório' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
@@ -52,6 +52,42 @@ serve(async (req) => {
     }
     if (!medico) {
       return new Response(JSON.stringify({ medico: null }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    }
+
+    // Enforce session validation when verification is enabled for the doctor's company
+    const { data: config } = await supabase
+      .from('configuracoes')
+      .select('verificacao_medico_habilitada')
+      .eq('empresa_id', medico.empresa_id)
+      .single();
+
+    if (config?.verificacao_medico_habilitada) {
+      const authHeader = req.headers.get('authorization') || '';
+      const headerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : undefined;
+      const providedToken = token || headerToken;
+
+      if (!providedToken) {
+        return new Response(
+          JSON.stringify({ error: 'Sessão requerida', code: 'SESSION_REQUIRED' }),
+          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+
+      const { data: sessao, error: sessaoError } = await supabase
+        .from('sessoes_medico')
+        .select('id')
+        .eq('token', providedToken)
+        .eq('medico_id', medico.id)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (sessaoError) throw sessaoError;
+      if (!sessao) {
+        return new Response(
+          JSON.stringify({ error: 'Sessão inválida ou expirada', code: 'INVALID_SESSION' }),
+          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
     }
 
     // Pagamentos do médico com notas associadas - SEGURANÇA REFORÇADA

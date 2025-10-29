@@ -589,7 +589,7 @@ export default function DashboardMedicos() {
   const loadMedicoDataById = async (medicoId: string) => {
     try {
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
-        body: { medicoId }
+        body: { medicoId, token: sessionToken || localStorage.getItem('medico_session_token') }
       });
 
       if (fnError || !result?.medico) {
@@ -620,7 +620,7 @@ export default function DashboardMedicos() {
   const loadMedicoData = async (cpfNumeros: string) => {
     try {
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
-        body: { cpf: cpfNumeros }
+        body: { cpf: cpfNumeros, token: sessionToken || localStorage.getItem('medico_session_token') }
       });
 
       if (fnError || !result?.medico) {
