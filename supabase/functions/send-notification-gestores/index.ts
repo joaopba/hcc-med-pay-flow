@@ -1,11 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { decode as decodeBase64 } from "https://deno.land/std@0.190.0/encoding/base64.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const GESTOR_API_URL = 'https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de';
+const GESTOR_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU';
 
 interface GestorRequest {
   phoneNumber: string;
@@ -15,7 +17,7 @@ interface GestorRequest {
 }
 
 serve(async (req) => {
-  // Versão: 2025-10-29-16:20
+  // Versão: 2025-10-29-16:27-FORCE
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -24,24 +26,6 @@ serve(async (req) => {
     const { phoneNumber, message, pdf_base64, pdf_filename }: GestorRequest = await req.json();
 
     console.log('📧 Enviando notificação para gestor:', phoneNumber);
-
-    // Buscar configurações do banco
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: config, error: configError } = await supabase
-      .from('configuracoes')
-      .select('api_url, auth_token')
-      .limit(1)
-      .single();
-
-    if (configError || !config) {
-      console.error('❌ Erro ao buscar configurações:', configError);
-      throw new Error('Configurações não encontradas');
-    }
-
-    console.log('✅ Usando API:', config.api_url);
 
     // Montar multipart/form-data conforme cURL do cliente
     const form = new FormData();
@@ -74,11 +58,11 @@ serve(async (req) => {
 
     console.log('📤 Enviando multipart/form-data para API dos gestores...');
 
-    const response = await fetch(config.api_url, {
+    const response = await fetch(GESTOR_API_URL, {
       method: 'POST',
       headers: {
         // NÃO defina Content-Type manualmente; o fetch define o boundary automaticamente
-        'Authorization': `Bearer ${config.auth_token}`
+        'Authorization': `Bearer ${GESTOR_AUTH_TOKEN}`
       },
       body: form
     });
