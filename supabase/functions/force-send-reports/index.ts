@@ -91,20 +91,33 @@ serve(async (req) => {
         mensagem += `\n⚠️ *Ação Necessária:* Acesse o sistema para processar as pendências.\n`;
         mensagem += `\n_Relatório gerado automaticamente pelo sistema_`;
 
-        // Enviar via WhatsApp
-        const { error: invokeError } = await supabase.functions.invoke('send-notification', {
-          body: {
-            phoneNumber: gestor.numero_whatsapp,
-            message: mensagem
-          }
-        });
+        // Enviar via WhatsApp diretamente para a API
+        try {
+          const response = await fetch(`${config.api_url}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${config.auth_token}`
+            },
+            body: JSON.stringify({
+              number: gestor.numero_whatsapp,
+              body: mensagem,
+              externalKey: `relatorio_diario_${gestor.id}_${Date.now()}`,
+              isClosed: false
+            })
+          });
 
-        if (invokeError) {
-          console.error(`❌ Erro ao enviar para ${gestor.name}:`, invokeError);
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`❌ Erro ao enviar para ${gestor.name}:`, errorText);
+            erros++;
+          } else {
+            console.log(`✅ Relatório enviado para ${gestor.name} (${gestor.numero_whatsapp})`);
+            enviosRealizados++;
+          }
+        } catch (fetchError) {
+          console.error(`❌ Erro ao enviar para ${gestor.name}:`, fetchError);
           erros++;
-        } else {
-          console.log(`✅ Relatório enviado para ${gestor.name} (${gestor.numero_whatsapp})`);
-          enviosRealizados++;
         }
 
         // Aguardar 2 segundos entre envios para não sobrecarregar
