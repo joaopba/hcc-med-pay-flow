@@ -41,8 +41,10 @@ serve(async (req) => {
         valor,
         data_solicitacao,
         medicos (
+          id,
           nome,
           numero_whatsapp,
+          numero_whatsapp_contador,
           ativo
         )
       `)
@@ -180,7 +182,7 @@ serve(async (req) => {
                 nome: medico.nome,
                 numero_whatsapp: medico.numero_whatsapp
               },
-              medico_id: medico.id,
+              medico_id: pagamento.medico_id,
               competencia: competenciaFormatada,
               valor: pagamento.valor,
               pagamentoId: pagamento.id

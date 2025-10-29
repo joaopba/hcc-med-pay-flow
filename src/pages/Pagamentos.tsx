@@ -335,7 +335,7 @@ export default function Pagamentos() {
           return null;
         }
         
-        // Enviar WhatsApp
+        // Enviar WhatsApp (para médico e contador se houver)
         const whatsappPromise = supabase.functions.invoke('send-whatsapp-template', {
           body: {
             type: 'nota',
@@ -343,7 +343,8 @@ export default function Pagamentos() {
             nome: pagamento.medicos.nome,
             valor: pagamento.valor.toString(),
             competencia: pagamento.mes_competencia,
-            pagamentoId: pagamento.id
+            pagamentoId: pagamento.id,
+            medico_id: pagamento.medico_id
           }
         });
 
