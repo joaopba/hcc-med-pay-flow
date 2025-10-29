@@ -178,12 +178,13 @@ export default function DashboardMedicos() {
   // Verificar se há sessão ativa ao carregar e buscar dados automaticamente
   useEffect(() => {
     const savedToken = localStorage.getItem('medico_session_token');
-    if (savedToken) {
-      validateAndLoadSession(savedToken);
+    const savedCpf = localStorage.getItem('medico_validated_cpf');
+    if (savedToken && savedCpf) {
+      validateAndLoadSession(savedToken, savedCpf);
     }
   }, []);
 
-  const validateAndLoadSession = async (token: string) => {
+  const validateAndLoadSession = async (token: string, cpfValidado: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('validate-medico-session', {
         body: { token }
@@ -191,19 +192,20 @@ export default function DashboardMedicos() {
 
       if (error || !data?.valid) {
         localStorage.removeItem('medico_session_token');
+        localStorage.removeItem('medico_validated_cpf');
         setSessionToken(null);
         return false;
       }
 
-      // Se há sessão válida, carregar dados do médico automaticamente
+      // Se há sessão válida, carregar dados do médico automaticamente usando CPF validado
       setSessionToken(token);
-      if (data.medicoId) {
-        await loadMedicoDataById(data.medicoId);
-      }
+      setCpf(formatCPF(cpfValidado));
+      await loadMedicoData(cpfValidado);
       return true;
     } catch (error) {
       console.error('Erro ao validar sessão:', error);
       localStorage.removeItem('medico_session_token');
+      localStorage.removeItem('medico_validated_cpf');
       return false;
     }
   };
@@ -216,6 +218,7 @@ export default function DashboardMedicos() {
 
       if (error || !data?.valid) {
         localStorage.removeItem('medico_session_token');
+        localStorage.removeItem('medico_validated_cpf');
         setSessionToken(null);
         return false;
       }
@@ -225,6 +228,7 @@ export default function DashboardMedicos() {
     } catch (error) {
       console.error('Erro ao validar sessão:', error);
       localStorage.removeItem('medico_session_token');
+      localStorage.removeItem('medico_validated_cpf');
       return false;
     }
   };
@@ -370,12 +374,19 @@ export default function DashboardMedicos() {
     try {
       const cpfNumeros = cpf.replace(/\D/g, '');
 
-      // Verificar se há sessão ativa
+      // Verificar se há sessão ativa E CPF validado
       const savedToken = localStorage.getItem('medico_session_token');
-      if (savedToken) {
+      const savedCpf = localStorage.getItem('medico_validated_cpf');
+      
+      // Se tem token mas o CPF é diferente do salvo, limpar sessão e iniciar nova validação
+      if (savedToken && savedCpf && savedCpf !== cpfNumeros) {
+        localStorage.removeItem('medico_session_token');
+        localStorage.removeItem('medico_validated_cpf');
+        setSessionToken(null);
+      } else if (savedToken && savedCpf === cpfNumeros) {
         const isValid = await validateSession(savedToken);
         if (isValid) {
-          // Sessão válida, buscar dados direto
+          // Sessão válida, buscar dados direto com o CPF validado
           await loadMedicoData(cpfNumeros);
           return;
         }
@@ -470,8 +481,9 @@ export default function DashboardMedicos() {
         return;
       }
 
-      // Salvar token da sessão
+      // Salvar token E CPF validado da sessão
       localStorage.setItem('medico_session_token', data.token);
+      localStorage.setItem('medico_validated_cpf', cpfNumeros);
       setSessionToken(data.token);
       setShowVerificationStep(false);
       setVerificationCode("");
@@ -593,8 +605,9 @@ export default function DashboardMedicos() {
       });
 
       if (fnError || !result?.medico) {
-        // Se falhar, limpar sessão e pedir login novamente
+        // Se falhar, limpar sessão e CPF validado
         localStorage.removeItem('medico_session_token');
+        localStorage.removeItem('medico_validated_cpf');
         setSessionToken(null);
         return;
       }
@@ -613,6 +626,7 @@ export default function DashboardMedicos() {
     } catch (error: any) {
       console.error("Erro ao buscar dados do médico:", error);
       localStorage.removeItem('medico_session_token');
+      localStorage.removeItem('medico_validated_cpf');
       setSessionToken(null);
     }
   };
@@ -623,7 +637,35 @@ export default function DashboardMedicos() {
         body: { cpf: cpfNumeros, token: sessionToken || localStorage.getItem('medico_session_token') }
       });
 
-      if (fnError || !result?.medico) {
+      // Tratar erros de validação de sessão
+      if (fnError || result?.error) {
+        const errorCode = result?.code;
+        
+        if (errorCode === 'VALIDATION_REQUIRED' || errorCode === 'SESSION_REQUIRED' || errorCode === 'INVALID_SESSION') {
+          // Limpar sessão e exigir nova validação
+          localStorage.removeItem('medico_session_token');
+          localStorage.removeItem('medico_validated_cpf');
+          setSessionToken(null);
+          setMedico(null);
+          setShowDashboard(false);
+          
+          toast({
+            title: "Sessão expirada",
+            description: "Por favor, faça login novamente",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        toast({
+          title: "CPF/CNPJ não encontrado",
+          description: "Não encontramos um médico ativo com este CPF/CNPJ",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!result?.medico) {
         toast({
           title: "CPF/CNPJ não encontrado",
           description: "Não encontramos um médico ativo com este CPF/CNPJ",

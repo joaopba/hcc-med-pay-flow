@@ -61,15 +61,33 @@ serve(async (req) => {
       .eq('empresa_id', medico.empresa_id)
       .single();
 
-    // Only enforce token validation when:
-    // 1. Verification is enabled
-    // 2. NOT using CPF (initial lookup) - allow CPF lookup to send verification code
-    // 3. Using medicoId (session-based) OR token was explicitly provided
-    const shouldValidateToken = config?.verificacao_medico_habilitada && 
-                                 !cpf && 
-                                 (medicoId || token);
+    // VALIDAÇÃO POR CPF/CNPJ: verificar se existe sessão válida
+    if (config?.verificacao_medico_habilitada && cpf) {
+      // Buscar sessão válida (não expirada) para este médico
+      const { data: sessaoValida, error: sessaoError } = await supabase
+        .from('sessoes_medico')
+        .select('id, expires_at')
+        .eq('medico_id', medico.id)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (shouldValidateToken) {
+      if (sessaoError) throw sessaoError;
+
+      // Se não existe sessão válida, exige validação
+      if (!sessaoValida) {
+        return new Response(
+          JSON.stringify({ error: 'Validação necessária', code: 'VALIDATION_REQUIRED' }),
+          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+
+      console.log(`Sessão válida encontrada para médico ${medico.nome} até ${sessaoValida.expires_at}`);
+    }
+
+    // VALIDAÇÃO POR TOKEN: quando usa medicoId ou token explícito
+    if (config?.verificacao_medico_habilitada && !cpf && (medicoId || token)) {
       const authHeader = req.headers.get('authorization') || '';
       const headerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : undefined;
       const providedToken = token || headerToken;
