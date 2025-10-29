@@ -6,9 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TEXT_API_URL = 'https://auto.hcchospital.com.br/message/sendText/inovação';
-const MEDIA_API_URL = 'https://auto.hcchospital.com.br/message/sendMedia/inovação';
-const API_KEY = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
+// API para gestores - envia PDF com links de aprovar/rejeitar
+const GESTORES_API_URL = 'https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de';
+const GESTORES_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU';
 
 interface GestorRequest {
   phoneNumber: string;
@@ -27,31 +27,26 @@ serve(async (req) => {
 
     console.log('📧 Enviando notificação para gestor:', phoneNumber);
 
-    let apiUrl = TEXT_API_URL;
-    let payload: any;
+    // Gestores sempre recebem via nova API com token Bearer
+    const payload: any = {
+      number: phoneNumber,
+    };
 
     if (pdf_base64 && pdf_filename) {
       console.log(`📎 Enviando com PDF: ${pdf_filename}`);
-      apiUrl = MEDIA_API_URL;
-      payload = {
-        number: phoneNumber,
-        caption: message,
-        mediaBase64: pdf_base64,
-        filename: pdf_filename
-      };
+      payload.caption = message;
+      payload.mediaBase64 = pdf_base64;
+      payload.filename = pdf_filename;
     } else {
       console.log('📤 Enviando mensagem de texto');
-      payload = {
-        number: phoneNumber,
-        text: message
-      };
+      payload.text = message;
     }
 
-    const response = await fetch(apiUrl, {
+    const response = await fetch(GESTORES_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': API_KEY
+        'Authorization': `Bearer ${GESTORES_TOKEN}`
       },
       body: JSON.stringify(payload)
     });

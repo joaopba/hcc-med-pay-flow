@@ -142,10 +142,9 @@ serve(async (req) => {
           throw new Error('Configurações não encontradas');
         }
 
-        // APIs atualizadas
-        const TEXT_API_URL = 'https://auto.hcchospital.com.br/message/sendText/inovação';
-        const MEDIA_API_URL = 'https://auto.hcchospital.com.br/message/sendMedia/inovação';
-        const API_KEY = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
+        // API para médicos (templates e webhook)
+        const MEDICOS_API_URL = 'https://api.hcchospital.com.br/v2/api/external/569d53c5-b3e8-44bc-a475-d495e046d35e';
+        const MEDICOS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MywicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjoyLCJpYXQiOjE3NjAwNzQ4NTQsImV4cCI6MTgyMzE0Njg1NH0.b8ZkiTar8EHPGRS6pRjZYszjcyv3ac1QE2CFtQ0E2rM';
 
         // Enviar mensagem de solicitação com vídeo anexado
         const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
@@ -161,11 +160,11 @@ serve(async (req) => {
 
         console.log('Enviando mensagem de solicitação com vídeo via botão');
 
-        const messageResponse = await fetch(MEDIA_API_URL, {
+        const messageResponse = await fetch(MEDICOS_API_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': API_KEY
+            'Authorization': `Bearer ${MEDICOS_TOKEN}`
           },
           body: JSON.stringify(payload)
         });
@@ -296,10 +295,9 @@ serve(async (req) => {
           throw new Error('Configurações não encontradas');
         }
 
-        // APIs atualizadas
-        const TEXT_API_URL = 'https://auto.hcchospital.com.br/message/sendText/inovação';
-        const MEDIA_API_URL = 'https://auto.hcchospital.com.br/message/sendMedia/inovação';
-        const API_KEY = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
+        // API para médicos (templates e webhook)
+        const MEDICOS_API_URL = 'https://api.hcchospital.com.br/v2/api/external/569d53c5-b3e8-44bc-a475-d495e046d35e';
+        const MEDICOS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MywicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjoyLCJpYXQiOjE3NjAwNzQ4NTQsImV4cCI6MTgyMzE0Njg1NH0.b8ZkiTar8EHPGRS6pRjZYszjcyv3ac1QE2CFtQ0E2rM';
 
         // Enviar mensagem com vídeo anexado
         const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
@@ -317,11 +315,11 @@ serve(async (req) => {
 
         console.log('Enviando mensagem com vídeo anexado');
 
-        const linkResponse = await fetch(MEDIA_API_URL, {
+        const linkResponse = await fetch(MEDICOS_API_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': API_KEY
+            'Authorization': `Bearer ${MEDICOS_TOKEN}`
           },
           body: JSON.stringify(payload)
         });

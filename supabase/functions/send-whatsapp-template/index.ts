@@ -95,20 +95,14 @@ serve(async (req) => {
     const requestData: WhatsAppRequest = await req.json();
     const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero, valorBruto, valorLiquido, valorOriginal, valorNovo, numeroNota } = requestData;
 
-    // Buscar configurações do banco
-    const { data: config } = await supabase
-      .from('configuracoes')
-      .select('meta_api_url, meta_token, meta_phone_number_id, template_nome, text_api_url, text_api_key, media_api_url, media_api_key')
-      .single();
-
-    // Usar configurações do banco ou fallbacks
-    const META_API_URL = config?.meta_api_url || 'https://graph.facebook.com/v21.0/468233466375447/messages';
-    const META_TOKEN = config?.meta_token || 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
-    const TEMPLATE_NOME = config?.template_nome || 'nota_hcc';
-    const TEXT_API_URL = config?.text_api_url || 'https://auto.hcchospital.com.br/message/sendText/inovação';
-    const TEXT_API_KEY = config?.text_api_key || 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
-    const MEDIA_API_URL = config?.media_api_url || 'https://auto.hcchospital.com.br/message/sendMedia/inovação';
-    const MEDIA_API_KEY = config?.media_api_key || 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
+    // API para médicos - templates e respostas webhook
+    const MEDICOS_API_URL = 'https://api.hcchospital.com.br/v2/api/external/569d53c5-b3e8-44bc-a475-d495e046d35e';
+    const MEDICOS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MywicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjoyLCJpYXQiOjE3NjAwNzQ4NTQsImV4cCI6MTgyMzE0Njg1NH0.b8ZkiTar8EHPGRS6pRjZYszjcyv3ac1QE2CFtQ0E2rM';
+    
+    // Meta API para templates oficiais (fora da janela 24h)
+    const META_API_URL = 'https://graph.facebook.com/v21.0/468233466375447/messages';
+    const META_TOKEN = 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
+    const TEMPLATE_NOME = 'nota_hcc';
 
     // Função para processar o envio em background
     async function processarEnvio() {
@@ -124,9 +118,10 @@ serve(async (req) => {
         }
 
         let payload: any;
-        let apiUrl = TEXT_API_URL;
-        let apiKey = TEXT_API_KEY;
+        let apiUrl = MEDICOS_API_URL;
+        let apiKey = MEDICOS_TOKEN;
         let useTemplate = false;
+        let useMeta = false;
 
         // Idempotência: evitar mensagens duplicadas em curto intervalo
         if (pagamentoId) {
@@ -158,8 +153,8 @@ serve(async (req) => {
                 number: phoneNumber,
                 text: message
               };
-              apiUrl = TEXT_API_URL;
-              apiKey = TEXT_API_KEY;
+              apiUrl = MEDICOS_API_URL;
+              apiKey = MEDICOS_TOKEN;
             } else {
               console.log('[Background] Fora da janela de 24h - usando template via Meta API');
               payload = {
@@ -183,7 +178,7 @@ serve(async (req) => {
               };
               apiUrl = META_API_URL;
               apiKey = META_TOKEN;
-              useTemplate = true;
+              useMeta = true;
             }
             break;
           
@@ -215,7 +210,7 @@ serve(async (req) => {
             };
             apiUrl = META_API_URL;
             apiKey = META_TOKEN;
-            useTemplate = true;
+            useMeta = true;
             break;
           
           case 'pagamento':
@@ -228,8 +223,8 @@ serve(async (req) => {
                 number: phoneNumber,
                 text: message
               };
-              apiUrl = TEXT_API_URL;
-              apiKey = TEXT_API_KEY;
+              apiUrl = MEDICOS_API_URL;
+              apiKey = MEDICOS_TOKEN;
             } else {
               console.log('[Background] Fora da janela de 24h - usando template "pagamento" via Meta API');
               payload = {
@@ -252,7 +247,7 @@ serve(async (req) => {
               };
               apiUrl = META_API_URL;
               apiKey = META_TOKEN;
-              useTemplate = true;
+              useMeta = true;
             }
             break;
           
@@ -262,27 +257,31 @@ serve(async (req) => {
               number: phoneNumber,
               text: message
             };
-            apiUrl = TEXT_API_URL;
-            apiKey = TEXT_API_KEY;
+            apiUrl = MEDICOS_API_URL;
+            apiKey = MEDICOS_TOKEN;
             break;
           
           case 'nota_aprovacao':
-            phoneNumber = financeiro_numero;
-            const shortAprovar = await shortenUrl(link_aprovar || '');
-            const shortRejeitar = await shortenUrl(link_rejeitar || '');
-            const valorBrutoFormatado = valorBruto ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorBruto) : valor;
-            const valorLiquidoFormatado = valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado';
+            // Enviar para gestores via função dedicada
+            console.log('[Background] Delegando envio para gestores via send-notification-gestores');
             
-            const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}${numeroNota ? `\n🧾 Nº Nota: ${numeroNota}` : ''}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n   ⚠️ *Valor informado pelo médico - VERIFICAR*\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\n⚡ *IMPORTANTE:* Confira se o valor líquido está correto antes de aprovar!\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
-            
-            payload = {
-              number: phoneNumber,
-              caption: caption,
-              mediaBase64: pdf_base64,
-              filename: pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`
-            };
-            apiUrl = MEDIA_API_URL;
-            apiKey = MEDIA_API_KEY;
+            try {
+              const { data: gestorResponse, error: gestorError } = await supabase.functions.invoke('send-notification-gestores', {
+                body: {
+                  phoneNumber: financeiro_numero,
+                  message: `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}${numeroNota ? `\n🧾 Nº Nota: ${numeroNota}` : ''}\n💰 Valor Bruto: ${valorBruto ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorBruto) : valor}\n💵 Valor Líquido: ${valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado'}\n   ⚠️ *Valor informado pelo médico - VERIFICAR*\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\n⚡ *IMPORTANTE:* Confira se o valor líquido está correto antes de aprovar!\n\n✅ Aprovar:\n${await shortenUrl(link_aprovar || '')}\n\n❌ Rejeitar:\n${await shortenUrl(link_rejeitar || '')}`,
+                  pdf_base64,
+                  pdf_filename: pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`
+                }
+              });
+              
+              if (gestorError) throw gestorError;
+              console.log('[Background] Notificação enviada para gestor via edge function');
+              return; // Não continuar com o fluxo normal
+            } catch (error) {
+              console.error('[Background] Erro ao enviar para gestores:', error);
+              throw error;
+            }
             break;
           
           case 'nota_aprovada':
@@ -291,8 +290,8 @@ serve(async (req) => {
               number: phoneNumber,
               text: message
             };
-            apiUrl = TEXT_API_URL;
-            apiKey = TEXT_API_KEY;
+            apiUrl = MEDICOS_API_URL;
+            apiKey = MEDICOS_TOKEN;
             break;
           
           case 'nota_rejeitada':
@@ -301,8 +300,8 @@ serve(async (req) => {
               number: phoneNumber,
               text: message
             };
-            apiUrl = TEXT_API_URL;
-            apiKey = TEXT_API_KEY;
+            apiUrl = MEDICOS_API_URL;
+            apiKey = MEDICOS_TOKEN;
             break;
           
           case 'nova_mensagem_chat':
@@ -313,8 +312,8 @@ serve(async (req) => {
               number: phoneNumber,
               text: message
             };
-            apiUrl = TEXT_API_URL;
-            apiKey = TEXT_API_KEY;
+            apiUrl = MEDICOS_API_URL;
+            apiKey = MEDICOS_TOKEN;
             break;
           
           case 'resposta_financeiro':
@@ -325,8 +324,8 @@ serve(async (req) => {
               number: phoneNumber,
               text: message
             };
-            apiUrl = TEXT_API_URL;
-            apiKey = TEXT_API_KEY;
+            apiUrl = MEDICOS_API_URL;
+            apiKey = MEDICOS_TOKEN;
             break;
           
           case 'valor_ajustado':
@@ -335,8 +334,8 @@ serve(async (req) => {
               number: phoneNumber,
               text: message
             };
-            apiUrl = TEXT_API_URL;
-            apiKey = TEXT_API_KEY;
+            apiUrl = MEDICOS_API_URL;
+            apiKey = MEDICOS_TOKEN;
             break;
           
           default:
@@ -351,10 +350,10 @@ serve(async (req) => {
         };
         
         // Usar cabeçalho correto dependendo da API
-        if (useTemplate) {
+        if (useMeta) {
           headers['Authorization'] = `Bearer ${apiKey}`;
         } else {
-          headers['x-api-key'] = apiKey;
+          headers['Authorization'] = `Bearer ${apiKey}`;
         }
         
         const response = await fetch(apiUrl, {
@@ -393,21 +392,16 @@ serve(async (req) => {
               // Criar payload para contador
               let payloadContador;
               
-              if (useTemplate) {
+              if (useMeta) {
                 payloadContador = { ...payload, to: medicoCompleto.numero_whatsapp_contador };
               } else {
                 payloadContador = { ...payload, number: medicoCompleto.numero_whatsapp_contador };
               }
               
               const headersContador: Record<string, string> = {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
               };
-              
-              if (useTemplate) {
-                headersContador['Authorization'] = `Bearer ${apiKey}`;
-              } else {
-                headersContador['x-api-key'] = apiKey;
-              }
               
               await fetch(apiUrl, {
                 method: 'POST',
