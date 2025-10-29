@@ -120,7 +120,7 @@ export default function DashboardMedicos() {
   const [showInitialAnimation, setShowInitialAnimation] = useState(true);
   const [showVerificationStep, setShowVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
-  const [phoneNumbers, setPhoneNumbers] = useState<string[]>([]);
+  const [phoneNumbers, setPhoneNumbers] = useState<Array<{ numero: string; tipo: string }>>([]);
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const { toast } = useToast();
@@ -394,8 +394,9 @@ export default function DashboardMedicos() {
             setPhoneNumbers(verificationData.telefones || []);
             setShowVerificationStep(true);
             toast({
-              title: "Código enviado",
-              description: `Código de verificação enviado para seus telefones cadastrados`,
+              title: "✅ Código enviado",
+              description: `Código enviado para ${verificationData.totalEnvios || 0} número(s)`,
+              duration: 5000,
             });
             return;
           }
@@ -1051,102 +1052,190 @@ export default function DashboardMedicos() {
             )}
           </AnimatePresence>
 
-          {/* Tela de Verificação de Código */}
+          {/* Tela de Verificação de Código - Design Profissional */}
           {showVerificationStep ? (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+              className="w-full"
             >
-              <Card className="glass-effect border-primary/20 shadow-elegant">
-                <CardHeader className="text-center pb-6 space-y-6">
+              <Card className="glass-effect border-primary/30 shadow-2xl overflow-hidden">
+                {/* Header com gradiente */}
+                <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 border-b border-border/30">
                   <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.2, duration: 0.5 }}
-                    className="flex justify-center"
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="flex flex-col items-center space-y-4"
                   >
-                    <img src={logo} alt="HCC Hospital" className="h-20 w-auto" />
+                    <div className="relative">
+                      <motion.div
+                        animate={{ rotate: [0, 5, -5, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                        className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center shadow-glow"
+                      >
+                        <MessageSquare className="h-10 w-10 text-primary" />
+                      </motion.div>
+                    </div>
+                    
+                    <div className="text-center space-y-2">
+                      <h2 className="text-3xl font-bold gradient-text">Verificação de Segurança</h2>
+                      <p className="text-muted-foreground text-sm max-w-md">
+                        Por segurança, enviamos um código de verificação para seus telefones cadastrados
+                      </p>
+                    </div>
+                  </motion.div>
+                </div>
+
+                <CardContent className="p-8 space-y-6">
+                  {/* Lista de telefones com design moderno */}
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <div className="bg-gradient-to-br from-success/5 to-success/10 rounded-xl p-5 border border-success/20 shadow-sm">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center flex-shrink-0">
+                          <MessageSquare className="h-5 w-5 text-success" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-foreground mb-1">Código enviado para:</h3>
+                          <p className="text-xs text-muted-foreground">Verifique suas mensagens no WhatsApp</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 ml-13">
+                        {phoneNumbers.map((phone, idx) => (
+                          <motion.div
+                            key={idx}
+                            initial={{ x: -20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 + idx * 0.1 }}
+                            className="flex items-center gap-3 p-3 bg-background/50 rounded-lg border border-border/50"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <span className="text-xs font-bold text-primary">
+                                {phone.tipo.charAt(0)}
+                              </span>
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-mono text-sm font-semibold text-foreground">{phone.numero}</p>
+                              <p className="text-xs text-muted-foreground">{phone.tipo}</p>
+                            </div>
+                            <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                              Enviado
+                            </Badge>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
                   </motion.div>
 
-                  <div>
-                    <CardTitle className="text-2xl gradient-text mb-2">Verificação de Segurança</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Digite o código de verificação enviado via WhatsApp
-                    </p>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {/* Números de telefone mascarados */}
-                    <Alert className="bg-primary/5 border-primary/20">
-                      <MessageSquare className="h-4 w-4 text-primary" />
-                      <AlertTitle className="text-sm font-semibold">Código enviado para:</AlertTitle>
-                      <AlertDescription className="text-sm text-muted-foreground mt-2">
-                        {phoneNumbers.map((phone, idx) => (
-                          <div key={idx} className="font-mono">📱 {phone}</div>
-                        ))}
-                      </AlertDescription>
-                    </Alert>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="verification_code" className="text-sm font-medium">
-                        Código de Verificação
-                      </Label>
+                  {/* Input do código com design profissional */}
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="space-y-3"
+                  >
+                    <Label htmlFor="verification_code" className="text-base font-semibold">
+                      Digite o Código de Verificação
+                    </Label>
+                    <div className="relative">
                       <Input
                         id="verification_code"
-                        placeholder="000000"
+                        placeholder="• • • • • •"
                         value={verificationCode}
                         onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                         maxLength={6}
-                        className="text-2xl text-center font-bold tracking-widest"
+                        className="text-3xl text-center font-bold tracking-[1em] h-16 bg-gradient-to-br from-background to-secondary/5 border-2 border-primary/20 focus:border-primary/50 shadow-sm"
+                        autoFocus
                       />
-                      <p className="text-xs text-muted-foreground text-center">
-                        Digite o código de 6 dígitos recebido
-                      </p>
+                      {verificationCode.length === 6 && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="absolute right-4 top-1/2 -translate-y-1/2"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center">
+                            <FileCheck className="h-5 w-5 text-success" />
+                          </div>
+                        </motion.div>
+                      )}
                     </div>
+                    <p className="text-xs text-center text-muted-foreground">
+                      Código de 6 dígitos • Válido por 10 minutos
+                    </p>
+                  </motion.div>
 
-                    <div className="flex gap-3">
-                      <Button 
-                        onClick={() => {
-                          setShowVerificationStep(false);
-                          setVerificationCode("");
-                          setPhoneNumbers([]);
-                        }}
-                        variant="outline"
-                        className="flex-1"
-                        disabled={verificationLoading}
-                      >
-                        Voltar
-                      </Button>
-                      <Button 
-                        onClick={handleVerifyCode}
-                        disabled={verificationLoading || verificationCode.length !== 6}
-                        className="flex-1 shadow-elegant hover:shadow-glow transition-all"
-                      >
-                        {verificationLoading ? (
-                          <>
-                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                            Verificando...
-                          </>
-                        ) : (
-                          <>Verificar</>
-                        )}
-                      </Button>
-                    </div>
+                  {/* Botões de ação */}
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex flex-col sm:flex-row gap-3 pt-2"
+                  >
+                    <Button 
+                      onClick={() => {
+                        setShowVerificationStep(false);
+                        setVerificationCode("");
+                        setPhoneNumbers([]);
+                      }}
+                      variant="outline"
+                      className="flex-1 h-12"
+                      disabled={verificationLoading}
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={handleVerifyCode}
+                      disabled={verificationLoading || verificationCode.length !== 6}
+                      className="flex-1 h-12 shadow-elegant hover:shadow-glow transition-all bg-gradient-to-r from-primary to-primary/80"
+                    >
+                      {verificationLoading ? (
+                        <>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="mr-2"
+                          >
+                            <BarChart3 className="h-5 w-5" />
+                          </motion.div>
+                          Verificando...
+                        </>
+                      ) : (
+                        <>
+                          <FileCheck className="mr-2 h-5 w-5" />
+                          Verificar Código
+                        </>
+                      )}
+                    </Button>
+                  </motion.div>
 
+                  {/* Link para reenviar */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                    className="text-center pt-2"
+                  >
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full text-xs"
+                      className="text-xs text-muted-foreground hover:text-primary"
                       onClick={buscarDados}
                       disabled={verificationLoading}
                     >
-                      Reenviar código
+                      Não recebeu o código? <span className="ml-1 underline">Reenviar</span>
                     </Button>
-                  </div>
+                  </motion.div>
                 </CardContent>
-                <div className="px-6 pb-6 pt-4 border-t border-border/30">
+
+                {/* Footer */}
+                <div className="px-8 pb-6 pt-4 border-t border-border/30 bg-gradient-to-br from-transparent to-secondary/5">
                   <div className="flex items-center justify-center gap-3">
                     <span className="text-xs text-muted-foreground">Desenvolvido por</span>
                     <img 

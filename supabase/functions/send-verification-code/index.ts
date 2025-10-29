@@ -88,20 +88,26 @@ serve(async (req) => {
 
     if (insertError) throw insertError;
 
-    // Preparar números de telefone com mascaramento
+    // Preparar números de telefone com mascaramento (LGPD)
     const telefones = [];
+    const numerosParaEnviar = [];
+    
     if (medico.numero_whatsapp) {
-      const masked = medico.numero_whatsapp.replace(/(\d{2})(\d{5})(\d{4})/, '$1*****$3');
-      telefones.push(masked);
+      const numeroLimpo = medico.numero_whatsapp.replace(/\D/g, '');
+      const masked = numeroLimpo.replace(/(\d{2})(\d{5})(\d{4})/, '($1) *****-$3');
+      telefones.push({ numero: masked, tipo: 'Médico' });
+      numerosParaEnviar.push(numeroLimpo);
     }
+    
     if (medico.numero_whatsapp_contador) {
-      const masked = medico.numero_whatsapp_contador.replace(/(\d{2})(\d{5})(\d{4})/, '$1*****$3');
-      telefones.push(masked);
+      const numeroLimpo = medico.numero_whatsapp_contador.replace(/\D/g, '');
+      const masked = numeroLimpo.replace(/(\d{2})(\d{5})(\d{4})/, '($1) *****-$3');
+      telefones.push({ numero: masked, tipo: 'Contador' });
+      numerosParaEnviar.push(numeroLimpo);
     }
 
-    // Enviar código via WhatsApp para os números do médico
-    const numerosParaEnviar = [medico.numero_whatsapp, medico.numero_whatsapp_contador].filter(Boolean);
-    
+    // Enviar código via WhatsApp para TODOS os números
+    let enviosSucesso = 0;
     for (const numero of numerosParaEnviar) {
       try {
         const payload = {
@@ -113,28 +119,36 @@ serve(async (req) => {
           }
         };
 
-        // Adicionar à fila do WhatsApp
-        await supabase.from('whatsapp_queue').insert({
+        // Adicionar à fila do WhatsApp com prioridade alta
+        const { error: queueError } = await supabase.from('whatsapp_queue').insert({
           numero_destino: numero,
           tipo_mensagem: 'template',
           payload,
-          prioridade: 1,
+          prioridade: 1, // Alta prioridade
           status: 'pendente',
           proximo_envio: new Date().toISOString()
         });
 
-        console.log(`Código de verificação ${codigo} enviado para ${numero}`);
+        if (queueError) {
+          console.error(`Erro ao adicionar à fila para ${numero}:`, queueError);
+        } else {
+          enviosSucesso++;
+          console.log(`✅ Código ${codigo} adicionado à fila para ${numero}`);
+        }
       } catch (error) {
-        console.error(`Erro ao enviar para ${numero}:`, error);
+        console.error(`❌ Erro ao processar envio para ${numero}:`, error);
       }
     }
+
+    console.log(`📱 Total de envios bem-sucedidos: ${enviosSucesso}/${numerosParaEnviar.length}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         verificacaoNecessaria: true,
-        telefones,
-        message: 'Código de verificação enviado' 
+        telefones, // Array com {numero: mascarado, tipo: "Médico/Contador"}
+        totalEnvios: enviosSucesso,
+        message: `Código de verificação enviado para ${enviosSucesso} número(s)` 
       }),
       { headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
