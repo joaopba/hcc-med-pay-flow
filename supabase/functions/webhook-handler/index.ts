@@ -768,7 +768,7 @@ serve(async (req) => {
               // Buscar dados do médico para enviar notificação
               const { data: medicoData } = await supabase
                 .from('medicos')
-                .select('nome, numero_whatsapp')
+                .select('nome, numero_whatsapp, especialidade')
                 .eq('id', pagamento.medico_id)
                 .single();
 
@@ -831,8 +831,8 @@ serve(async (req) => {
                   // Criar tokens no formato correto (mesmo formato das páginas de aprovação/rejeição)
                   const tokenAprovar = btoa(`${insertData.id}-${insertData.created_at}`).substring(0, 20);
                   const tokenRejeitar = btoa(`${insertData.id}-${insertData.created_at}`).substring(0, 20);
-                  const linkAprovar = `https://hcc.chatconquista.com/aprovar?nota=${insertData.id}&token=${tokenAprovar}`;
-                  const linkRejeitar = `https://hcc.chatconquista.com/rejeitar?nota=${insertData.id}&token=${tokenRejeitar}`;
+                  const linkAprovar = `https://hcc.chatconquista.com/aprovar?i=${insertData.id}&t=${tokenAprovar}`;
+                  const linkRejeitar = `https://hcc.chatconquista.com/rejeitar?i=${insertData.id}&t=${tokenRejeitar}`;
 
                   console.log('Links gerados:', { linkAprovar, linkRejeitar });
 
@@ -865,6 +865,16 @@ serve(async (req) => {
 
               // Enviar notificação por email com PDF anexado e botões de ação
               try {
+                // Criar tokens e URLs para email
+                const tokenEmail = btoa(`${insertData.id}-${insertData.created_at}`).substring(0, 20);
+                const approvalUrl = `https://hcc.chatconquista.com/aprovar?i=${insertData.id}&t=${tokenEmail}`;
+                const rejectionUrl = `https://hcc.chatconquista.com/rejeitar?i=${insertData.id}&t=${tokenEmail}`;
+                
+                // Criar URL assinada do PDF
+                const { data: signedUrl } = await supabase.storage
+                  .from('notas')
+                  .createSignedUrl(filePath, 7 * 24 * 60 * 60); // 7 dias
+
                 await supabase.functions.invoke('send-email-notification', {
                   body: {
                     type: 'nova_nota',
@@ -872,12 +882,81 @@ serve(async (req) => {
                     notaId: insertData.id,
                     fileName: filename,
                     valorLiquido: valorLiquido,
-                    pdfPath: filePath
+                    pdfPath: filePath,
+                    pdfSignedUrl: signedUrl?.signedUrl,
+                    approvalUrl: approvalUrl,
+                    rejectionUrl: rejectionUrl,
+                    medicoNome: medicoData?.nome,
+                    medicoEspecialidade: medicoData?.especialidade || '',
+                    mes_competencia: pagamento.mes_competencia,
+                    valor: pagamento.valor
                   }
                 });
                 console.log('Email de notificação enviado com PDF anexado e botões de ação');
               } catch (emailError) {
                 console.warn('Erro ao enviar notificação por email:', emailError);
+              }
+
+              // Enviar WhatsApp para gestores com PDF anexado
+              if (medicoData) {
+                try {
+                  const { data: gestores } = await supabase
+                    .from('profiles')
+                    .select('numero_whatsapp, name')
+                    .eq('role', 'gestor')
+                    .not('numero_whatsapp', 'is', null);
+
+                  if (gestores && gestores.length > 0) {
+                    console.log(`Enviando WhatsApp para ${gestores.length} gestor(es) com PDF`);
+
+                    const mesFormatado = formatMesCompetencia(pagamento.mes_competencia);
+                    const valorFormatado = new Intl.NumberFormat('pt-BR', { 
+                      style: 'currency', 
+                      currency: 'BRL' 
+                    }).format(pagamento.valor);
+
+                    // Baixar o PDF para enviar aos gestores
+                    const { data: pdfDataGestor } = await supabase.storage
+                      .from('notas')
+                      .download(filePath);
+
+                    let pdfBase64 = '';
+                    if (pdfDataGestor) {
+                      const arrayBuffer = await pdfDataGestor.arrayBuffer();
+                      pdfBase64 = btoa(
+                        new Uint8Array(arrayBuffer)
+                          .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                      );
+                    }
+
+                    const mensagem = `🏥 *Nova Nota Fiscal Recebida - HCC Hospital*\n\n` +
+                      `📋 *Médico:* ${medicoData.nome}\n` +
+                      `📅 *Competência:* ${mesFormatado}\n` +
+                      `💰 *Valor:* ${valorFormatado}\n` +
+                      `📄 *Arquivo:* ${filename}\n\n` +
+                      `⚠️ *Aguardando aprovação*\n\n` +
+                      `🔗 Acesse o portal para aprovar/rejeitar:\n` +
+                      `https://hcc.chatconquista.com/pagamentos`;
+
+                    for (const gestor of gestores) {
+                      try {
+                        await supabase.functions.invoke('send-notification-gestores', {
+                          body: {
+                            phoneNumber: gestor.numero_whatsapp,
+                            message: mensagem,
+                            pdf_base64: pdfBase64,
+                            pdf_filename: filename
+                          }
+                        });
+                        console.log(`WhatsApp com PDF enviado para gestor ${gestor.name}`);
+                      } catch (gestorError) {
+                        console.warn(`Erro ao enviar WhatsApp para gestor ${gestor.name}:`, gestorError);
+                      }
+                    }
+                  }
+                } catch (whatsappError) {
+                  console.warn('Erro ao enviar notificações WhatsApp para gestores:', whatsappError);
+                }
               }
 
               return new Response(JSON.stringify({

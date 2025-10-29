@@ -140,6 +140,7 @@ serve(async (req) => {
       console.error('Erro ao buscar pagamentos aprovados:', pagamentosError);
     }
 
+    // Buscar pagamentos que não tem solicitação de nota (status 'pendente')
     const { data: pagamentosPendentes, error: pagamentosPendentesError } = await supabase
       .from('pagamentos')
       .select(`
@@ -166,27 +167,30 @@ serve(async (req) => {
 
     for (const gestor of gestores) {
       try {
+        const relatorios = [];
+        
+        // Verificar se há notas pendentes
         if (notasPendentes && notasPendentes.length > 0) {
-          const mensagemNotas = gerarRelatorioNotasPendentes(notasPendentes, gestor.name);
-          await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemNotas);
-          console.log(`Relatório de notas pendentes enviado para ${gestor.name}`);
+          relatorios.push(gerarRelatorioNotasPendentes(notasPendentes, gestor.name));
         }
 
+        // Verificar se há pagamentos aprovados
         if (pagamentosAprovados && pagamentosAprovados.length > 0) {
-          const mensagemPagamentos = gerarRelatorioPagamentosAprovados(pagamentosAprovados, gestor.name);
-          await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemPagamentos);
-          console.log(`Relatório de pagamentos aprovados enviado para ${gestor.name}`);
+          relatorios.push(gerarRelatorioPagamentosAprovados(pagamentosAprovados, gestor.name));
         }
 
+        // Verificar se há pagamentos sem solicitação
         if (pagamentosPendentes && pagamentosPendentes.length > 0) {
-          const mensagemPendentes = gerarRelatorioPagamentosPendentes(pagamentosPendentes, gestor.name);
-          await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemPendentes);
-          console.log(`Relatório de pagamentos pendentes enviado para ${gestor.name}`);
+          relatorios.push(gerarRelatorioPagamentosPendentes(pagamentosPendentes, gestor.name));
         }
 
-        if ((!notasPendentes || notasPendentes.length === 0) && 
-            (!pagamentosAprovados || pagamentosAprovados.length === 0) &&
-            (!pagamentosPendentes || pagamentosPendentes.length === 0)) {
+        // Se tem relatórios, enviar UMA ÚNICA mensagem com todos
+        if (relatorios.length > 0) {
+          const mensagemCompleta = relatorios.join('\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n');
+          await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemCompleta);
+          console.log(`Relatório completo enviado para ${gestor.name}`);
+        } else {
+          // Se não há nada pendente, enviar mensagem de "tudo OK"
           const mensagemTudoOk = `✅ *Relatório Diário - HCC Hospital*\n\n` +
             `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
             `Olá ${gestor.name}!\n\n` +
@@ -289,10 +293,10 @@ function gerarRelatorioPagamentosPendentes(pagamentos: any[], nomeGestor: string
   const totalValor = pagamentos.reduce((sum, p) => sum + Number(p.valor), 0);
   const formatValor = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
   
-  const header = `⏳ *RELATÓRIO DE PAGAMENTOS PENDENTES*\n` +
+  const header = `📋 *PAGAMENTOS SEM SOLICITAÇÃO DE NOTA*\n` +
     `📅 ${new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}\n\n` +
     `Olá ${nomeGestor}!\n\n` +
-    `Você tem *${pagamentos.length} pagamento(s)* aguardando solicitação de nota.\n\n` +
+    `Você tem *${pagamentos.length} pagamento(s)* que ainda não teve nota solicitada.\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
   const listaPagamentos = pagamentos.slice(0, 10).map((pag, idx) => {
