@@ -1038,6 +1038,18 @@ export default function DashboardMedicos() {
     );
   }
 
+  // Loading inicial das configurações
+  if (loadingConfig) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+        <div className="flex flex-col items-center gap-4">
+          <LoadingSpinner size="lg" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Renderização - Manutenção
   if (manutencao) {
     return (
