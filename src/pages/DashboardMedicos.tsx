@@ -878,28 +878,10 @@ export default function DashboardMedicos() {
         </div>
 
         <div className="container mx-auto px-4 py-8 max-w-xl">
-          {/* Animação do gráfico girando */}
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.6 }}
-            className="flex justify-center mb-8"
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-              className="relative"
-            >
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center shadow-glow">
-                <BarChart3 className="h-12 w-12 text-primary" />
-              </div>
-            </motion.div>
-          </motion.div>
-
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
+            transition={{ duration: 0.5 }}
           >
             <Card className="glass-effect border-primary/20 shadow-elegant">
               <CardHeader className="text-center pb-6 space-y-6">
