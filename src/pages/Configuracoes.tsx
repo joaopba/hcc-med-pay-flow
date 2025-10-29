@@ -408,114 +408,61 @@ export default function Configuracoes() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="lg:col-span-2">
                   <CardHeader>
-                    <CardTitle>📱 Configurações Meta WhatsApp (Templates)</CardTitle>
+                    <CardTitle>📱 API WhatsApp Principal (Médicos)</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      API para envio de mensagens e templates para médicos via https://api.hcchospital.com.br
+                    </p>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="meta_api_url">URL da API Meta</Label>
+                        <Label htmlFor="text_api_url">URL da API (Texto)</Label>
                         <Input
-                          id="meta_api_url"
-                          value={config.meta_api_url}
-                          onChange={(e) => setConfig({ ...config, meta_api_url: e.target.value })}
-                          placeholder="https://graph.facebook.com/v21.0/..."
+                          id="text_api_url"
+                          value={config.text_api_url}
+                          onChange={(e) => setConfig({ ...config, text_api_url: e.target.value })}
+                          placeholder="https://api.hcchospital.com.br/v2/api/external/..."
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="meta_phone_number_id">Phone Number ID</Label>
+                        <Label htmlFor="text_api_key">Token Bearer (Médicos)</Label>
                         <Input
-                          id="meta_phone_number_id"
-                          value={config.meta_phone_number_id}
-                          onChange={(e) => setConfig({ ...config, meta_phone_number_id: e.target.value })}
-                          placeholder="468233466375447"
+                          id="text_api_key"
+                          value={config.text_api_key}
+                          onChange={(e) => setConfig({ ...config, text_api_key: e.target.value })}
+                          placeholder="eyJhbGciOiJIUzI1NiIs..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="media_api_url">URL da API (Mídia)</Label>
+                        <Input
+                          id="media_api_url"
+                          value={config.media_api_url}
+                          onChange={(e) => setConfig({ ...config, media_api_url: e.target.value })}
+                          placeholder="https://api.hcchospital.com.br/v2/api/external/..."
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="meta_waba_id">WhatsApp Business Account ID</Label>
+                        <Label htmlFor="media_api_key">Token Bearer (Gestores - PDF)</Label>
                         <Input
-                          id="meta_waba_id"
-                          value={config.meta_waba_id}
-                          onChange={(e) => setConfig({ ...config, meta_waba_id: e.target.value })}
-                          placeholder="421395757718205"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="template_nome">Nome do Template</Label>
-                        <Input
-                          id="template_nome"
-                          value={config.template_nome}
-                          onChange={(e) => setConfig({ ...config, template_nome: e.target.value })}
-                          placeholder="nota_hcc"
+                          id="media_api_key"
+                          value={config.media_api_key}
+                          onChange={(e) => setConfig({ ...config, media_api_key: e.target.value })}
+                          placeholder="eyJhbGciOiJIUzI1NiIs..."
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="meta_token">Token de Acesso Meta</Label>
-                      <Textarea
-                        id="meta_token"
-                        value={config.meta_token}
-                        onChange={(e) => setConfig({ ...config, meta_token: e.target.value })}
-                        rows={3}
-                        placeholder="EAAXSNrvzpbABP..."
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>💬 API de Mensagens de Texto</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="text_api_url">URL da API</Label>
-                      <Input
-                        id="text_api_url"
-                        value={config.text_api_url}
-                        onChange={(e) => setConfig({ ...config, text_api_url: e.target.value })}
-                        placeholder="https://auto.hcchospital.com.br/message/sendText/inovação"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="text_api_key">Chave da API</Label>
-                      <Input
-                        id="text_api_key"
-                        value={config.text_api_key}
-                        onChange={(e) => setConfig({ ...config, text_api_key: e.target.value })}
-                        placeholder="BA6138D0B74C-4AED-8E91-8B3B2C337811"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>📎 API de Envio de Mídia</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="media_api_url">URL da API</Label>
-                      <Input
-                        id="media_api_url"
-                        value={config.media_api_url}
-                        onChange={(e) => setConfig({ ...config, media_api_url: e.target.value })}
-                        placeholder="https://auto.hcchospital.com.br/message/sendMedia/inovação"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="media_api_key">Chave da API</Label>
-                      <Input
-                        id="media_api_key"
-                        value={config.media_api_key}
-                        onChange={(e) => setConfig({ ...config, media_api_key: e.target.value })}
-                        placeholder="BA6138D0B74C-4AED-8E91-8B3B2C337811"
-                      />
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-900">
+                        <strong>ℹ️ Informação:</strong> A API de Texto é usada para médicos (tenantId 3) e a API de Mídia para gestores (tenantId 1).
+                        Ambas usam autenticação Bearer Token.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
