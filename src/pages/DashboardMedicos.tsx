@@ -32,7 +32,7 @@ import {
   Moon,
   Sun
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatMesCompetencia } from "@/lib/utils";
@@ -116,6 +116,7 @@ export default function DashboardMedicos() {
   const [previsaoRetorno, setPrevisaoRetorno] = useState<string | null>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showInitialAnimation, setShowInitialAnimation] = useState(true);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -158,6 +159,14 @@ export default function DashboardMedicos() {
     };
 
     fetchConfig();
+  }, []);
+
+  // Desativar animação inicial após 2 segundos
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowInitialAnimation(false);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -878,6 +887,29 @@ export default function DashboardMedicos() {
         </div>
 
         <div className="container mx-auto px-4 py-8 max-w-xl">
+          {/* Animação do gráfico girando - aparece por 2 segundos */}
+          <AnimatePresence>
+            {showInitialAnimation && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                className="flex justify-center mb-8"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="relative"
+                >
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center shadow-glow">
+                    <BarChart3 className="h-12 w-12 text-primary" />
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
