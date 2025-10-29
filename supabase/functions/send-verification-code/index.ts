@@ -136,21 +136,23 @@ serve(async (req) => {
           }
         };
 
-        // Adicionar à fila do WhatsApp com prioridade alta
-        const { error: queueError } = await supabase.from('whatsapp_queue').insert({
-          numero_destino: numero,
-          tipo_mensagem: 'template',
-          payload: templatePayload,
-          prioridade: 1, // Alta prioridade
-          status: 'pendente',
-          proximo_envio: new Date().toISOString()
+        // Enviar direto para a mesma API usada pelos templates de nota (sem fila)
+        const apiUrl = (config.api_url?.endsWith('/template') ? config.api_url : `${config.api_url}/template`);
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.auth_token}`
+          },
+          body: JSON.stringify(templatePayload)
         });
 
-        if (queueError) {
-          console.error(`❌ Erro ao adicionar à fila para ${numero}:`, queueError);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Falha ao enviar para ${numero}:`, errorText);
         } else {
           enviosSucesso++;
-          console.log(`✅ Código ${codigo} adicionado à fila para ${numero}`);
+          console.log(`✅ Código ${codigo} enviado para ${numero}`);
         }
       } catch (error) {
         console.error(`❌ Erro ao processar envio para ${numero}:`, error);
