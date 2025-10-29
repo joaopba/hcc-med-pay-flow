@@ -186,7 +186,9 @@ serve(async (req) => {
 
         // Se tem relatórios, enviar UMA ÚNICA mensagem com todos
         if (relatorios.length > 0) {
-          const mensagemCompleta = relatorios.join('\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n');
+          const intro = `🤖 *Sistema de Gestão de Pagamentos - HCC Hospital*\n` +
+            `Estou aqui para te ajudar a manter tudo em dia. Segue o panorama gerencial de hoje:\n\n`;
+          const mensagemCompleta = intro + relatorios.join('\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n');
           await enviarMensagemWhatsApp(supabase, gestor.numero_whatsapp, mensagemCompleta);
           console.log(`Relatório completo enviado para ${gestor.name}`);
         } else {

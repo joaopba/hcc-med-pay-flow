@@ -113,6 +113,7 @@ serve(async (req) => {
             `${dataHoje}\n` +
             `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
             `👋 Olá, *${gestor.name}*!\n\n` +
+            `🤖 Sou o *Sistema de Gestão de Pagamentos do HCC Hospital*. Estou aqui para te ajudar a manter tudo em dia.\n\n` +
             `🎉 *SISTEMA EM DIA*\n\n` +
             `Todas as operações estão em conformidade:\n\n` +
             `✓ Sem notas pendentes de aprovação\n` +
@@ -162,6 +163,7 @@ serve(async (req) => {
         mensagem += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
         
         mensagem += `👋 Olá, *${gestor.name}*!\n\n`;
+        mensagem += `🤖 Sou o *Sistema de Gestão de Pagamentos do HCC Hospital*. Estou aqui para te ajudar a manter tudo em dia.\n\n`;
         
         // KPIs Principais
         mensagem += `📈 *INDICADORES PRINCIPAIS*\n\n`;
