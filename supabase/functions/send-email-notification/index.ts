@@ -73,7 +73,8 @@ serve(async (req) => {
           valor,
           mes_competencia,
           valor_liquido,
-          medicos!inner (
+          medico_id,
+          medicos (
             nome,
             especialidade
           )
@@ -135,10 +136,10 @@ serve(async (req) => {
     }
 
     // Dados para o email
-    const medicoNome = request.medicoNome || pagamento.medicos.nome;
-    const medicoEspecialidade = request.medicoEspecialidade || pagamento.medicos.especialidade;
-    const mesCompetencia = request.mes_competencia || pagamento.mes_competencia;
-    const valor = request.valor || pagamento.valor;
+    const medicoNome = request.medicoNome || pagamento?.medicos?.nome;
+    const medicoEspecialidade = request.medicoEspecialidade || pagamento?.medicos?.especialidade;
+    const mesCompetencia = request.mes_competencia || pagamento?.mes_competencia;
+    const valor = request.valor || pagamento?.valor;
 
     // Download do PDF se fornecido
     let pdfBuffer: Uint8Array | undefined;

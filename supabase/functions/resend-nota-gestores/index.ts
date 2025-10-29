@@ -16,7 +16,7 @@ function formatMesCompetencia(mesCompetencia: string): string {
 }
 
 serve(async (req) => {
-  // Versão: 2025-10-29-14:15
+  // Versão: 2025-10-29-17:30-COM-EMAIL
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -138,12 +138,21 @@ serve(async (req) => {
           `✅ *Aprovar:*\n${linkAprovar}\n\n` +
           `❌ *Rejeitar:*\n${linkRejeitar}`;
 
-        // Enviar para cada gestor
+        // Gerar URL assinada do PDF para o e-mail
+        const { data: signedUrlData } = await supabase.storage
+          .from('notas')
+          .createSignedUrl(filePath, 604800); // 7 dias
+
+        const pdfSignedUrl = signedUrlData?.signedUrl || '';
+        console.log('📎 URL assinada do PDF gerada para e-mail');
+
+        // Enviar notificações via WhatsApp e Email para cada gestor
         const gestorResults = [];
         for (const gestor of gestores) {
           try {
-            console.log(`📤 Enviando para ${gestor.name} (${gestor.numero_whatsapp})`);
+            console.log(`📤 Enviando WhatsApp para ${gestor.name} (${gestor.numero_whatsapp})`);
             
+            // 1. Enviar via WhatsApp
             const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-notification-gestores', {
               body: {
                 phoneNumber: gestor.numero_whatsapp,
@@ -153,17 +162,17 @@ serve(async (req) => {
               }
             });
 
-            console.log('Resultado do envio:', { sendResult, sendError });
+            console.log('Resultado do envio WhatsApp:', { sendResult, sendError });
 
             if (sendError) {
-              console.error(`❌ Erro ao enviar para ${gestor.name}:`, sendError);
+              console.error(`❌ Erro ao enviar WhatsApp para ${gestor.name}:`, sendError);
               gestorResults.push({
                 gestor: gestor.name,
                 success: false,
                 error: sendError?.message || String(sendError)
               });
             } else {
-              console.log(`✅ Enviado para ${gestor.name}`);
+              console.log(`✅ WhatsApp enviado para ${gestor.name}`);
               gestorResults.push({
                 gestor: gestor.name,
                 success: true,
@@ -171,13 +180,43 @@ serve(async (req) => {
               });
             }
           } catch (gestorError: any) {
-            console.error(`❌ Exceção ao enviar para gestor ${gestor.name}:`, gestorError);
+            console.error(`❌ Exceção ao enviar WhatsApp para gestor ${gestor.name}:`, gestorError);
             gestorResults.push({
               gestor: gestor.name,
               success: false,
               error: gestorError?.message || String(gestorError)
             });
           }
+        }
+
+        // 2. Enviar notificação por e-mail para todos os gestores (chamada única)
+        try {
+          console.log('📧 Enviando notificação por e-mail para gestores...');
+          
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email-notification', {
+            body: {
+              type: 'nova_nota',
+              pagamentoId: pagamento.id,
+              notaId: nota.id,
+              fileName: nota.nome_arquivo,
+              pdfPath: nota.arquivo_url,
+              pdfSignedUrl: pdfSignedUrl,
+              approvalUrl: linkAprovar,
+              rejectionUrl: linkRejeitar,
+              medicoNome: medico.nome,
+              medicoEspecialidade: medico.especialidade,
+              mes_competencia: pagamento.mes_competencia,
+              valor: pagamento.valor
+            }
+          });
+
+          if (emailError) {
+            console.error('❌ Erro ao enviar e-mails:', emailError);
+          } else {
+            console.log('✅ E-mails enviados:', emailResult);
+          }
+        } catch (emailError: any) {
+          console.error('❌ Exceção ao enviar e-mails:', emailError);
         }
 
         results.push({
