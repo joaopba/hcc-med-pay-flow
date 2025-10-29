@@ -54,14 +54,22 @@ serve(async (req) => {
       return new Response(JSON.stringify({ medico: null }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
-    // Enforce session validation when verification is enabled for the doctor's company
+    // Check if verification is enabled for this doctor's company
     const { data: config } = await supabase
       .from('configuracoes')
       .select('verificacao_medico_habilitada')
       .eq('empresa_id', medico.empresa_id)
       .single();
 
-    if (config?.verificacao_medico_habilitada) {
+    // Only enforce token validation when:
+    // 1. Verification is enabled
+    // 2. NOT using CPF (initial lookup) - allow CPF lookup to send verification code
+    // 3. Using medicoId (session-based) OR token was explicitly provided
+    const shouldValidateToken = config?.verificacao_medico_habilitada && 
+                                 !cpf && 
+                                 (medicoId || token);
+
+    if (shouldValidateToken) {
       const authHeader = req.headers.get('authorization') || '';
       const headerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : undefined;
       const providedToken = token || headerToken;
