@@ -736,6 +736,13 @@ export default function DashboardMedicos() {
             }
             const pdfBase64 = btoa(binary);
             
+            // Gerar token simples para os links
+            const token = btoa(`${notaData.id}-${Date.now()}`).slice(0, 32);
+            
+            // Links de aprovação e rejeição
+            const aprovarLink = `https://hcc.chatconquista.com/aprovar?i=${notaData.id}&t=${token}`;
+            const rejeitarLink = `https://hcc.chatconquista.com/rejeitar?i=${notaData.id}&t=${token}`;
+            
             // Enviar para cada gestor
             const promises = gestores.map(async (gestor) => {
               const message = `🔔 *Nova Nota Fiscal Recebida*\n\n` +
@@ -746,7 +753,10 @@ export default function DashboardMedicos() {
                 `💰 *Valor Bruto:* R$ ${selectedPagamento.valor.toFixed(2)}\n` +
                 `💵 *Valor Líquido:* R$ ${valorParaNotificacao ? valorParaNotificacao.toFixed(2) : 'A definir'}\n\n` +
                 `📎 *Anexo:* Nota fiscal em PDF\n\n` +
-                `⚠️ Por favor, analise a nota fiscal anexada.`;
+                `⚠️ *Ações necessárias:*\n` +
+                `✅ Aprovar: ${aprovarLink}\n` +
+                `❌ Rejeitar: ${rejeitarLink}\n\n` +
+                `Por favor, analise a nota fiscal anexada e clique em um dos links acima.`;
               
               return supabase.functions.invoke('send-notification-gestores', {
                 body: {
