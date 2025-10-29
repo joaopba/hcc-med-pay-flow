@@ -184,6 +184,23 @@ export default function NotasMedicos() {
         description: "Nota fiscal enviada com sucesso! Aguarde a análise.",
       });
 
+      // Enviar notificações automáticas aos gestores
+      console.log('📧 Enviando notificações aos gestores para nota:', notaData.id);
+      try {
+        const { data: notifData, error: notifError } = await supabase.functions.invoke('resend-nota-gestores', {
+          body: { nota_ids: [notaData.id] }
+        });
+
+        if (notifError) {
+          console.error('⚠️ Erro ao enviar notificações aos gestores:', notifError);
+        } else {
+          console.log('✅ Notificações enviadas aos gestores:', notifData);
+        }
+      } catch (notifError) {
+        console.error('⚠️ Falha ao notificar gestores:', notifError);
+        // Não bloquear o fluxo - a nota já foi salva com sucesso
+      }
+
     } catch (error: any) {
       console.error("Erro no upload:", error);
       toast({
