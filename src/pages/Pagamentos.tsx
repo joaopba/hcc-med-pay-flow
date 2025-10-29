@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { HCC_EMPRESA_ID } from "@/lib/constants";
 const NotasAprovacaoLazy = lazy(() => import("@/components/NotasAprovacao"));
 import { formatMesCompetencia } from "@/lib/utils";
 import {
@@ -231,6 +232,7 @@ export default function Pagamentos() {
       const { error } = await supabase
         .from("pagamentos")
         .insert([{
+          empresa_id: HCC_EMPRESA_ID,
           medico_id: formData.medico_id,
           mes_competencia: formData.mes_competencia,
           valor: parseFloat(formData.valor),

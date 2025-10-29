@@ -1362,12 +1362,11 @@ export default function DashboardMedicos() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
       
       {/* Chat Component */}
       {medico && (
         <>
-          <ChatWithFinanceiro 
+          <ChatWithFinanceiro
             medicoId={medico.id} 
             medicoNome={medico.nome}
             isGestor={false}
@@ -1395,6 +1394,7 @@ export default function DashboardMedicos() {
           />
         </div>
       )}
-    </motion.div>
+      </div>
+    </div>
   );
 }

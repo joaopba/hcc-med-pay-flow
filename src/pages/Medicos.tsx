@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
+import { HCC_EMPRESA_ID } from "@/lib/constants";
 import {
   Dialog,
   DialogContent,
@@ -114,7 +115,7 @@ export default function Medicos() {
       } else {
         const { error } = await supabase
           .from("medicos")
-          .insert([formData]);
+          .insert([{ ...formData, empresa_id: HCC_EMPRESA_ID }]);
         
         if (error) throw error;
         
@@ -211,7 +212,8 @@ export default function Medicos() {
         numero_whatsapp_contador: row.numero_whatsapp_contador || row.whatsapp_contador || "",
         especialidade: row.especialidade || row.Especialidade || "",
         documento: row.documento || row.Documento || row.cpf || row.CPF || row.cnpj || row.CNPJ || "",
-        tipo_pessoa: row.tipo_pessoa || row.tipo || (row.cnpj || row.CNPJ ? "CNPJ" : "CPF")
+        tipo_pessoa: row.tipo_pessoa || row.tipo || (row.cnpj || row.CNPJ ? "CNPJ" : "CPF"),
+        empresa_id: HCC_EMPRESA_ID
       }));
 
       const { error } = await supabase

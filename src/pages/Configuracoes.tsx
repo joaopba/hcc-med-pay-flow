@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
 import SystemInfo from "@/components/SystemInfo";
+import { HCC_EMPRESA_ID } from "@/lib/constants";
 
 interface Configuracao {
   id: string;
@@ -116,6 +117,7 @@ export default function Configuracoes() {
         const { data, error } = await supabase
           .from("configuracoes")
           .insert([{
+            empresa_id: HCC_EMPRESA_ID,
             api_url: config.api_url,
             auth_token: config.auth_token,
             webhook_url: config.webhook_url,

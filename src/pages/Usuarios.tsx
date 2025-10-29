@@ -11,6 +11,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User, Trash2, UserPlus, Edit } from "lucide-react";
+import { HCC_EMPRESA_ID } from "@/lib/constants";
 
 interface Profile {
   id: string;
@@ -136,6 +137,7 @@ export default function Usuarios() {
           .from('profiles')
           .insert({
             user_id: data.user.id,
+            empresa_id: HCC_EMPRESA_ID,
             name: newUser.name,
             email: newUser.email,
             role: newUser.role
