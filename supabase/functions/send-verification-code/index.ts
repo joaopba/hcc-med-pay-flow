@@ -110,12 +110,29 @@ serve(async (req) => {
     let enviosSucesso = 0;
     for (const numero of numerosParaEnviar) {
       try {
-        const payload = {
-          numero_destino: numero,
-          tipo_mensagem: 'template',
-          payload: {
-            template_nome: config.verificacao_medico_template_nome || 'verificamedico',
-            parametros: [codigo]
+        // Payload correto para template Meta/Evolution
+        const templatePayload = {
+          number: numero,
+          options: {
+            delay: 0,
+            presence: 'composing'
+          },
+          template: {
+            name: config.verificacao_medico_template_nome || 'verificamedico',
+            language: {
+              code: 'pt_BR'
+            },
+            components: [
+              {
+                type: 'body',
+                parameters: [
+                  {
+                    type: 'text',
+                    text: codigo
+                  }
+                ]
+              }
+            ]
           }
         };
 
@@ -123,14 +140,14 @@ serve(async (req) => {
         const { error: queueError } = await supabase.from('whatsapp_queue').insert({
           numero_destino: numero,
           tipo_mensagem: 'template',
-          payload,
+          payload: templatePayload,
           prioridade: 1, // Alta prioridade
           status: 'pendente',
           proximo_envio: new Date().toISOString()
         });
 
         if (queueError) {
-          console.error(`Erro ao adicionar à fila para ${numero}:`, queueError);
+          console.error(`❌ Erro ao adicionar à fila para ${numero}:`, queueError);
         } else {
           enviosSucesso++;
           console.log(`✅ Código ${codigo} adicionado à fila para ${numero}`);

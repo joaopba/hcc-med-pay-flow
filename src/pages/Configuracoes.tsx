@@ -428,6 +428,46 @@ export default function Configuracoes() {
                     Os relatórios serão enviados diariamente neste horário
                   </p>
                 </div>
+
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      setSaving(true);
+                      const { data, error } = await supabase.functions.invoke('force-send-reports');
+                      
+                      if (error) throw error;
+
+                      toast({
+                        title: "✅ Relatórios Enviados",
+                        description: data?.message || "Relatórios enviados com sucesso para os gestores",
+                      });
+                    } catch (error: any) {
+                      console.error("Erro ao enviar relatórios:", error);
+                      toast({
+                        title: "Erro",
+                        description: error.message || "Erro ao enviar relatórios",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                  className="w-full"
+                >
+                  {saving ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-primary"></div>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Enviar Relatórios Agora (Forçado)
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

@@ -1107,7 +1107,7 @@ export default function DashboardMedicos() {
                       </div>
                       
                       <div className="space-y-2 ml-13">
-                        {phoneNumbers.map((phone, idx) => (
+                        {phoneNumbers.length > 0 ? phoneNumbers.map((phone, idx) => (
                           <motion.div
                             key={idx}
                             initial={{ x: -20, opacity: 0 }}
@@ -1117,18 +1117,20 @@ export default function DashboardMedicos() {
                           >
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                               <span className="text-xs font-bold text-primary">
-                                {phone.tipo.charAt(0)}
+                                {phone?.tipo?.charAt(0) || '?'}
                               </span>
                             </div>
                             <div className="flex-1">
-                              <p className="font-mono text-sm font-semibold text-foreground">{phone.numero}</p>
-                              <p className="text-xs text-muted-foreground">{phone.tipo}</p>
+                              <p className="font-mono text-sm font-semibold text-foreground">{phone?.numero || 'N/A'}</p>
+                              <p className="text-xs text-muted-foreground">{phone?.tipo || 'Telefone'}</p>
                             </div>
                             <Badge variant="outline" className="bg-success/10 text-success border-success/20">
                               Enviado
                             </Badge>
                           </motion.div>
-                        ))}
+                        )) : (
+                          <p className="text-sm text-muted-foreground text-center py-2">Nenhum telefone cadastrado</p>
+                        )}
                       </div>
                     </div>
                   </motion.div>
