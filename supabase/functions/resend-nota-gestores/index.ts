@@ -16,6 +16,7 @@ function formatMesCompetencia(mesCompetencia: string): string {
 }
 
 serve(async (req) => {
+  // Versão: 2025-10-29-14:15
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -33,7 +34,7 @@ serve(async (req) => {
 
     for (const notaId of nota_ids) {
       try {
-        // Buscar dados da nota
+        // Buscar dados da nota com informações do OCR
         const { data: nota, error: notaError } = await supabase
           .from('notas_medicos')
           .select(`
@@ -41,6 +42,10 @@ serve(async (req) => {
             nome_arquivo,
             arquivo_url,
             pagamento_id,
+            numero_nota,
+            valor_bruto,
+            valor_ajustado,
+            created_at,
             pagamentos (
               id,
               valor,
@@ -74,11 +79,8 @@ serve(async (req) => {
 
         console.log(`📱 Enviando para ${gestores.length} gestor(es)`);
 
-        // Baixar PDF - remover 'medicos/' se presente
-        let filePath = nota.arquivo_url;
-        if (filePath.startsWith('medicos/')) {
-          filePath = filePath.replace('medicos/', '');
-        }
+        // Baixar PDF - usar caminho completo do storage
+        const filePath = nota.arquivo_url;
         console.log(`📥 Baixando PDF: ${filePath}`);
         
         const { data: pdfData, error: pdfError } = await supabase.storage
@@ -99,22 +101,42 @@ serve(async (req) => {
 
         console.log(`✅ PDF convertido: ${pdfBase64.length} chars`);
 
-        // Preparar mensagem
+        // Preparar mensagem com todas as informações
         const mesFormatado = formatMesCompetencia(pagamento.mes_competencia);
         const valorFormatado = new Intl.NumberFormat('pt-BR', { 
           style: 'currency', 
           currency: 'BRL' 
         }).format(pagamento.valor);
 
+        // Criar tokens únicos para aprovar e rejeitar
+        const tokenAprovar = btoa(`${nota.id}-${nota.created_at}-approve`).substring(0, 20);
+        const tokenRejeitar = btoa(`${nota.id}-${nota.created_at}-reject`).substring(0, 20);
+        const linkAprovar = `https://hcc.chatconquista.com/aprovar?i=${nota.id}&t=${tokenAprovar}`;
+        const linkRejeitar = `https://hcc.chatconquista.com/rejeitar?i=${nota.id}&t=${tokenRejeitar}`;
+
+        // Informações da nota do OCR
+        const numeroNotaInfo = nota.numero_nota ? `\n🔢 *Número da Nota:* ${nota.numero_nota}` : '';
+        
+        // Usar valor_ajustado se disponível, senão valor_bruto
+        const valorLiquido = nota.valor_ajustado || nota.valor_bruto;
+        let valorLiquidoInfo = '';
+        if (valorLiquido) {
+          const valorLiquidoFormatado = new Intl.NumberFormat('pt-BR', { 
+            style: 'currency', 
+            currency: 'BRL' 
+          }).format(valorLiquido);
+          valorLiquidoInfo = `\n💵 *Valor Líquido:* ${valorLiquidoFormatado}`;
+        }
+
         const especialidadeInfo = medico.especialidade ? `\n🩺 *Especialidade:* ${medico.especialidade}` : '';
         const mensagem = `🏥 *Nova Nota Fiscal Recebida - HCC Hospital*\n\n` +
           `📋 *Médico:* ${medico.nome}${especialidadeInfo}\n` +
           `📅 *Competência:* ${mesFormatado}\n` +
-          `💰 *Valor:* ${valorFormatado}\n` +
+          `💰 *Valor Bruto:* ${valorFormatado}${valorLiquidoInfo}${numeroNotaInfo}\n` +
           `📄 *Arquivo:* ${nota.nome_arquivo}\n\n` +
           `⚠️ *Aguardando aprovação*\n\n` +
-          `🔗 Acesse o portal para aprovar/rejeitar:\n` +
-          `https://hcc.chatconquista.com/pagamentos`;
+          `✅ *Aprovar:*\n${linkAprovar}\n\n` +
+          `❌ *Rejeitar:*\n${linkRejeitar}`;
 
         // Enviar para cada gestor
         const gestorResults = [];

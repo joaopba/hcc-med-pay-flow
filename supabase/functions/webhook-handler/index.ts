@@ -829,8 +829,8 @@ serve(async (req) => {
                   console.log('PDF convertido para base64, tamanho:', base64.length);
 
                   // Criar tokens no formato correto (mesmo formato das páginas de aprovação/rejeição)
-                  const tokenAprovar = btoa(`${insertData.id}-${insertData.created_at}`).substring(0, 20);
-                  const tokenRejeitar = btoa(`${insertData.id}-${insertData.created_at}`).substring(0, 20);
+                  const tokenAprovar = btoa(`${insertData.id}-${insertData.created_at}-approve`).substring(0, 20);
+                  const tokenRejeitar = btoa(`${insertData.id}-${insertData.created_at}-reject`).substring(0, 20);
                   const linkAprovar = `https://hcc.chatconquista.com/aprovar?i=${insertData.id}&t=${tokenAprovar}`;
                   const linkRejeitar = `https://hcc.chatconquista.com/rejeitar?i=${insertData.id}&t=${tokenRejeitar}`;
 
@@ -866,9 +866,10 @@ serve(async (req) => {
               // Enviar notificação por email com PDF anexado e botões de ação
               try {
                 // Criar tokens e URLs para email
-                const tokenEmail = btoa(`${insertData.id}-${insertData.created_at}`).substring(0, 20);
+                const tokenEmail = btoa(`${insertData.id}-${insertData.created_at}-approve`).substring(0, 20);
                 const approvalUrl = `https://hcc.chatconquista.com/aprovar?i=${insertData.id}&t=${tokenEmail}`;
-                const rejectionUrl = `https://hcc.chatconquista.com/rejeitar?i=${insertData.id}&t=${tokenEmail}`;
+                const tokenReject = btoa(`${insertData.id}-${insertData.created_at}-reject`).substring(0, 20);
+                const rejectionUrl = `https://hcc.chatconquista.com/rejeitar?i=${insertData.id}&t=${tokenReject}`;
                 
                 // Criar URL assinada do PDF
                 const { data: signedUrl } = await supabase.storage
@@ -924,6 +925,12 @@ serve(async (req) => {
                       currency: 'BRL' 
                     }).format(pagamento.valor);
 
+                    // Criar tokens únicos para aprovar e rejeitar
+                    const tokenAprovar = btoa(`${insertData.id}-${insertData.created_at}-approve`).substring(0, 20);
+                    const tokenRejeitar = btoa(`${insertData.id}-${insertData.created_at}-reject`).substring(0, 20);
+                    const linkAprovar = `https://hcc.chatconquista.com/aprovar?i=${insertData.id}&t=${tokenAprovar}`;
+                    const linkRejeitar = `https://hcc.chatconquista.com/rejeitar?i=${insertData.id}&t=${tokenRejeitar}`;
+
                     // Baixar o PDF para enviar aos gestores
                     const { data: pdfDataGestor, error: pdfError } = await supabase.storage
                       .from('notas')
@@ -944,15 +951,30 @@ serve(async (req) => {
                       console.log(`PDF convertido para base64: ${pdfBase64.length} chars`);
                     }
 
+                    // Preparar informações da nota
                     const especialidadeInfo = medicoInfo.especialidade ? `\n🩺 *Especialidade:* ${medicoInfo.especialidade}` : '';
+                    
+                    // Formatação do valor líquido
+                    let valorLiquidoInfo = '';
+                    if (valorLiquido) {
+                      const valorLiquidoFormatado = new Intl.NumberFormat('pt-BR', { 
+                        style: 'currency', 
+                        currency: 'BRL' 
+                      }).format(valorLiquido);
+                      valorLiquidoInfo = `\n💵 *Valor Líquido:* ${valorLiquidoFormatado}`;
+                    }
+
+                    // Informação do número da nota
+                    const numeroNotaInfo = numeroNota ? `\n🔢 *Número da Nota:* ${numeroNota}` : '';
+
                     const mensagem = `🏥 *Nova Nota Fiscal Recebida - HCC Hospital*\n\n` +
                       `📋 *Médico:* ${medicoInfo.nome}${especialidadeInfo}\n` +
                       `📅 *Competência:* ${mesFormatado}\n` +
-                      `💰 *Valor:* ${valorFormatado}\n` +
+                      `💰 *Valor Bruto:* ${valorFormatado}${valorLiquidoInfo}${numeroNotaInfo}\n` +
                       `📄 *Arquivo:* ${filename}\n\n` +
                       `⚠️ *Aguardando aprovação*\n\n` +
-                      `🔗 Acesse o portal para aprovar/rejeitar:\n` +
-                      `https://hcc.chatconquista.com/pagamentos`;
+                      `✅ *Aprovar:*\n${linkAprovar}\n\n` +
+                      `❌ *Rejeitar:*\n${linkRejeitar}`;
 
                      for (const gestor of gestores) {
                       try {
