@@ -6,17 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Função auxiliar para converter Blob para Base64
-async function blobToBase64(blob: Blob): Promise<string> {
-  const bytes = await blob.arrayBuffer();
-  const arr = new Uint8Array(bytes);
-  let binary = '';
-  for (let i = 0; i < arr.length; i++) {
-    binary += String.fromCharCode(arr[i]);
-  }
-  return btoa(binary);
-}
-
 // Função para formatar mês de competência
 function formatMesCompetencia(mesCompetencia: string): string {
   if (!mesCompetencia || !mesCompetencia.includes('-')) return mesCompetencia;
@@ -142,31 +131,25 @@ serve(async (req) => {
           throw new Error('Configurações não encontradas');
         }
 
-        // API para médicos (templates e webhook)
-        const MEDICOS_API_URL = 'https://api.hcchospital.com.br/v2/api/external/569d53c5-b3e8-44bc-a475-d495e046d35e';
-        const MEDICOS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MywicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjoyLCJpYXQiOjE3NjAwNzQ4NTQsImV4cCI6MTgyMzE0Njg1NH0.b8ZkiTar8EHPGRS6pRjZYszjcyv3ac1QE2CFtQ0E2rM';
-
         // Enviar mensagem de solicitação com vídeo anexado
         const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
         const videoBlob = await videoResponse.blob();
-        const videoBase64 = await blobToBase64(videoBlob);
         
-        const payload = {
-          number: from,
-          caption: "🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá! Para agilizar seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal: https://hcc.chatconquista.com/dashboard-medicos\n\nPasso a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Faça upload do PDF (máx. 10MB)\n\nDicas:\n• Envie o documento legível e completo\n• Confira os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\nApós o envio, você receberá confirmação e será avisado sobre a análise.",
-          mediaBase64: videoBase64,
-          filename: 'tutorial-anexar-nota.mp4'
-        };
+        const form = new FormData();
+        form.append('number', from);
+        form.append('body', "🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá! Para agilizar seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal: https://hcc.chatconquista.com/dashboard-medicos\n\nPasso a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Faça upload do PDF (máx. 10MB)\n\nDicas:\n• Envie o documento legível e completo\n• Confira os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\nApós o envio, você receberá confirmação e será avisado sobre a análise.");
+        form.append('externalKey', `nota_request_button_${Date.now()}`);
+        form.append('isClosed', 'false');
+        form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
 
         console.log('Enviando mensagem de solicitação com vídeo via botão');
 
-        const messageResponse = await fetch(MEDICOS_API_URL, {
+        const messageResponse = await fetch(config.api_url, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${MEDICOS_TOKEN}`
+            'Authorization': `Bearer ${config.auth_token}`
           },
-          body: JSON.stringify(payload)
+          body: form
         });
 
         const messageResponseData = await messageResponse.json();
@@ -295,33 +278,27 @@ serve(async (req) => {
           throw new Error('Configurações não encontradas');
         }
 
-        // API para médicos (templates e webhook)
-        const MEDICOS_API_URL = 'https://api.hcchospital.com.br/v2/api/external/569d53c5-b3e8-44bc-a475-d495e046d35e';
-        const MEDICOS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MywicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjoyLCJpYXQiOjE3NjAwNzQ4NTQsImV4cCI6MTgyMzE0Njg1NH0.b8ZkiTar8EHPGRS6pRjZYszjcyv3ac1QE2CFtQ0E2rM';
-
         // Enviar mensagem com vídeo anexado
         const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
         const videoBlob = await videoResponse.blob();
-        const videoBase64 = await blobToBase64(videoBlob);
         
         const competenciaFormatada = formatMesCompetencia(pagamento.mes_competencia);
         
-        const payload = {
-          number: from,
-          caption: `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá ${medico.nome}! Para darmos sequência ao seu pagamento referente a ${competenciaFormatada}, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Envie o arquivo PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Envie o documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`,
-          mediaBase64: videoBase64,
-          filename: 'tutorial-anexar-nota.mp4'
-        };
+        const form = new FormData();
+        form.append('number', from);
+        form.append('body', `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá ${medico.nome}! Para darmos sequência ao seu pagamento referente a ${competenciaFormatada}, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Envie o arquivo PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Envie o documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`);
+        form.append('externalKey', `encaminhar_nota_${Date.now()}`);
+        form.append('isClosed', 'false');
+        form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
 
         console.log('Enviando mensagem com vídeo anexado');
 
-        const linkResponse = await fetch(MEDICOS_API_URL, {
+        const linkResponse = await fetch(config.api_url, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${MEDICOS_TOKEN}`
+            'Authorization': `Bearer ${config.auth_token}`
           },
-          body: JSON.stringify(payload)
+          body: form
         });
 
         const linkResponseData = await linkResponse.json();

@@ -45,44 +45,34 @@ serve(async (req) => {
 
     console.log('Iniciando envio de lembretes diários');
 
-    // Verificar se há parâmetro para forçar envio
-    const url = new URL(req.url);
-    const forceEnvio = url.searchParams.get('force') === 'true';
-
     // Buscar horário configurado
     const { data: config } = await supabase
       .from('configuracoes')
       .select('horario_envio_relatorios')
       .single();
 
-    if (config?.horario_envio_relatorios && !forceEnvio) {
+    if (config?.horario_envio_relatorios) {
       // Converter UTC para horário de Brasília (UTC-3)
       const now = new Date();
       const brasiliaOffset = -3; // UTC-3
       const horaAtualBrasilia = (now.getUTCHours() + brasiliaOffset + 24) % 24;
-      const minutoAtualBrasilia = now.getUTCMinutes();
       
       const [horaConfig, minutoConfig] = config.horario_envio_relatorios.split(':').map(Number);
       
-      // Verifica se está no horário configurado (mesma hora E minuto entre 0-1 para enviar apenas uma vez)
-      if (horaAtualBrasilia !== horaConfig || minutoAtualBrasilia > 1) {
-        console.log(`Não está no horário configurado. Hora atual (Brasília): ${horaAtualBrasilia}:${minutoAtualBrasilia}, Hora configurada: ${horaConfig}:${minutoConfig}`);
+      // Verifica se está no horário configurado (mesma hora)
+      if (horaAtualBrasilia !== horaConfig) {
+        console.log(`Não está no horário configurado. Hora atual (Brasília): ${horaAtualBrasilia}, Hora configurada: ${horaConfig}`);
         return new Response(JSON.stringify({ 
           success: true, 
           message: 'Fora do horário configurado',
           horaAtualBrasilia,
-          minutoAtualBrasilia,
           horaConfig
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
       
-      console.log(`✅ No horário configurado! Hora Brasília: ${horaAtualBrasilia}:${minutoAtualBrasilia}, Configurado: ${horaConfig}:${minutoConfig}`);
-    }
-    
-    if (forceEnvio) {
-      console.log('🔥 Envio forçado ativado - ignorando verificação de horário');
+      console.log(`✅ No horário configurado! Hora Brasília: ${horaAtualBrasilia}, Configurado: ${horaConfig}`);
     }
 
     const { data: gestores, error: gestoresError } = await supabase
@@ -330,21 +320,27 @@ async function enviarMensagemWhatsApp(
   numero: string,
   mensagem: string
 ): Promise<void> {
-  const apiUrl = 'https://auto.hcchospital.com.br/message/sendText/inovação';
-  const apiKey = 'BA6138D0B74C-4AED-8E91-8B3B2C337811';
+  const { data: config } = await supabase
+    .from('configuracoes')
+    .select('api_url, auth_token')
+    .single();
 
-  const payload = {
-    number: numero,
-    text: mensagem
-  };
+  if (!config) {
+    throw new Error('Configurações não encontradas');
+  }
 
-  const response = await fetch(apiUrl, {
+  const form = new FormData();
+  form.append('number', numero);
+  form.append('body', mensagem);
+  form.append('externalKey', `lembrete_diario_${Date.now()}`);
+  form.append('isClosed', 'false');
+
+  const response = await fetch(config.api_url, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey
+      'Authorization': `Bearer ${config.auth_token}`
     },
-    body: JSON.stringify(payload)
+    body: form
   });
 
   if (!response.ok) {

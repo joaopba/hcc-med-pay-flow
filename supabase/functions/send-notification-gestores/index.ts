@@ -6,9 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// API para gestores - envia PDF com mensagem em grupo
-const GESTORES_API_URL = 'https://api.hcchospital.com.br/v2/api/external/6b756d45-89f7-444f-899e-68ed4e952680/group';
-const GESTORES_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU';
+const GESTOR_API_URL = 'https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de';
+const GESTOR_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU';
 
 interface GestorRequest {
   phoneNumber: string;
@@ -27,38 +26,44 @@ serve(async (req) => {
 
     console.log('📧 Enviando notificação para gestor:', phoneNumber);
 
-    // Criar FormData conforme Postman
-    const formData = new FormData();
-    
-    // Adicionar mensagem
-    formData.append('body', message);
-    formData.append('number', phoneNumber);
-    formData.append('externalKey', `gestor_nota_${Date.now()}`);
-    formData.append('isClosed', 'false');
+    // Montar multipart/form-data conforme cURL do cliente
+    const form = new FormData();
+    form.append('number', phoneNumber);
+    form.append('body', message);
+    form.append('externalKey', `gestor_${phoneNumber}_${Date.now()}`);
+    form.append('isClosed', 'false');
 
-    // Se tem PDF, adicionar como arquivo
     if (pdf_base64 && pdf_filename) {
-      console.log(`📎 Enviando com PDF: ${pdf_filename}`);
-      
-      // Converter base64 para File
-      const pdfBytes = decodeBase64(pdf_base64);
-      // Converter para Uint8Array padrão para garantir compatibilidade
-      const pdfArray = new Uint8Array(pdfBytes);
-      const pdfFile = new File([pdfArray], pdf_filename, { type: 'application/pdf' });
-      
-      // Adicionar arquivo ao FormData
-      formData.append('media', pdfFile);
+      try {
+        console.log(`📎 Anexando PDF: ${pdf_filename} (${pdf_base64.length} chars base64)`);
+        // Converter base64 para Uint8Array usando decode do Deno
+        const pdfBytes = decodeBase64(pdf_base64);
+        console.log(`✅ PDF decodificado: ${pdfBytes.length} bytes`);
+        
+        // Criar Blob do PDF - Uint8Array é BlobPart válido
+        const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+        console.log(`✅ Blob criado: ${blob.size} bytes`);
+        
+        // Adicionar ao FormData com nome 'media'
+        form.append('media', blob, pdf_filename);
+        console.log(`✅ PDF anexado ao FormData como 'media'`);
+      } catch (e: any) {
+        console.error('❌ Falha ao montar arquivo PDF para multipart:', e);
+        throw new Error(`Erro ao processar PDF: ${e?.message || String(e)}`);
+      }
     } else {
-      console.log('📤 Enviando apenas mensagem de texto');
+      console.log('⚠️ Nenhum PDF para anexar');
     }
 
-    const response = await fetch(GESTORES_API_URL, {
+    console.log('📤 Enviando multipart/form-data para API dos gestores...');
+
+    const response = await fetch(GESTOR_API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GESTORES_TOKEN}`
-        // Não definir Content-Type - FormData define automaticamente com boundary
+        // NÃO defina Content-Type manualmente; o fetch define o boundary automaticamente
+        'Authorization': `Bearer ${GESTOR_AUTH_TOKEN}`
       },
-      body: formData
+      body: form
     });
 
     console.log('✅ Status da resposta:', response.status);

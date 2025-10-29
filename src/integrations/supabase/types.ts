@@ -116,24 +116,12 @@ export type Database = {
           created_at: string
           email_notificacoes: boolean
           horario_envio_relatorios: string | null
-          horario_previsto_retorno: string | null
           id: string
           intervalo_cobranca_nota_horas: number | null
           lembrete_periodico_horas: number | null
-          media_api_key: string | null
-          media_api_url: string | null
-          mensagem_manutencao: string | null
-          meta_api_url: string | null
-          meta_phone_number_id: string | null
-          meta_token: string | null
-          meta_waba_id: string | null
-          modo_manutencao: boolean | null
           ocr_nfse_api_key: string | null
           ocr_nfse_habilitado: boolean
           permitir_nota_via_whatsapp: boolean
-          template_nome: string | null
-          text_api_key: string | null
-          text_api_url: string | null
           updated_at: string
           webhook_url: string | null
         }
@@ -143,24 +131,12 @@ export type Database = {
           created_at?: string
           email_notificacoes?: boolean
           horario_envio_relatorios?: string | null
-          horario_previsto_retorno?: string | null
           id?: string
           intervalo_cobranca_nota_horas?: number | null
           lembrete_periodico_horas?: number | null
-          media_api_key?: string | null
-          media_api_url?: string | null
-          mensagem_manutencao?: string | null
-          meta_api_url?: string | null
-          meta_phone_number_id?: string | null
-          meta_token?: string | null
-          meta_waba_id?: string | null
-          modo_manutencao?: boolean | null
           ocr_nfse_api_key?: string | null
           ocr_nfse_habilitado?: boolean
           permitir_nota_via_whatsapp?: boolean
-          template_nome?: string | null
-          text_api_key?: string | null
-          text_api_url?: string | null
           updated_at?: string
           webhook_url?: string | null
         }
@@ -170,24 +146,12 @@ export type Database = {
           created_at?: string
           email_notificacoes?: boolean
           horario_envio_relatorios?: string | null
-          horario_previsto_retorno?: string | null
           id?: string
           intervalo_cobranca_nota_horas?: number | null
           lembrete_periodico_horas?: number | null
-          media_api_key?: string | null
-          media_api_url?: string | null
-          mensagem_manutencao?: string | null
-          meta_api_url?: string | null
-          meta_phone_number_id?: string | null
-          meta_token?: string | null
-          meta_waba_id?: string | null
-          modo_manutencao?: boolean | null
           ocr_nfse_api_key?: string | null
           ocr_nfse_habilitado?: boolean
           permitir_nota_via_whatsapp?: boolean
-          template_nome?: string | null
-          text_api_key?: string | null
-          text_api_url?: string | null
           updated_at?: string
           webhook_url?: string | null
         }

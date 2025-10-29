@@ -108,36 +108,8 @@ export default function DashboardMedicos() {
   const [pendingTicket, setPendingTicket] = useState<any>(null);
   const [valorLiquido, setValorLiquido] = useState("");
   const [ocrHabilitado, setOcrHabilitado] = useState(false);
-  const [modoManutencao, setModoManutencao] = useState(false);
-  const [mensagemManutencao, setMensagemManutencao] = useState("");
-  const [horarioPrevisto, setHorarioPrevisto] = useState<string | null>(null);
-  const [checkingMaintenance, setCheckingMaintenance] = useState(true);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
-
-  // Verificar modo de manutenção antes de qualquer coisa
-  useEffect(() => {
-    const checkMaintenance = async () => {
-      try {
-        const { data: configData } = await supabase
-          .from('configuracoes')
-          .select('modo_manutencao, mensagem_manutencao, horario_previsto_retorno')
-          .single();
-        
-        if (configData) {
-          setModoManutencao(configData.modo_manutencao || false);
-          setMensagemManutencao(configData.mensagem_manutencao || "Sistema em manutenção. Voltaremos em breve.");
-          setHorarioPrevisto(configData.horario_previsto_retorno);
-        }
-      } catch (error) {
-        console.error('Erro ao verificar manutenção:', error);
-      } finally {
-        setCheckingMaintenance(false);
-      }
-    };
-
-    checkMaintenance();
-  }, []);
 
   const formatCPF = (value: string) => {
     const numeros = value.replace(/\D/g, '');
@@ -713,105 +685,6 @@ export default function DashboardMedicos() {
     { name: 'Rejeitadas', value: stats.notasRejeitadas, color: statusColors.rejeitado }
   ].filter(item => item.value > 0);
 
-  // Tela de bloqueio por manutenção
-  if (checkingMaintenance) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        >
-          <BarChart3 className="h-12 w-12 text-primary" />
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (modoManutencao) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-destructive/5 via-background to-destructive/10 flex items-center justify-center p-4">
-        <div className="absolute top-6 right-6 z-20">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="glass-effect border-border/50 hover:bg-accent/50 transition-all"
-          >
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-2xl"
-        >
-          <Card className="border-destructive/50 bg-destructive/5 shadow-2xl">
-            <CardContent className="p-8 md:p-12 text-center space-y-6">
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  rotate: [0, 5, -5, 0]
-                }}
-                transition={{ 
-                  duration: 2,
-                  repeat: Infinity,
-                  repeatDelay: 1
-                }}
-                className="flex justify-center mb-4"
-              >
-                <div className="p-6 bg-destructive/20 rounded-full">
-                  <AlertTriangle className="h-16 w-16 md:h-24 md:w-24 text-destructive" />
-                </div>
-              </motion.div>
-
-              <div className="space-y-4">
-                <h1 className="text-2xl md:text-4xl font-bold text-destructive">
-                  Sistema em Manutenção
-                </h1>
-                
-                <div className="p-6 bg-destructive/10 border border-destructive/30 rounded-lg">
-                  <p className="text-base md:text-lg text-foreground font-medium leading-relaxed">
-                    {mensagemManutencao}
-                  </p>
-                </div>
-
-                {horarioPrevisto && (
-                  <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Previsão de retorno:</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {new Date(horarioPrevisto).toLocaleString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                )}
-
-                <p className="text-sm md:text-base text-muted-foreground pt-4">
-                  O acesso ao sistema de notas fiscais está temporariamente indisponível. 
-                  Por favor, tente novamente mais tarde.
-                </p>
-              </div>
-
-              <div className="flex justify-center pt-4">
-                <img 
-                  src={conquistaLogo} 
-                  alt="Conquista Inovação" 
-                  className="h-6 opacity-40"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
-
   if (!medico) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
@@ -912,41 +785,12 @@ export default function DashboardMedicos() {
     );
   }
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5
-      }
-    }
-  };
-
   return (
-    <motion.div 
-      className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-    >
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <div className="max-w-7xl mx-auto">
-
         {/* Seção especial para médicos com notas pendentes */}
         {pagamentosPendentes.length > 0 && (
-          <motion.div variants={itemVariants}>
-            <Card className="mb-8 border-warning/30 bg-warning/5">
+          <Card className="mb-8 border-warning/30 bg-warning/5">
             <CardContent className="p-4 md:p-6">
               <div className="flex flex-col md:flex-row items-start gap-4">
                 <div className="flex-shrink-0 w-12 h-12 bg-warning/20 rounded-xl flex items-center justify-center">
@@ -1015,12 +859,10 @@ export default function DashboardMedicos() {
               </div>
             </CardContent>
           </Card>
-          </motion.div>
         )}
 
         {/* Header */}
-        <motion.div variants={itemVariants}>
-          <Card className="mb-8 glass-effect border-primary/20">
+        <Card className="mb-8 glass-effect border-primary/20">
           <CardContent className="p-4 md:p-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="flex items-center gap-3 md:gap-4">
@@ -1062,7 +904,6 @@ export default function DashboardMedicos() {
               </div>
           </CardContent>
         </Card>
-        </motion.div>
 
         {/* Dialog para notas rejeitadas */}
         <Dialog open={showRejectedAlert} onOpenChange={setShowRejectedAlert}>
@@ -1152,12 +993,8 @@ export default function DashboardMedicos() {
         )}
 
         {/* Cards de estatísticas */}
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
-          variants={itemVariants}
-        >
-          <motion.div variants={itemVariants}>
-            <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total de Notas</CardTitle>
               <FileCheck className="h-4 w-4 text-muted-foreground" />
@@ -1169,10 +1006,8 @@ export default function DashboardMedicos() {
               </p>
             </CardContent>
           </Card>
-          </motion.div>
 
-          <motion.div variants={itemVariants}>
-            <Card>
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -1184,10 +1019,8 @@ export default function DashboardMedicos() {
               </p>
             </CardContent>
           </Card>
-          </motion.div>
 
-          <motion.div variants={itemVariants}>
-            <Card>
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Valor Aprovado</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
@@ -1201,10 +1034,8 @@ export default function DashboardMedicos() {
               </p>
             </CardContent>
           </Card>
-          </motion.div>
 
-          <motion.div variants={itemVariants}>
-            <Card>
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Valor Pendente</CardTitle>
               <Clock className="h-4 w-4 text-yellow-600" />
@@ -1218,17 +1049,12 @@ export default function DashboardMedicos() {
               </p>
             </CardContent>
           </Card>
-          </motion.div>
-        </motion.div>
+        </div>
 
         {/* Gráficos */}
-        <motion.div 
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
-          variants={itemVariants}
-        >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Valores por mês */}
-          <motion.div variants={itemVariants}>
-            <Card>
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
@@ -1252,11 +1078,9 @@ export default function DashboardMedicos() {
               </div>
             </CardContent>
           </Card>
-          </motion.div>
 
           {/* Distribuição por status */}
-          <motion.div variants={itemVariants}>
-            <Card>
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
@@ -1287,17 +1111,15 @@ export default function DashboardMedicos() {
               </div>
             </CardContent>
           </Card>
-          </motion.div>
-        </motion.div>
+        </div>
 
         {/* Histórico de Tickets do Chat */}
-        <motion.div className="mb-8" variants={itemVariants}>
+        <div className="mb-8">
           <TicketHistory medicoId={medico.id} medicoNome={medico.nome} />
-        </motion.div>
+        </div>
 
         {/* Histórico de notas */}
-        <motion.div variants={itemVariants}>
-          <Card>
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileCheck className="h-5 w-5" />
@@ -1348,7 +1170,6 @@ export default function DashboardMedicos() {
             </div>
           </CardContent>
         </Card>
-        </motion.div>
 
         {/* Modal para upload de notas */}
         <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
@@ -1562,6 +1383,6 @@ export default function DashboardMedicos() {
           />
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

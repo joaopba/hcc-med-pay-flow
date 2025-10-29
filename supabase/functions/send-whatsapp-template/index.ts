@@ -95,14 +95,20 @@ serve(async (req) => {
     const requestData: WhatsAppRequest = await req.json();
     const { type, numero, nome, valor, competencia, dataPagamento, pagamentoId, medico, motivo, linkPortal, numero_destino, medico_nome, mensagem_preview, mensagem, medico_id, nota_id, pdf_base64, pdf_filename, link_aprovar, link_rejeitar, financeiro_numero, valorBruto, valorLiquido, valorOriginal, valorNovo, numeroNota } = requestData;
 
-    // API para médicos - todas as mensagens
-    const MEDICOS_API_URL = 'https://api.hcchospital.com.br/v2/api/external/569d53c5-b3e8-44bc-a475-d495e046d35e';
-    const MEDICOS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MywicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjoyLCJpYXQiOjE3NjAwNzQ4NTQsImV4cCI6MTgyMzE0Njg1NH0.b8ZkiTar8EHPGRS6pRjZYszjcyv3ac1QE2CFtQ0E2rM';
-
     // Função para processar o envio em background
     async function processarEnvio() {
       try {
         console.log(`[Background] Processando envio tipo: ${type}`);
+        
+        // Buscar configurações da API
+        const { data: config, error: configError } = await supabase
+          .from('configuracoes')
+          .select('api_url, auth_token')
+          .maybeSingle();
+
+        if (configError || !config) {
+          throw new Error('Configurações não encontradas');
+        }
 
         let message = '';
         let phoneNumber = numero;
@@ -113,8 +119,7 @@ serve(async (req) => {
         }
 
         let payload: any;
-        const apiUrl = MEDICOS_API_URL;
-        const apiKey = MEDICOS_TOKEN;
+        let apiUrl = config.api_url;
 
         // Idempotência: evitar mensagens duplicadas em curto intervalo
         if (pagamentoId) {
@@ -136,141 +141,173 @@ serve(async (req) => {
 
         switch (type) {
           case 'nota':
-            console.log('[Background] Enviando template nota_hcc com botão');
-            // Formato do Postman personalizado
-            payload = {
-              number: phoneNumber,
-              isClosed: false,
-              externalKey: `nota_${pagamentoId || Date.now()}`,
-              templateData: {
-                messaging_product: "whatsapp",
-                to: phoneNumber,
-                type: "template",
-                template: {
-                  name: "nota_hcc",
-                  language: {
-                    code: "pt_BR"
-                  },
-                  components: [
-                    {
-                      type: "body",
-                      parameters: [
-                        { type: "text", text: nome },
-                        { type: "text", text: valor },
-                        { type: "text", text: formatMesCompetencia(competencia || '') }
-                      ]
-                    },
-                    {
-                      type: "button",
-                      sub_type: "quick_reply",
-                      index: "0",
-                      parameters: [
-                        { type: "payload", payload: "Encaminhar Nota" }
-                      ]
-                    }
-                  ]
+            // Enviar apenas o template do Facebook com botões
+            const within24Hours = medico_id ? await checkLast24Hours(supabase, medico_id) : false;
+            
+            if (within24Hours) {
+              console.log('[Background] Dentro da janela de 24h - enviando mensagem livre');
+              message = `🏥 *Solicitação de Nota Fiscal - HCC Hospital*\n\nOlá, ${nome}!\n\nPara darmos sequência ao seu pagamento, precisamos da sua nota fiscal.\n\n💰 Valor: ${valor}\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\nClique no botão abaixo para receber as instruções de como enviar.`;
+              payload = {
+                body: message,
+                number: phoneNumber,
+                externalKey: `${type}_${pagamentoId || Date.now()}_${Date.now()}`,
+                isClosed: false
+              };
+            } else {
+              console.log('[Background] Fora da janela de 24h - usando template "nota_hcc"');
+              payload = {
+                number: phoneNumber,
+                isClosed: false,
+                templateData: {
+                  messaging_product: "whatsapp",
+                  to: phoneNumber,
+                  type: "template",
+                  template: {
+                    name: "nota_hcc",
+                    language: { code: "pt_BR" },
+                    components: [
+                      { 
+                        type: "body", 
+                        parameters: [
+                          { type: "text", text: nome },
+                          { type: "text", text: valor },
+                          { type: "text", text: formatMesCompetencia(competencia || '') }
+                        ]
+                      }
+                    ]
+                  }
                 }
-              }
-            };
-            console.log('[Background] Payload completo:', JSON.stringify(payload, null, 2));
+              };
+              apiUrl = config.api_url + '/template';
+            }
             break;
           
           case 'nota_pendente':
-            console.log('[Background] Enviando template nota_pendente com botão');
+            // Template de lembrete para notas pendentes (mesmas variáveis do template nota)
+            console.log('[Background] Usando template "nota_pendente" para lembrete');
             const valorFormatado = typeof valor === 'number' 
               ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)
               : valor;
             
-            // Formato do Postman personalizado
             payload = {
               number: phoneNumber,
               isClosed: false,
-              externalKey: `nota_pendente_${pagamentoId || 'temp'}_${Date.now()}`,
               templateData: {
                 messaging_product: "whatsapp",
                 to: phoneNumber,
                 type: "template",
                 template: {
                   name: "nota_pendente",
-                  language: {
-                    code: "pt_BR"
-                  },
+                  language: { code: "pt_BR" },
                   components: [
-                    {
-                      type: "body",
+                    { 
+                      type: "body", 
                       parameters: [
                         { type: "text", text: medico?.nome || nome },
                         { type: "text", text: valorFormatado },
                         { type: "text", text: formatMesCompetencia(competencia || '') }
-                      ]
-                    },
-                    {
-                      type: "button",
-                      sub_type: "quick_reply",
-                      index: "0",
-                      parameters: [
-                        { type: "payload", payload: "Encaminhar Nota" }
                       ]
                     }
                   ]
                 }
               }
             };
+            apiUrl = config.api_url + '/template';
             break;
           
           case 'pagamento':
-            console.log('[Background] Enviando notificação de pagamento');
-            message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
-            payload = {
-              number: phoneNumber,
-              text: message
-            };
+            const within24HoursPagamento = medico_id ? await checkLast24Hours(supabase, medico_id) : false;
+            
+            if (within24HoursPagamento) {
+              console.log('[Background] Dentro da janela de 24h - enviando mensagem livre');
+              message = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
+              payload = {
+                body: message,
+                number: phoneNumber,
+                externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+                isClosed: false
+              };
+            } else {
+              console.log('[Background] Fora da janela de 24h - usando template "pagamento"');
+              payload = {
+                number: phoneNumber,
+                isClosed: false,
+                templateData: {
+                  messaging_product: "whatsapp",
+                  to: phoneNumber,
+                  type: "template",
+                  template: {
+                    name: "pagamento",
+                    language: { code: "pt_BR" },
+                    components: [
+                      { 
+                        type: "body", 
+                        parameters: [
+                          { type: "text", text: nome },
+                          { type: "text", text: dataPagamento || new Date().toLocaleDateString('pt-BR') }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              };
+              apiUrl = config.api_url + '/template';
+            }
             break;
           
           case 'nota_recebida':
             message = `✅ *Nota Fiscal Recebida*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi recebida com sucesso.\n\n📋 Status: Em análise\n⏱️ Prazo: Até 24h úteis\n\nVocê será notificado assim que a análise for concluída.\n\nObrigado!`;
             payload = {
+              body: message,
               number: phoneNumber,
-              text: message
+              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+              isClosed: false
             };
             break;
           
           case 'nota_aprovacao':
-            // Enviar para gestores via função dedicada
-            console.log('[Background] Delegando envio para gestores via send-notification-gestores');
+            phoneNumber = financeiro_numero;
+            const shortAprovar = await shortenUrl(link_aprovar || '');
+            const shortRejeitar = await shortenUrl(link_rejeitar || '');
+            const valorBrutoFormatado = valorBruto ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorBruto) : valor;
+            const valorLiquidoFormatado = valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado';
             
-            try {
-              const { data: gestorResponse, error: gestorError } = await supabase.functions.invoke('send-notification-gestores', {
-                body: {
-                  phoneNumber: financeiro_numero,
-                  message: `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}${numeroNota ? `\n🧾 Nº Nota: ${numeroNota}` : ''}\n💰 Valor Bruto: ${valorBruto ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorBruto) : valor}\n💵 Valor Líquido: ${valorLiquido ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorLiquido) : 'Não informado'}\n   ⚠️ *Valor informado pelo médico - VERIFICAR*\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\n⚡ *IMPORTANTE:* Confira se o valor líquido está correto antes de aprovar!\n\n✅ Aprovar:\n${await shortenUrl(link_aprovar || '')}\n\n❌ Rejeitar:\n${await shortenUrl(link_rejeitar || '')}`,
-                  pdf_base64,
-                  pdf_filename: pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`
-                }
-              });
-              
-              if (gestorError) throw gestorError;
-              console.log('[Background] Notificação enviada para gestor via edge function');
-              return; // Não continuar com o fluxo normal
-            } catch (error) {
-              console.error('[Background] Erro ao enviar para gestores:', error);
-              throw error;
-            }
+            const caption = `📄 *Nova Nota Fiscal para Aprovação*\n\n👨‍⚕️ Médico: ${nome}${numeroNota ? `\n🧾 Nº Nota: ${numeroNota}` : ''}\n💰 Valor Bruto: ${valorBrutoFormatado}\n💵 Valor Líquido: ${valorLiquidoFormatado}\n   ⚠️ *Valor informado pelo médico - VERIFICAR*\n📅 Competência: ${formatMesCompetencia(competencia || '')}\n\n⚡ *IMPORTANTE:* Confira se o valor líquido está correto antes de aprovar!\n\n✅ Aprovar:\n${shortAprovar}\n\n❌ Rejeitar:\n${shortRejeitar}`;
+            const derivedFileName = (pdf_filename || `nota_${(nome || 'medico').replace(/\s+/g, '_')}_${competencia}.pdf`);
+            
+            payload = {
+              number: phoneNumber,
+              body: caption,
+              mediaData: {
+                mediaBase64: pdf_base64,
+                caption,
+                fileName: derivedFileName
+              },
+              file: {
+                data: pdf_base64,
+                fileName: derivedFileName,
+                filename: derivedFileName
+              }
+            };
             break;
           
           case 'nota_aprovada':
             message = `✅ *Nota Fiscal Aprovada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi aprovada.\n\nO pagamento está sendo processado e você será notificado quando estiver disponível.\n\nObrigado!`;
             payload = {
+              body: message,
               number: phoneNumber,
-              text: message
+              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+              isClosed: false
             };
             break;
           
           case 'nota_rejeitada':
             message = `❌ *Nota Fiscal Rejeitada*\n\nOlá ${medico?.nome}!\n\nSua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi rejeitada.\n\n*Motivo:* ${motivo}\n\nPor favor, corrija o documento e envie novamente através do nosso portal:\n\n🔗 ${linkPortal || 'https://hcc.chatconquista.com/dashboard-medicos'}\n\nPrecisa de ajuda? Entre em contato conosco.`;
             payload = {
+              body: message,
               number: phoneNumber,
-              text: message
+              externalKey: `${type}_${pagamentoId || medico?.nome || Date.now()}_${Date.now()}`,
+              isClosed: false
             };
             break;
           
@@ -279,8 +316,10 @@ serve(async (req) => {
             const linkResposta = await shortenUrl(`https://hcc.chatconquista.com/chat?medico=${medico_id || ''}&responder=true`);
             message = `💬 *Nova Mensagem no Chat*\n\n*De:* ${medico_nome}\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Responder agora:\n${linkResposta}\n\nOu acesse o sistema para visualizar o histórico completo.`;
             payload = {
+              body: message,
               number: phoneNumber,
-              text: message
+              externalKey: `chat_${medico_id}_${Date.now()}`,
+              isClosed: false
             };
             break;
           
@@ -289,16 +328,20 @@ serve(async (req) => {
             const linkChatMedico = await shortenUrl(`https://hcc.chatconquista.com/dashboard-medicos`);
             message = `💬 *Nova Resposta do Financeiro*\n\n*Mensagem:*\n"${mensagem || mensagem_preview}"\n\n🔗 Ver conversa:\n${linkChatMedico}\n\nAcesse seu painel para continuar a conversa.`;
             payload = {
+              body: message,
               number: phoneNumber,
-              text: message
+              externalKey: `chat_resp_${Date.now()}`,
+              isClosed: false
             };
             break;
           
           case 'valor_ajustado':
             message = `⚠️ *Valor da Nota Ajustado*\n\nOlá ${medico?.nome}!\n\nO valor líquido da sua nota fiscal referente ao período ${formatMesCompetencia(competencia || '')} foi ajustado.\n\n💰 Valor Original: ${valorOriginal}\n💵 Novo Valor: ${valorNovo}\n\n📝 *Motivo do Ajuste:*\n${motivo}\n\nSe tiver dúvidas, entre em contato conosco.`;
             payload = {
+              body: message,
               number: phoneNumber,
-              text: message
+              externalKey: `valor_ajustado_${medico_id}_${Date.now()}`,
+              isClosed: false
             };
             break;
           
@@ -309,14 +352,12 @@ serve(async (req) => {
         console.log('[Background] Enviando para API WhatsApp:', apiUrl);
 
         // Enviar mensagem principal
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        };
-        
         const response = await fetch(apiUrl, {
           method: 'POST',
-          headers,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.auth_token}`
+          },
           body: JSON.stringify(payload)
         });
 
@@ -347,20 +388,27 @@ serve(async (req) => {
             if (medicoCompleto?.numero_whatsapp_contador) {
               console.log('[Background] Enviando também para contador:', medicoCompleto.numero_whatsapp_contador);
               
-              // Criar payload para contador
-              const payloadContador = { 
-                ...payload, 
-                number: medicoCompleto.numero_whatsapp_contador 
-              };
+              // Criar payload para contador - ajustar conforme tipo
+              let payloadContador;
               
-              const headersContador: Record<string, string> = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-              };
+              if (apiUrl.includes('/template')) {
+                // Para templates, criar novo payload completo
+                payloadContador = JSON.parse(JSON.stringify(payload));
+                if (payloadContador.templateData?.to) {
+                  payloadContador.templateData.to = medicoCompleto.numero_whatsapp_contador;
+                }
+                payloadContador.number = medicoCompleto.numero_whatsapp_contador;
+              } else {
+                // Para mensagens livres
+                payloadContador = { ...payload, number: medicoCompleto.numero_whatsapp_contador };
+              }
               
               await fetch(apiUrl, {
                 method: 'POST',
-                headers: headersContador,
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${config.auth_token}`
+                },
                 body: JSON.stringify(payloadContador)
               });
               
