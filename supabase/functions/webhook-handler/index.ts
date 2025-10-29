@@ -898,8 +898,17 @@ serve(async (req) => {
               }
 
               // Enviar WhatsApp para gestores com PDF anexado
-              if (medicoData) {
-                try {
+              try {
+                // Buscar médico com especialidade
+                const { data: medicoCompleto } = await supabase
+                  .from('medicos')
+                  .select('nome, especialidade')
+                  .eq('id', pagamento.medico_id)
+                  .single();
+                
+                const medicoInfo = medicoCompleto || medicoData;
+                
+                if (medicoInfo) {
                   const { data: gestores } = await supabase
                     .from('profiles')
                     .select('numero_whatsapp, name')
@@ -916,9 +925,14 @@ serve(async (req) => {
                     }).format(pagamento.valor);
 
                     // Baixar o PDF para enviar aos gestores
-                    const { data: pdfDataGestor } = await supabase.storage
+                    const { data: pdfDataGestor, error: pdfError } = await supabase.storage
                       .from('notas')
                       .download(filePath);
+
+                    if (pdfError) {
+                      console.error('Erro ao baixar PDF para gestores:', pdfError);
+                      throw pdfError;
+                    }
 
                     let pdfBase64 = '';
                     if (pdfDataGestor) {
@@ -927,10 +941,12 @@ serve(async (req) => {
                         new Uint8Array(arrayBuffer)
                           .reduce((data, byte) => data + String.fromCharCode(byte), '')
                       );
+                      console.log(`PDF convertido para base64: ${pdfBase64.length} chars`);
                     }
 
+                    const especialidadeInfo = medicoInfo.especialidade ? `\n🩺 *Especialidade:* ${medicoInfo.especialidade}` : '';
                     const mensagem = `🏥 *Nova Nota Fiscal Recebida - HCC Hospital*\n\n` +
-                      `📋 *Médico:* ${medicoData.nome}\n` +
+                      `📋 *Médico:* ${medicoInfo.nome}${especialidadeInfo}\n` +
                       `📅 *Competência:* ${mesFormatado}\n` +
                       `💰 *Valor:* ${valorFormatado}\n` +
                       `📄 *Arquivo:* ${filename}\n\n` +
@@ -938,8 +954,9 @@ serve(async (req) => {
                       `🔗 Acesse o portal para aprovar/rejeitar:\n` +
                       `https://hcc.chatconquista.com/pagamentos`;
 
-                    for (const gestor of gestores) {
+                     for (const gestor of gestores) {
                       try {
+                        console.log(`Enviando para gestor ${gestor.name} (${gestor.numero_whatsapp})`);
                         await supabase.functions.invoke('send-notification-gestores', {
                           body: {
                             phoneNumber: gestor.numero_whatsapp,
@@ -948,15 +965,15 @@ serve(async (req) => {
                             pdf_filename: filename
                           }
                         });
-                        console.log(`WhatsApp com PDF enviado para gestor ${gestor.name}`);
+                        console.log(`✅ WhatsApp com PDF enviado para gestor ${gestor.name}`);
                       } catch (gestorError) {
-                        console.warn(`Erro ao enviar WhatsApp para gestor ${gestor.name}:`, gestorError);
+                        console.warn(`❌ Erro ao enviar WhatsApp para gestor ${gestor.name}:`, gestorError);
                       }
                     }
                   }
-                } catch (whatsappError) {
-                  console.warn('Erro ao enviar notificações WhatsApp para gestores:', whatsappError);
                 }
+              } catch (whatsappError) {
+                console.warn('Erro ao enviar notificações WhatsApp para gestores:', whatsappError);
               }
 
               return new Response(JSON.stringify({

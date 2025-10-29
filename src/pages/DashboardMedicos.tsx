@@ -37,11 +37,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatMesCompetencia } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import logo from "@/assets/logo.png";
 import ChatWithFinanceiro from "@/components/ChatWithFinanceiro";
 import TicketHistory from "@/components/TicketHistory";
 import RatingDialog from "@/components/RatingDialog";
 import conquistaLogo from "@/assets/conquista-inovacao.png";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface MedicoStats {
   totalNotas: number;
@@ -735,6 +738,46 @@ export default function DashboardMedicos() {
     { name: 'Pendentes', value: stats.notasPendentes, color: statusColors.pendente },
     { name: 'Rejeitadas', value: stats.notasRejeitadas, color: statusColors.rejeitado }
   ].filter(item => item.value > 0);
+
+  // Renderização inicial - Loading Config
+  if (loadingConfig) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
+        <LoadingSpinner size="lg" text="Carregando configurações..." />
+      </div>
+    );
+  }
+
+  // Renderização - Manutenção
+  if (manutencao) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-destructive/10 via-destructive/5 to-background p-4">
+        <div className="w-full max-w-4xl text-center space-y-8 animate-fade-in">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <AlertTriangle className="w-32 h-32 mx-auto text-destructive mb-6 drop-shadow-2xl" />
+            <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 drop-shadow-lg">
+              Sistema em Manutenção
+            </h1>
+            <p className="text-xl md:text-2xl text-muted-foreground mb-6 max-w-2xl mx-auto">
+              {mensagemManutencao}
+            </p>
+            {previsaoRetorno && (
+              <div className="inline-flex items-center gap-2 bg-primary/10 px-6 py-3 rounded-full">
+                <Clock className="w-5 h-5 text-primary" />
+                <p className="text-lg font-semibold text-primary">
+                  Previsão de retorno: {format(new Date(previsaoRetorno), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
 
   if (!medico) {
     return (
