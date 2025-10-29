@@ -77,19 +77,16 @@ serve(async (req) => {
       .update({ verificado: true })
       .eq('id', verificacao.id);
 
-    // Buscar duração da sessão nas configurações
-    const { data: config } = await supabase
-      .from('configuracoes')
-      .select('verificacao_medico_duracao_sessao_horas')
-      .eq('empresa_id', medico.empresa_id)
-      .single();
+    // Invalidar sessões anteriores deste médico (garantir uma sessão por médico)
+    await supabase
+      .from('sessoes_medico')
+      .delete()
+      .eq('medico_id', medico.id);
 
-    const duracaoHoras = config?.verificacao_medico_duracao_sessao_horas || 24;
-
-    // Criar sessão com token
+    // Criar nova sessão com duração fixa de 1 hora
     const token = crypto.randomUUID();
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + duracaoHoras);
+    expiresAt.setHours(expiresAt.getHours() + 1); // Sessão válida por 1 hora
 
     const { error: sessionError } = await supabase
       .from('sessoes_medico')

@@ -73,7 +73,13 @@ serve(async (req) => {
     // Gerar código de 6 dígitos
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Salvar código no banco com expiração de 10 minutos
+    // Invalidar códigos anteriores deste médico
+    await supabase
+      .from('verificacao_medico')
+      .delete()
+      .eq('medico_id', medico.id);
+
+    // Salvar novo código no banco com expiração de 10 minutos
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
