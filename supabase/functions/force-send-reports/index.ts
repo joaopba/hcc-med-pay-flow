@@ -126,18 +126,18 @@ serve(async (req) => {
             `_Relatório automático • ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}_`;
           
           try {
+            const form = new FormData();
+            form.append('number', gestor.numero_whatsapp);
+            form.append('body', mensagemSucesso);
+            form.append('externalKey', `relatorio_ok_${gestor.id}_${Date.now()}`);
+            form.append('isClosed', 'false');
+
             const response = await fetch(`${config.api_url}`, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${config.auth_token}`
               },
-              body: JSON.stringify({
-                number: gestor.numero_whatsapp,
-                body: mensagemSucesso,
-                externalKey: `relatorio_ok_${gestor.id}_${Date.now()}`,
-                isClosed: false
-              })
+              body: form
             });
 
             if (response.ok) {
@@ -241,18 +241,18 @@ serve(async (req) => {
 
         // Enviar via WhatsApp diretamente para a API
         try {
+          const form = new FormData();
+          form.append('number', gestor.numero_whatsapp);
+          form.append('body', mensagem);
+          form.append('externalKey', `relatorio_diario_${gestor.id}_${Date.now()}`);
+          form.append('isClosed', 'false');
+
           const response = await fetch(`${config.api_url}`, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
               'Authorization': `Bearer ${config.auth_token}`
             },
-            body: JSON.stringify({
-              number: gestor.numero_whatsapp,
-              body: mensagem,
-              externalKey: `relatorio_diario_${gestor.id}_${Date.now()}`,
-              isClosed: false
-            })
+            body: form
           });
 
           if (!response.ok) {

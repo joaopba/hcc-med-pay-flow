@@ -90,20 +90,35 @@ serve(async (req) => {
 
     // Preparar números de telefone com mascaramento (LGPD)
     const telefones = [];
-    const numerosParaEnviar = [];
+    const numerosParaEnviar: string[] = [];
+
+    const normalizeNumber = (raw: string) => {
+      let n = (raw || '').replace(/\D/g, '');
+      if (n.startsWith('00')) n = n.slice(2); // remove prefixo internacional 00
+      if (n.startsWith('+')) n = n.slice(1);
+      // Se vier apenas DDD+numero (11 dígitos), prefixa 55
+      if (n.length === 11 && !n.startsWith('55')) n = '55' + n;
+      // Se vier 12 ou 13 dígitos sem +, mantém
+      return n;
+    };
+    
+    const maskDisplay = (normalized: string) => {
+      let d = normalized;
+      if (d.startsWith('55')) d = d.slice(2);
+      // DDD(2) + 9(5) + 4
+      return d.replace(/(\d{2})(\d{5})(\d{4}).*/, '($1) *****-$3');
+    };
     
     if (medico.numero_whatsapp) {
-      const numeroLimpo = medico.numero_whatsapp.replace(/\D/g, '');
-      const masked = numeroLimpo.replace(/(\d{2})(\d{5})(\d{4})/, '($1) *****-$3');
-      telefones.push({ numero: masked, tipo: 'Médico' });
-      numerosParaEnviar.push(numeroLimpo);
+      const normalized = normalizeNumber(medico.numero_whatsapp);
+      telefones.push({ numero: maskDisplay(normalized), tipo: 'Médico' });
+      numerosParaEnviar.push(normalized);
     }
     
     if (medico.numero_whatsapp_contador) {
-      const numeroLimpo = medico.numero_whatsapp_contador.replace(/\D/g, '');
-      const masked = numeroLimpo.replace(/(\d{2})(\d{5})(\d{4})/, '($1) *****-$3');
-      telefones.push({ numero: masked, tipo: 'Contador' });
-      numerosParaEnviar.push(numeroLimpo);
+      const normalized = normalizeNumber(medico.numero_whatsapp_contador);
+      telefones.push({ numero: maskDisplay(normalized), tipo: 'Contador' });
+      numerosParaEnviar.push(normalized);
     }
 
     // Enviar código via WhatsApp para TODOS os números
@@ -151,6 +166,52 @@ serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`❌ Falha ao enviar para ${numero}:`, response.status, errorText);
+
+          // Tentativa 2: alguns templates usam variável no HEADER
+          try {
+            const headerPayload = {
+              number: numero,
+              isClosed: false,
+              templateData: {
+                messaging_product: "whatsapp",
+                to: numero,
+                type: "template",
+                template: {
+                  name: config.verificacao_medico_template_nome || 'verificamedico',
+                  language: { code: "pt_BR" },
+                  components: [
+                    { 
+                      type: "header", 
+                      parameters: [
+                        { type: "text", text: codigo }
+                      ]
+                    }
+                  ]
+                }
+              }
+            };
+
+            console.log(`🔁 Tentando novamente com parâmetro no HEADER para ${numero}`);
+            const retry = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.auth_token}`
+              },
+              body: JSON.stringify(headerPayload)
+            });
+
+            if (retry.ok) {
+              const retryData = await retry.json();
+              enviosSucesso++;
+              console.log(`✅ Código ${codigo} enviado (HEADER) para ${numero}`, retryData);
+            } else {
+              const retryText = await retry.text();
+              console.error(`❌ Segunda tentativa falhou para ${numero}:`, retry.status, retryText);
+            }
+          } catch (retryErr) {
+            console.error(`❌ Erro na tentativa alternativa para ${numero}:`, retryErr);
+          }
         } else {
           const responseData = await response.json();
           enviosSucesso++;
