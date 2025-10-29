@@ -17,6 +17,7 @@ export type Database = {
       chat_messages: {
         Row: {
           created_at: string
+          empresa_id: string | null
           id: string
           medico_id: string
           message: string
@@ -26,6 +27,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          empresa_id?: string | null
           id?: string
           medico_id: string
           message: string
@@ -35,6 +37,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          empresa_id?: string | null
           id?: string
           medico_id?: string
           message?: string
@@ -43,6 +46,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "chat_messages_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chat_messages_medico_id_fkey"
             columns: ["medico_id"]
@@ -56,6 +66,7 @@ export type Database = {
         Row: {
           closed_at: string | null
           created_at: string
+          empresa_id: string | null
           feedback_text: string | null
           gestor_id: string | null
           id: string
@@ -69,6 +80,7 @@ export type Database = {
         Insert: {
           closed_at?: string | null
           created_at?: string
+          empresa_id?: string | null
           feedback_text?: string | null
           gestor_id?: string | null
           id?: string
@@ -82,6 +94,7 @@ export type Database = {
         Update: {
           closed_at?: string | null
           created_at?: string
+          empresa_id?: string | null
           feedback_text?: string | null
           gestor_id?: string | null
           id?: string
@@ -93,6 +106,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "chat_tickets_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chat_tickets_gestor_id_fkey"
             columns: ["gestor_id"]
@@ -114,14 +134,36 @@ export type Database = {
           api_url: string
           auth_token: string
           created_at: string
+          dashboard_medicos_manutencao: boolean | null
+          dashboard_medicos_mensagem_manutencao: string | null
+          dashboard_medicos_previsao_retorno: string | null
           email_notificacoes: boolean
+          empresa_id: string
           horario_envio_relatorios: string | null
+          horario_previsto_retorno: string | null
           id: string
           intervalo_cobranca_nota_horas: number | null
           lembrete_periodico_horas: number | null
+          media_api_key: string | null
+          media_api_url: string | null
+          mensagem_manutencao: string | null
+          meta_api_url: string | null
+          meta_phone_number_id: string | null
+          meta_token: string | null
+          meta_waba_id: string | null
+          modo_manutencao: boolean | null
           ocr_nfse_api_key: string | null
           ocr_nfse_habilitado: boolean
           permitir_nota_via_whatsapp: boolean
+          smtp_from_email: string | null
+          smtp_from_name: string | null
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_user: string | null
+          template_nome: string | null
+          text_api_key: string | null
+          text_api_url: string | null
           updated_at: string
           webhook_url: string | null
         }
@@ -129,14 +171,36 @@ export type Database = {
           api_url?: string
           auth_token: string
           created_at?: string
+          dashboard_medicos_manutencao?: boolean | null
+          dashboard_medicos_mensagem_manutencao?: string | null
+          dashboard_medicos_previsao_retorno?: string | null
           email_notificacoes?: boolean
+          empresa_id: string
           horario_envio_relatorios?: string | null
+          horario_previsto_retorno?: string | null
           id?: string
           intervalo_cobranca_nota_horas?: number | null
           lembrete_periodico_horas?: number | null
+          media_api_key?: string | null
+          media_api_url?: string | null
+          mensagem_manutencao?: string | null
+          meta_api_url?: string | null
+          meta_phone_number_id?: string | null
+          meta_token?: string | null
+          meta_waba_id?: string | null
+          modo_manutencao?: boolean | null
           ocr_nfse_api_key?: string | null
           ocr_nfse_habilitado?: boolean
           permitir_nota_via_whatsapp?: boolean
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          template_nome?: string | null
+          text_api_key?: string | null
+          text_api_url?: string | null
           updated_at?: string
           webhook_url?: string | null
         }
@@ -144,18 +208,48 @@ export type Database = {
           api_url?: string
           auth_token?: string
           created_at?: string
+          dashboard_medicos_manutencao?: boolean | null
+          dashboard_medicos_mensagem_manutencao?: string | null
+          dashboard_medicos_previsao_retorno?: string | null
           email_notificacoes?: boolean
+          empresa_id?: string
           horario_envio_relatorios?: string | null
+          horario_previsto_retorno?: string | null
           id?: string
           intervalo_cobranca_nota_horas?: number | null
           lembrete_periodico_horas?: number | null
+          media_api_key?: string | null
+          media_api_url?: string | null
+          mensagem_manutencao?: string | null
+          meta_api_url?: string | null
+          meta_phone_number_id?: string | null
+          meta_token?: string | null
+          meta_waba_id?: string | null
+          modo_manutencao?: boolean | null
           ocr_nfse_api_key?: string | null
           ocr_nfse_habilitado?: boolean
           permitir_nota_via_whatsapp?: boolean
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          template_nome?: string | null
+          text_api_key?: string | null
+          text_api_url?: string | null
           updated_at?: string
           webhook_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "configuracoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       disparos_notas: {
         Row: {
@@ -181,11 +275,54 @@ export type Database = {
         }
         Relationships: []
       }
+      empresas: {
+        Row: {
+          ativo: boolean
+          configuracoes: Json | null
+          cor_primaria: string | null
+          cor_secundaria: string | null
+          created_at: string
+          dominio_personalizado: string | null
+          id: string
+          logo_url: string | null
+          nome: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          configuracoes?: Json | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
+          created_at?: string
+          dominio_personalizado?: string | null
+          id?: string
+          logo_url?: string | null
+          nome: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          configuracoes?: Json | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
+          created_at?: string
+          dominio_personalizado?: string | null
+          id?: string
+          logo_url?: string | null
+          nome?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       medicos: {
         Row: {
           ativo: boolean
           created_at: string
           documento: string | null
+          empresa_id: string
           especialidade: string | null
           id: string
           nome: string
@@ -198,6 +335,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           documento?: string | null
+          empresa_id: string
           especialidade?: string | null
           id?: string
           nome: string
@@ -210,6 +348,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           documento?: string | null
+          empresa_id?: string
           especialidade?: string | null
           id?: string
           nome?: string
@@ -218,7 +357,15 @@ export type Database = {
           tipo_pessoa?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "medicos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       message_locks: {
         Row: {
@@ -371,6 +518,7 @@ export type Database = {
           data_pagamento: string | null
           data_resposta: string | null
           data_solicitacao: string | null
+          empresa_id: string
           id: string
           medico_id: string
           mes_competencia: string
@@ -387,6 +535,7 @@ export type Database = {
           data_pagamento?: string | null
           data_resposta?: string | null
           data_solicitacao?: string | null
+          empresa_id: string
           id?: string
           medico_id: string
           mes_competencia: string
@@ -403,6 +552,7 @@ export type Database = {
           data_pagamento?: string | null
           data_resposta?: string | null
           data_solicitacao?: string | null
+          empresa_id?: string
           id?: string
           medico_id?: string
           mes_competencia?: string
@@ -414,6 +564,13 @@ export type Database = {
           valor_liquido?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pagamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pagamentos_medico_id_fkey"
             columns: ["medico_id"]
@@ -427,10 +584,12 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          empresa_id: string
           id: string
           name: string
           numero_whatsapp: string | null
           role: Database["public"]["Enums"]["user_role"]
+          system_role: Database["public"]["Enums"]["system_role"] | null
           updated_at: string
           user_id: string
           whatsapp_notifications_enabled: boolean | null
@@ -438,10 +597,12 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
+          empresa_id: string
           id?: string
           name: string
           numero_whatsapp?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          system_role?: Database["public"]["Enums"]["system_role"] | null
           updated_at?: string
           user_id: string
           whatsapp_notifications_enabled?: boolean | null
@@ -449,15 +610,25 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string
+          empresa_id?: string
           id?: string
           name?: string
           numero_whatsapp?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          system_role?: Database["public"]["Enums"]["system_role"] | null
           updated_at?: string
           user_id?: string
           whatsapp_notifications_enabled?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webhook_debug_logs: {
         Row: {
@@ -580,9 +751,12 @@ export type Database = {
     Functions: {
       check_whatsapp_rate_limit: { Args: never; Returns: boolean }
       cleanup_old_whatsapp_queue: { Args: never; Returns: undefined }
+      get_user_empresa_id: { Args: never; Returns: string }
       increment_whatsapp_rate_limit: { Args: never; Returns: undefined }
       is_gestor: { Args: never; Returns: boolean }
+      is_gestor_empresa: { Args: { empresa_uuid: string }; Returns: boolean }
       is_manager: { Args: { user_uuid: string }; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       payment_status:
@@ -592,6 +766,7 @@ export type Database = {
         | "pago"
         | "aprovado"
         | "nota_rejeitada"
+      system_role: "super_admin" | "gestor" | "usuario"
       user_role: "gestor" | "usuario"
     }
     CompositeTypes: {
@@ -728,6 +903,7 @@ export const Constants = {
         "aprovado",
         "nota_rejeitada",
       ],
+      system_role: ["super_admin", "gestor", "usuario"],
       user_role: ["gestor", "usuario"],
     },
   },

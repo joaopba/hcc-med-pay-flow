@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   BarChart, 
   Bar, 
@@ -108,6 +108,9 @@ export default function DashboardMedicos() {
   const [pendingTicket, setPendingTicket] = useState<any>(null);
   const [valorLiquido, setValorLiquido] = useState("");
   const [ocrHabilitado, setOcrHabilitado] = useState(false);
+  const [manutencao, setManutencao] = useState(false);
+  const [mensagemManutencao, setMensagemManutencao] = useState("");
+  const [previsaoRetorno, setPrevisaoRetorno] = useState<string | null>(null);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -259,14 +262,23 @@ export default function DashboardMedicos() {
     try {
       const cpfNumeros = cpf.replace(/\D/g, '');
 
-      // Buscar configurações OCR
+      // Buscar configurações OCR e manutenção
       const { data: configData } = await supabase
         .from('configuracoes')
-        .select('ocr_nfse_habilitado')
+        .select('ocr_nfse_habilitado, dashboard_medicos_manutencao, dashboard_medicos_mensagem_manutencao, dashboard_medicos_previsao_retorno')
         .single();
       
       if (configData) {
         setOcrHabilitado(configData.ocr_nfse_habilitado || false);
+        setManutencao(configData.dashboard_medicos_manutencao || false);
+        setMensagemManutencao(configData.dashboard_medicos_mensagem_manutencao || "Dashboard em manutenção. Por favor, tente novamente mais tarde.");
+        setPrevisaoRetorno(configData.dashboard_medicos_previsao_retorno);
+        
+        // Se está em manutenção, não buscar dados do médico
+        if (configData.dashboard_medicos_manutencao) {
+          setLoading(false);
+          return;
+        }
       }
 
       const { data: result, error: fnError } = await supabase.functions.invoke('get-medico-dados', {
@@ -1383,6 +1395,6 @@ export default function DashboardMedicos() {
           />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

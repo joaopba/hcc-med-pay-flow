@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Copy, TestTube, Mail } from "lucide-react";
+import { Save, Copy, TestTube, Mail, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -23,6 +23,9 @@ interface Configuracao {
   horario_envio_relatorios: string;
   intervalo_cobranca_nota_horas: number;
   lembrete_periodico_horas: number;
+  dashboard_medicos_manutencao: boolean;
+  dashboard_medicos_mensagem_manutencao: string;
+  dashboard_medicos_previsao_retorno: string;
 }
 
 export default function Configuracoes() {
@@ -74,6 +77,9 @@ export default function Configuracoes() {
         horario_envio_relatorios: "08:00",
         intervalo_cobranca_nota_horas: 24,
         lembrete_periodico_horas: 48,
+        dashboard_medicos_manutencao: false,
+        dashboard_medicos_mensagem_manutencao: "Dashboard em manutenção. Por favor, tente novamente mais tarde.",
+        dashboard_medicos_previsao_retorno: "",
       });
     } finally {
       setLoading(false);
@@ -99,6 +105,9 @@ export default function Configuracoes() {
             horario_envio_relatorios: config.horario_envio_relatorios,
             intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas,
             lembrete_periodico_horas: config.lembrete_periodico_horas,
+            dashboard_medicos_manutencao: config.dashboard_medicos_manutencao,
+            dashboard_medicos_mensagem_manutencao: config.dashboard_medicos_mensagem_manutencao,
+            dashboard_medicos_previsao_retorno: config.dashboard_medicos_previsao_retorno || null,
           })
           .eq("id", config.id);
 
@@ -117,6 +126,9 @@ export default function Configuracoes() {
             horario_envio_relatorios: config.horario_envio_relatorios,
             intervalo_cobranca_nota_horas: config.intervalo_cobranca_nota_horas,
             lembrete_periodico_horas: config.lembrete_periodico_horas,
+            dashboard_medicos_manutencao: config.dashboard_medicos_manutencao,
+            dashboard_medicos_mensagem_manutencao: config.dashboard_medicos_mensagem_manutencao,
+            dashboard_medicos_previsao_retorno: config.dashboard_medicos_previsao_retorno || null,
           }])
           .select()
           .single();
@@ -237,6 +249,8 @@ export default function Configuracoes() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          
           <Card>
             <CardHeader>
               <CardTitle>API do WhatsApp</CardTitle>
@@ -547,6 +561,74 @@ export default function Configuracoes() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wrench className="h-5 w-5" />
+                🔧 Manutenção do Dashboard Médicos
+              </CardTitle>
+              <CardDescription>
+                Configure alertas de manutenção para o portal dos médicos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="dashboard_manutencao">Ativar Modo Manutenção</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Bloqueia acesso ao dashboard e exibe mensagem personalizada
+                  </p>
+                </div>
+                <Switch
+                  id="dashboard_manutencao"
+                  checked={config.dashboard_medicos_manutencao}
+                  onCheckedChange={(checked) => 
+                    setConfig({ ...config, dashboard_medicos_manutencao: checked })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mensagem_manutencao">Mensagem de Manutenção</Label>
+                <Textarea
+                  id="mensagem_manutencao"
+                  value={config.dashboard_medicos_mensagem_manutencao}
+                  onChange={(e) => setConfig({ ...config, dashboard_medicos_mensagem_manutencao: e.target.value })}
+                  rows={3}
+                  placeholder="Dashboard em manutenção. Por favor, tente novamente mais tarde."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Esta mensagem será exibida para os médicos durante a manutenção
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="previsao_retorno">Previsão de Retorno</Label>
+                <Input
+                  id="previsao_retorno"
+                  type="datetime-local"
+                  value={config.dashboard_medicos_previsao_retorno || ""}
+                  onChange={(e) => setConfig({ ...config, dashboard_medicos_previsao_retorno: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Data e hora prevista para o retorno do sistema (opcional)
+                </p>
+              </div>
+
+              {config.dashboard_medicos_manutencao && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-900 mb-2">
+                    <strong>⚠️ Modo Manutenção Ativo</strong>
+                  </p>
+                  <p className="text-xs text-amber-800">
+                    O dashboard dos médicos está bloqueado e exibindo a mensagem de manutenção.
+                    Não esqueça de desativar quando concluir!
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Informações do Sistema</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -606,9 +688,6 @@ export default function Configuracoes() {
   const linhas = json.pagamento_de_dados.map(i => [i.id, i.medico_nome, i.medico_cpf, i.mes_competencia, i.valor_liquido, i.data_pagamento, i.status]);
   if (linhas.length) aba.getRange(2,1,linhas.length,7).setValues(linhas);
 }`}</code></pre>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Dica: use gatilhos do Apps Script para atualizar automaticamente.
-                </p>
               </div>
             </CardContent>
           </Card>
