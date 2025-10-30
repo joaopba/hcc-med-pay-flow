@@ -132,7 +132,7 @@ serve(async (req) => {
     
     // API Meta WhatsApp
     const META_PHONE_ID = '468233466375447';
-    const META_TOKEN = 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
+    const META_TOKEN = 'EAAXSNrvzpbABP6IYXowGhZBzQbatbThlDDsidvOs77h6BAmhaJLZAos2SWzqZARSl57YiBvZCYJFCjJWSDbP5XuZAWT4ORdREQ2yBdaiYyk7si0boZB5LkoDzcCw6ZCiBy6tPMZBlrVtCcLZBQivZBc7xlIrDnQk1v8zgp3vK0coPZAGXAp0DSrEf9fVmjlZCXUk9gZDZD';
     const apiUrl = `https://graph.facebook.com/v21.0/${META_PHONE_ID}/messages`;
     
     for (const numero of numerosParaEnviar) {
