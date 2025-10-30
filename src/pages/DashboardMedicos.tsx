@@ -1017,12 +1017,13 @@ export default function DashboardMedicos() {
             }
             const pdfBase64 = btoa(binary);
             
-            // Gerar token simples para os links
-            const token = btoa(`${notaData.id}-${Date.now()}`).slice(0, 32);
+            // Gerar token baseado no created_at da nota (formato aceito pela edge function)
+            const tokenAprovar = btoa(`${notaData.id}-${notaData.created_at}-approve`).substring(0, 20);
+            const tokenRejeitar = btoa(`${notaData.id}-${notaData.created_at}-reject`).substring(0, 20);
             
             // Links de aprovação e rejeição
-            const aprovarLink = `https://hcc.chatconquista.com/aprovar?i=${notaData.id}&t=${token}`;
-            const rejeitarLink = `https://hcc.chatconquista.com/rejeitar?i=${notaData.id}&t=${token}`;
+            const aprovarLink = `https://hcc.chatconquista.com/aprovar?i=${notaData.id}&t=${tokenAprovar}`;
+            const rejeitarLink = `https://hcc.chatconquista.com/rejeitar?i=${notaData.id}&t=${tokenRejeitar}`;
             
             // Enviar para cada gestor
             const promises = gestores.map(async (gestor) => {

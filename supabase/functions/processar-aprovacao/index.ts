@@ -64,10 +64,17 @@ serve(async (req) => {
 
     // Validar token - normalizar created_at removendo T
     const createdAtStr = String(nota.created_at).replace('T', ' ');
-    const expected20 = btoa(`${notaId}-${createdAtStr}`).substring(0, 20);
-    const expected12 = expected20.substring(0, 12);
     
-    if (token !== expected20 && token !== expected12) {
+    // Aceitar múltiplos formatos de token
+    const expectedBase = btoa(`${notaId}-${createdAtStr}`).substring(0, 20);
+    const expectedApprove = btoa(`${notaId}-${nota.created_at}-approve`).substring(0, 20);
+    const expectedReject = btoa(`${notaId}-${nota.created_at}-reject`).substring(0, 20);
+    const expected12 = expectedBase.substring(0, 12);
+    
+    const validTokens = [expectedBase, expectedApprove, expectedReject, expected12];
+    
+    if (!validTokens.includes(token)) {
+      console.error('Token inválido. Recebido:', token, 'Esperados:', validTokens);
       return new Response('Token inválido', { status: 403, headers: corsHeaders });
     }
 
