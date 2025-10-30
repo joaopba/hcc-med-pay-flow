@@ -351,10 +351,20 @@ serve(async (req) => {
           headers: { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders }
         });
       } else if (req.method === 'POST') {
-        const formData = await req.formData();
-        const motivo = formData.get('motivo') as string;
+        let motivo: string;
+        
+        // Tentar parsear como form-urlencoded primeiro
+        try {
+          const body = await req.text();
+          const params = new URLSearchParams(body);
+          motivo = params.get('motivo') || '';
+        } catch {
+          // Se falhar, tentar como FormData
+          const formData = await req.formData();
+          motivo = formData.get('motivo') as string;
+        }
 
-        if (!motivo) {
+        if (!motivo || !motivo.trim()) {
           return new Response('Motivo é obrigatório', { status: 400, headers: corsHeaders });
         }
 

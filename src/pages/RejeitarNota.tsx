@@ -116,7 +116,10 @@ export default function RejeitarNota() {
         `https://nnytrkgsjajsecotasqv.supabase.co/functions/v1/processar-aprovacao?nota=${notaId}&action=rejeitar&token=${token}`,
         {
           method: 'POST',
-          body: formData
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({ motivo }).toString()
         }
       );
 
