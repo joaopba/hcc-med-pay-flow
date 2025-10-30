@@ -6,9 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// API dos gestores (mesma usada para encaminhar nota para análise)
-const GESTOR_API_URL = 'https://api.hcchospital.com.br/v2/api/external/f2fe5527-b359-4b70-95d5-935b8e6674de';
-const GESTOR_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRJZCI6MSwicHJvZmlsZSI6ImFkbWluIiwic2Vzc2lvbklkIjo0LCJpYXQiOjE3NjAxMjEwMjUsImV4cCI6MTgyMzE5MzAyNX0.Orgp1-GE1XncbiDih8SwLqnnwkyJmrL42FfKkUWt8OU';
+// API Meta WhatsApp (oficial)
+const META_PHONE_ID = '468233466375447';
+const META_TOKEN = 'EAAXSNrvzpbABOZBX6mUup5M6bf867nDI3AklxU03YTjKFrX5IbZC5CXvnPQLhOfHkJZCgz10QGVWgC0UXHGVuF0tM7Jd4uqZBNB8fE4fRLWkx30gA4MsDsYJZAVXOeIKaaA3vn4S97QBjuciuNQizEXV7TC2YRiSoHgdRvSFwbJXj23nPYWnbvZBNaRbcJxgRt';
+const META_API_URL = `https://graph.facebook.com/v21.0/${META_PHONE_ID}/messages`;
 
 interface Medico {
   id: string;
@@ -404,23 +405,33 @@ async function enviarMensagemWhatsApp(
   numero: string,
   mensagem: string
 ): Promise<void> {
-  // Enviar usando API dos gestores (FormData number/body/externalKey)
-  const form = new FormData();
-  form.append('number', numero);
-  form.append('body', mensagem);
-  form.append('externalKey', `lembrete_diario_${Date.now()}`);
-  form.append('isClosed', 'false');
+  // Enviar mensagem livre usando API Meta oficial
+  const payload = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: numero,
+    type: "text",
+    text: {
+      preview_url: false,
+      body: mensagem
+    }
+  };
 
-  const response = await fetch(GESTOR_API_URL, {
+  const response = await fetch(META_API_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${GESTOR_AUTH_TOKEN}`
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${META_TOKEN}`
     },
-    body: form
+    body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Erro ao enviar mensagem: ${error}`);
+    const errorText = await response.text();
+    console.error(`❌ Erro Meta API:`, response.status, errorText);
+    throw new Error(`Erro ao enviar mensagem: ${errorText}`);
   }
+  
+  const result = await response.json();
+  console.log(`✅ Mensagem enviada via Meta API:`, result);
 }

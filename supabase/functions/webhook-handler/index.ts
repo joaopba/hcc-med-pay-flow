@@ -6,6 +6,78 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// API Meta WhatsApp oficial
+const META_PHONE_ID = '468233466375447';
+const META_TOKEN = 'EAAXSNrvzpbABOZBX6mUup5M6bf867nDI3AklxU03YTjKFrX5IbZC5CXvnPQLhOfHkJZCgz10QGVWgC0UXHGVuF0tM7Jd4uqZBNB8fE4fRLWkx30gA4MsDsYJZAVXOeIKaaA3vn4S97QBjuciuNQizEXV7TC2YRiSoHgdRvSFwbJXj23nPYWnbvZBNaRbcJxgRt';
+const META_API_URL = `https://graph.facebook.com/v21.0/${META_PHONE_ID}/messages`;
+const META_MEDIA_URL = `https://graph.facebook.com/v21.0/${META_PHONE_ID}/media`;
+
+async function enviarVideoMeta(numero: string, videoUrl: string, caption: string): Promise<any> {
+  try {
+    // Baixar o vídeo
+    console.log('[Meta API] Baixando vídeo:', videoUrl);
+    const videoResponse = await fetch(videoUrl);
+    const videoBlob = await videoResponse.blob();
+    
+    // Upload para Meta
+    const formData = new FormData();
+    formData.append('file', videoBlob, 'tutorial-anexar-nota.mp4');
+    formData.append('messaging_product', 'whatsapp');
+    formData.append('type', 'video/mp4');
+
+    console.log('[Meta API] Fazendo upload do vídeo...');
+    const uploadResponse = await fetch(META_MEDIA_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${META_TOKEN}`
+      },
+      body: formData
+    });
+
+    if (!uploadResponse.ok) {
+      const error = await uploadResponse.text();
+      throw new Error(`Erro ao fazer upload do vídeo: ${error}`);
+    }
+
+    const uploadResult = await uploadResponse.json();
+    console.log('[Meta API] Vídeo uploaded:', uploadResult);
+    
+    // Enviar mensagem com vídeo
+    const payload = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: numero,
+      type: "video",
+      video: {
+        id: uploadResult.id,
+        caption: caption
+      }
+    };
+
+    console.log('[Meta API] Enviando mensagem com vídeo...');
+    const sendResponse = await fetch(META_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${META_TOKEN}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!sendResponse.ok) {
+      const error = await sendResponse.text();
+      throw new Error(`Erro ao enviar vídeo: ${error}`);
+    }
+
+    const result = await sendResponse.json();
+    console.log('[Meta API] Vídeo enviado com sucesso:', result);
+    return result;
+  } catch (error) {
+    console.error('[Meta API] Erro ao enviar vídeo:', error);
+    throw error;
+  }
+}
+
 // Função para formatar mês de competência
 function formatMesCompetencia(mesCompetencia: string): string {
   if (!mesCompetencia || !mesCompetencia.includes('-')) return mesCompetencia;
@@ -121,38 +193,17 @@ serve(async (req) => {
       console.log('Botão "Encaminhar Nota" clicado por:', from);
       
       try {
-        // Buscar configurações da API
-        const { data: config, error: configError } = await supabase
-          .from('configuracoes')
-          .select('api_url, auth_token, ocr_nfse_habilitado, ocr_nfse_api_key, permitir_nota_via_whatsapp')
-          .single();
-
-        if (configError || !config) {
-          throw new Error('Configurações não encontradas');
-        }
-
-        // Enviar mensagem de solicitação com vídeo anexado
-        const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
-        const videoBlob = await videoResponse.blob();
+        // Enviar mensagem de solicitação com vídeo anexado via Meta API
+        const mensagem = "🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá! Para agilizar seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal: https://hcc.chatconquista.com/dashboard-medicos\n\nPasso a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Faça upload do PDF (máx. 10MB)\n\nDicas:\n• Envie o documento legível e completo\n• Confira os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\nApós o envio, você receberá confirmação e será avisado sobre a análise.";
         
-        const form = new FormData();
-        form.append('number', from);
-        form.append('body', "🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá! Para agilizar seu pagamento, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal: https://hcc.chatconquista.com/dashboard-medicos\n\nPasso a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Faça upload do PDF (máx. 10MB)\n\nDicas:\n• Envie o documento legível e completo\n• Confira os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\nApós o envio, você receberá confirmação e será avisado sobre a análise.");
-        form.append('externalKey', `nota_request_button_${Date.now()}`);
-        form.append('isClosed', 'false');
-        form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
+        console.log('Enviando mensagem de solicitação com vídeo via botão (Meta API)');
 
-        console.log('Enviando mensagem de solicitação com vídeo via botão');
+        const messageResponseData = await enviarVideoMeta(
+          from,
+          'https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4',
+          mensagem
+        );
 
-        const messageResponse = await fetch(config.api_url, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${config.auth_token}`
-          },
-          body: form
-        });
-
-        const messageResponseData = await messageResponse.json();
         console.log('Resposta da mensagem com vídeo via botão:', messageResponseData);
 
         // Registrar log da mensagem de solicitação (apenas se houver pagamento associado)
@@ -174,7 +225,7 @@ serve(async (req) => {
                 pagamento_id: pagamentoId,
                 tipo: 'solicitacao_nota',
                 payload: { number: from, hasVideo: true },
-                success: messageResponse.ok,
+                success: true,
                 response: messageResponseData
               }]);
 
@@ -268,40 +319,18 @@ serve(async (req) => {
         const pagamento = pagamentos[0];
         console.log('Pagamento encontrado:', pagamento);
 
-        // Buscar configurações da API
-        const { data: config, error: configError } = await supabase
-          .from('configuracoes')
-          .select('api_url, auth_token, ocr_nfse_habilitado, ocr_nfse_api_key, permitir_nota_via_whatsapp')
-          .single();
-
-        if (configError || !config) {
-          throw new Error('Configurações não encontradas');
-        }
-
-        // Enviar mensagem com vídeo anexado
-        const videoResponse = await fetch('https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4');
-        const videoBlob = await videoResponse.blob();
-        
+        // Enviar mensagem com vídeo anexado via Meta API
         const competenciaFormatada = formatMesCompetencia(pagamento.mes_competencia);
+        const mensagem = `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá ${medico.nome}! Para darmos sequência ao seu pagamento referente a ${competenciaFormatada}, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Envie o arquivo PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Envie o documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`;
         
-        const form = new FormData();
-        form.append('number', from);
-        form.append('body', `🏥 Portal de Notas Fiscais - HCC Hospital\n\nOlá ${medico.nome}! Para darmos sequência ao seu pagamento referente a ${competenciaFormatada}, precisamos da sua nota fiscal.\n\n🔗 Acesse o portal oficial:\nhttps://hcc.chatconquista.com/dashboard-medicos\n\n📝 Passo a passo:\n1) Digite seu CPF\n2) Localize o pagamento pendente\n3) Clique em \"Anexar Nota Fiscal\"\n4) Envie o arquivo PDF (legível, até 10MB)\n\n⚡ Dicas importantes:\n• Envie o documento completo e sem senha\n• Revise os dados antes de enviar\n\n📹 Veja o vídeo tutorial que enviamos mostrando como anexar sua nota passo a passo!\n\n✅ Após o envio: você receberá confirmação e será avisado sobre a análise.`);
-        form.append('externalKey', `encaminhar_nota_${Date.now()}`);
-        form.append('isClosed', 'false');
-        form.append('media', videoBlob, 'tutorial-anexar-nota.mp4');
+        console.log('Enviando mensagem com vídeo anexado (Meta API)');
 
-        console.log('Enviando mensagem com vídeo anexado');
+        const linkResponseData = await enviarVideoMeta(
+          from,
+          'https://hcc.chatconquista.com/videos/tutorial-anexar-nota.mp4',
+          mensagem
+        );
 
-        const linkResponse = await fetch(config.api_url, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${config.auth_token}`
-          },
-          body: form
-        });
-
-        const linkResponseData = await linkResponse.json();
         console.log('Resposta da mensagem com vídeo:', linkResponseData);
 
         // Registrar log da mensagem
@@ -312,7 +341,7 @@ serve(async (req) => {
               pagamento_id: pagamento.id,
               tipo: 'encaminhar_nota_link',
               payload: { number: from, hasVideo: true },
-              success: linkResponse.ok,
+              success: true,
               response: linkResponseData
             }]);
         } catch (logError) {
