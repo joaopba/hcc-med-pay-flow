@@ -66,12 +66,14 @@ serve(async (req) => {
         const pagamento = nota.pagamentos as any;
         const medico = pagamento.medicos;
 
-        // Buscar gestores
+        // Buscar gestores com WhatsApp válido (não nulo e não vazio)
         const { data: gestores } = await supabase
           .from('profiles')
-          .select('numero_whatsapp, name')
+          .select('numero_whatsapp, name, email')
           .eq('role', 'gestor')
-          .not('numero_whatsapp', 'is', null);
+          .eq('whatsapp_notifications_enabled', true)
+          .not('numero_whatsapp', 'is', null)
+          .neq('numero_whatsapp', '');
 
         if (!gestores || gestores.length === 0) {
           throw new Error('Nenhum gestor com WhatsApp encontrado');

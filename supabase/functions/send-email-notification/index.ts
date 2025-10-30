@@ -107,12 +107,13 @@ serve(async (req) => {
       });
     }
 
-    // Buscar destinatários (gestores)
+    // Buscar destinatários (gestores com email válido)
     const { data: usuarios, error: usuariosError } = await supabase
       .from('profiles')
       .select('id, name, email')
       .eq('role', 'gestor')
-      .not('email', 'is', null);
+      .not('email', 'is', null)
+      .neq('email', '');
 
     if (usuariosError) {
       console.error('Erro ao buscar usuários:', usuariosError);

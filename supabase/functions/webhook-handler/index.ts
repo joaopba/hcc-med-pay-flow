@@ -795,13 +795,14 @@ serve(async (req) => {
 
               // Enviar PDF com botões de aprovação/rejeição para TODOS os gestores
               try {
-                // Buscar TODOS os gestores ativos com WhatsApp
+                // Buscar TODOS os gestores ativos com WhatsApp válido (não nulo e não vazio)
                 const { data: gestores } = await supabase
                   .from('profiles')
                   .select('numero_whatsapp, name')
                   .eq('role', 'gestor')
                   .eq('whatsapp_notifications_enabled', true)
-                  .not('numero_whatsapp', 'is', null);
+                  .not('numero_whatsapp', 'is', null)
+                  .neq('numero_whatsapp', '');
 
                 if (gestores && gestores.length > 0 && medicoData) {
                   console.log(`Preparando envio de PDF para ${gestores.length} gestores...`);
