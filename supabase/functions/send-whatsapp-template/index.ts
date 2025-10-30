@@ -251,9 +251,17 @@ serve(async (req) => {
           }
 
           case 'pagamento': {
-            // Sempre enviar como mensagem livre
-            const mensagemPag = `💰 *Pagamento Efetuado - HCC Hospital*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\n✅ O valor já está disponível em sua conta.\n\nObrigado por sua colaboração!`;
-            resultadoEnvio = await enviarMensagemTexto(phoneNumber!, mensagemPag);
+            const within24Hours = medico_id ? await checkLast24Hours(supabase, medico_id) : false;
+            
+            if (within24Hours) {
+              const mensagemPag = `💰 *Pagamento Efetuado*\n\nOlá ${nome}!\n\nSeu pagamento foi efetuado com sucesso em ${dataPagamento}.\n\nObrigado por sua colaboração!`;
+              resultadoEnvio = await enviarMensagemTexto(phoneNumber!, mensagemPag);
+            } else {
+              resultadoEnvio = await enviarTemplate(phoneNumber!, 'pagamento', [
+                { type: "text", text: nome || '' },
+                { type: "text", text: dataPagamento || new Date().toLocaleDateString('pt-BR') }
+              ]);
+            }
             break;
           }
 
