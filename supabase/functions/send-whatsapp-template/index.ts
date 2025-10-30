@@ -7,7 +7,7 @@ const corsHeaders = {
 
 // API Meta WhatsApp oficial
 const META_PHONE_ID = '468233466375447';
-const META_TOKEN = 'EAAXSNrvzpbABOZBX6mUup5M6bf867nDI3AklxU03YTjKFrX5IbZC5CXvnPQLhOfHkJZCgz10QGVWgC0UXHGVuF0tM7Jd4uqZBNB8fE4fRLWkx30gA4MsDsYJZAVXOeIKaaA3vn4S97QBjuciuNQizEXV7TC2YRiSoHgdRvSFwbJXj23nPYWnbvZBNaRbcJxgRt';
+const META_TOKEN = 'EAAXSNrvzpbABP7jYQp5lgOw48kSOA5UugXYTs2ZBExZBrDtaC1wUr3tCfZATZBT9SAqmGpZA1pAucXVRa8kZC7trtip0rHAERY0ZAcZA6MkxDsosyCI8O35g0mmBpBuoB8lqihDPvhjsmKz6madZCARKbVW5ihUZCWZCmiND50zARf1Tk58ZAuIlzZAfJ9IzHZCXIZC5QZDZD';
 const META_API_URL = `https://graph.facebook.com/v21.0/${META_PHONE_ID}/messages`;
 
 function formatMesCompetencia(mesCompetencia: string): string {
