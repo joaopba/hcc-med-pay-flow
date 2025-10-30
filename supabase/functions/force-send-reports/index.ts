@@ -49,9 +49,27 @@ serve(async (req) => {
 
     let enviosRealizados = 0;
     let erros = 0;
+    let pularPorJaEnviado = 0;
 
     for (const gestor of gestores) {
       try {
+        // Verificar se já enviou relatório hoje
+        const hoje = new Date().toISOString().split('T')[0];
+        const { data: ultimoEnvio } = await supabase
+          .from('whatsapp_queue')
+          .select('created_at')
+          .eq('destinatario', gestor.numero_whatsapp)
+          .ilike('mensagem', '%RELATÓRIO GERENCIAL DIÁRIO%')
+          .gte('created_at', `${hoje}T00:00:00`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (ultimoEnvio) {
+          console.log(`⏭️ Relatório já enviado hoje para ${gestor.name}`);
+          pularPorJaEnviado++;
+          continue;
+        }
         // Buscar todas as estatísticas necessárias
         const { data: todosPagamentos } = await supabase
           .from('pagamentos')
@@ -284,8 +302,9 @@ serve(async (req) => {
       timestamp: new Date().toISOString(),
       gestoresProcessados: gestores.length,
       enviosRealizados,
+      jaEnviadosHoje: pularPorJaEnviado,
       erros,
-      message: `Relatórios processados: ${enviosRealizados} enviados, ${erros} erros`
+      message: `Relatórios processados: ${enviosRealizados} enviados, ${pularPorJaEnviado} já enviados hoje, ${erros} erros`
     };
 
     console.log('📊 Resultado final:', resultado);

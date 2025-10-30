@@ -172,6 +172,23 @@ serve(async (req) => {
 
     for (const gestor of gestores) {
       try {
+        // Verificar se já enviou relatório hoje
+        const hoje = new Date().toISOString().split('T')[0];
+        const { data: ultimoEnvio } = await supabase
+          .from('whatsapp_queue')
+          .select('created_at')
+          .eq('destinatario', gestor.numero_whatsapp)
+          .or('mensagem.ilike.%Sistema de Gestão de Pagamentos%,mensagem.ilike.%Relatório Diário%')
+          .gte('created_at', `${hoje}T00:00:00`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (ultimoEnvio) {
+          console.log(`⏭️ Relatório já enviado hoje para ${gestor.name}`);
+          continue;
+        }
+
         const relatorios = [];
         
         // Verificar se há notas pendentes
