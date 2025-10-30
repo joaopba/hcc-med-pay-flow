@@ -793,19 +793,18 @@ serve(async (req) => {
                 }
               }
 
-              // Enviar PDF com botões de aprovação/rejeição para o financeiro
+              // Enviar PDF com botões de aprovação/rejeição para TODOS os gestores
               try {
-                // Buscar configurações do financeiro
-                const { data: configFinanceiro } = await supabase
+                // Buscar TODOS os gestores ativos com WhatsApp
+                const { data: gestores } = await supabase
                   .from('profiles')
-                  .select('numero_whatsapp')
+                  .select('numero_whatsapp, name')
                   .eq('role', 'gestor')
-                  .not('numero_whatsapp', 'is', null)
-                  .limit(1)
-                  .single();
+                  .eq('whatsapp_notifications_enabled', true)
+                  .not('numero_whatsapp', 'is', null);
 
-                if (configFinanceiro?.numero_whatsapp && medicoData) {
-                  console.log('Preparando envio de PDF ao financeiro...');
+                if (gestores && gestores.length > 0 && medicoData) {
+                  console.log(`Preparando envio de PDF para ${gestores.length} gestores...`);
                   
                   // Baixar o PDF do storage
                   const { data: pdfData, error: downloadError } = await supabase.storage
@@ -836,29 +835,32 @@ serve(async (req) => {
 
                   console.log('Links gerados:', { linkAprovar, linkRejeitar });
 
-                  await supabase.functions.invoke('send-whatsapp-template', {
-                    body: {
-                      type: 'nota_aprovacao',
-                      nome: medicoData.nome,
-                      medico_id: pagamento.medico_id,
-                      valor: pagamento.valor.toString(),
-                      competencia: insertData.pagamentos.mes_competencia,
-                      nota_id: insertData.id,
-                      pdf_base64: base64,
-                      pdf_filename: filename,
-                      link_aprovar: linkAprovar,
-                      link_rejeitar: linkRejeitar,
-                      financeiro_numero: configFinanceiro.numero_whatsapp,
-                      pagamentoId: pagamento.id,
-                      valorBruto: (valorBruto ?? pagamento.valor),
-                      valorLiquido: (valorLiquido ?? pagamento.valor_liquido),
-                      numeroNota: numeroNota || undefined
+                  // Enviar para cada gestor
+                  for (const gestor of gestores) {
+                    try {
+                      console.log(`Enviando notificação para gestor: ${gestor.name} (${gestor.numero_whatsapp})`);
+                      
+                      await supabase.functions.invoke('send-notification-gestores', {
+                        body: {
+                          phoneNumber: gestor.numero_whatsapp,
+                          message: `🔔 *NOVA NOTA FISCAL*\n\n👨‍⚕️ *Médico:* ${medicoData.nome}\n💰 *Valor:* R$ ${pagamento.valor.toFixed(2)}\n📅 *Competência:* ${formatMesCompetencia(pagamento.mes_competencia)}\n${numeroNota ? `📋 *Número NF:* ${numeroNota}\n` : ''}${valorBruto ? `💵 *Valor Bruto:* R$ ${valorBruto.toFixed(2)}\n` : ''}${valorLiquido ? `💸 *Valor Líquido:* R$ ${valorLiquido.toFixed(2)}\n` : ''}\n\n✅ *Aprovar:* ${linkAprovar}\n\n❌ *Rejeitar:* ${linkRejeitar}`,
+                          pdf_base64: base64,
+                          pdf_filename: filename
+                        }
+                      });
+                      
+                      console.log(`Notificação enviada com sucesso para ${gestor.name}`);
+                    } catch (gestorError) {
+                      console.error(`Erro ao enviar para gestor ${gestor.name}:`, gestorError);
                     }
-                  });
-                  console.log('Notificação de aprovação enviada ao financeiro com PDF');
+                  }
+                  
+                  console.log('Notificações de aprovação enviadas a todos os gestores com PDF');
+                } else {
+                  console.warn('Nenhum gestor ativo com WhatsApp encontrado');
                 }
               } catch (financeiroError) {
-                console.warn('Erro ao enviar notificação ao financeiro:', financeiroError);
+                console.warn('Erro ao enviar notificação aos gestores:', financeiroError);
               }
 
               console.log('Pagamento atualizado com sucesso');
