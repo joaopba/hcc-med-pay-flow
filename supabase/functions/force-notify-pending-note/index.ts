@@ -17,6 +17,16 @@ function formatMesCompetencia(mesCompetencia: string): string {
   return `${meses[mesIndex]} de ${ano}`;
 }
 
+// Normaliza caminhos do Storage para garantir download correto
+function normalizeStoragePath(path: string): string {
+  if (!path) return path;
+  // Remove URL completa caso venha com domínio do storage
+  path = path.replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/(public|sign)\//, '');
+  // Remove o prefixo do bucket se vier incluso
+  path = path.replace(/^notas\//, '');
+  return path;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -91,9 +101,10 @@ serve(async (req) => {
     if (nota.arquivo_url) {
       try {
         console.log('Baixando PDF:', nota.arquivo_url);
+        const storagePath = normalizeStoragePath(nota.arquivo_url);
         const { data: pdfData, error: downloadError } = await supabase.storage
           .from('notas')
-          .download(nota.arquivo_url);
+          .download(storagePath);
 
         if (downloadError || !pdfData) {
           console.error('Erro ao baixar PDF:', downloadError);
@@ -152,8 +163,8 @@ serve(async (req) => {
       })
     );
 
-    const sucessos = envios.filter(r => r.status === 'fulfilled').length;
-    const falhas = envios.filter(r => r.status === 'rejected').length;
+    const sucessos = envios.filter((r: any) => r.status === 'fulfilled' && r.value?.success).length;
+    const falhas = gestores.length - sucessos;
 
     console.log(`✅ Resultado: ${sucessos} enviados, ${falhas} falhas`);
 
