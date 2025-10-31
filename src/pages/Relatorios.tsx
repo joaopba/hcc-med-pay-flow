@@ -36,11 +36,27 @@ interface RelatorioItem {
 }
 
 export default function Relatorios() {
+  // Calcular mês anterior como padrão (sem problemas de timezone)
+  const getDefaultMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-11
+    
+    // Se janeiro, volta para dezembro do ano anterior
+    if (month === 0) {
+      return `${year - 1}-12`;
+    }
+    
+    // Formatar mês anterior com zero à esquerda
+    const lastMonth = month.toString().padStart(2, '0');
+    return `${year}-${lastMonth}`;
+  };
+
   const [dados, setDados] = useState<RelatorioItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtros, setFiltros] = useState({
-    mes_inicio: "",
-    mes_fim: "",
+    mes_inicio: getDefaultMonth(),
+    mes_fim: getDefaultMonth(),
     status: "todos",
     medico: "",
   });

@@ -36,11 +36,20 @@ interface DailyActivity {
 }
 
 export default function Dashboard() {
-  // Calcular mês anterior como default
+  // Calcular mês anterior como default (sem problemas de timezone)
   const getDefaultMonth = () => {
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    return lastMonth.toISOString().slice(0, 7); // YYYY-MM
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-11
+    
+    // Se janeiro, volta para dezembro do ano anterior
+    if (month === 0) {
+      return `${year - 1}-12`;
+    }
+    
+    // Formatar mês anterior com zero à esquerda
+    const lastMonth = month.toString().padStart(2, '0');
+    return `${year}-${lastMonth}`;
   };
 
   const [selectedMonth, setSelectedMonth] = useState<string>(getDefaultMonth());
@@ -299,21 +308,31 @@ export default function Dashboard() {
     return null;
   };
 
-  // Gerar lista de meses para o seletor
+  // Gerar lista de meses para o seletor (sem problemas de timezone)
   const generateMonthOptions = () => {
     const options = [{ value: 'all', label: 'Ver Tudo' }];
-    const currentDate = new Date();
+    const now = new Date();
+    let year = now.getFullYear();
+    let month = now.getMonth(); // 0-11
     
     // Últimos 12 meses
     for (let i = 0; i < 12; i++) {
-      const date = new Date(currentDate);
-      date.setMonth(date.getMonth() - i);
-      const yearMonth = date.toISOString().slice(0, 7);
-      const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-      options.push({
-        value: yearMonth,
-        label: label.charAt(0).toUpperCase() + label.slice(1)
-      });
+      const monthFormatted = (month + 1).toString().padStart(2, '0');
+      const yearMonth = `${year}-${monthFormatted}`;
+      
+      // Criar label formatado
+      const mesesNomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      const label = `${mesesNomes[month]} de ${year}`;
+      
+      options.push({ value: yearMonth, label });
+      
+      // Decrementar mês
+      month--;
+      if (month < 0) {
+        month = 11;
+        year--;
+      }
     }
     
     return options;

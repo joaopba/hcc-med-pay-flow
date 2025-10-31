@@ -63,11 +63,20 @@ export default function Pagamentos() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [valorMaxFilter, setValorMaxFilter] = useState("");
   
-  // Definir mês anterior como filtro padrão
+  // Definir mês anterior como filtro padrão (sem problemas de timezone)
   const getDefaultMonth = () => {
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    return lastMonth.toISOString().slice(0, 7); // YYYY-MM
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-11
+    
+    // Se janeiro, volta para dezembro do ano anterior
+    if (month === 0) {
+      return `${year - 1}-12`;
+    }
+    
+    // Formatar mês anterior com zero à esquerda
+    const lastMonth = month.toString().padStart(2, '0');
+    return `${year}-${lastMonth}`;
   };
   
   const [mesFilter, setMesFilter] = useState(getDefaultMonth());
