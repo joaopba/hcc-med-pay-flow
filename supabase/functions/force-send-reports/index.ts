@@ -6,6 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Função para formatar mês de competência (YYYY-MM) para português
+function formatMesCompetencia(mesCompetencia: string): string {
+  const [ano, mes] = mesCompetencia.split('-');
+  const meses = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ];
+  const mesIndex = parseInt(mes, 10) - 1;
+  return `${meses[mesIndex]}/${ano}`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -227,7 +238,7 @@ serve(async (req) => {
           const top5Pagamentos = pagamentosPendentes.slice(0, 5);
           top5Pagamentos.forEach((pag: any, idx: number) => {
             mensagem += `${idx + 1}. ${pag.medicos?.nome}\n`;
-            mensagem += `   ${formatValor(Number(pag.valor))} • ${pag.mes_competencia}\n`;
+            mensagem += `   ${formatValor(Number(pag.valor))} • ${formatMesCompetencia(pag.mes_competencia)}\n`;
           });
           
           if (pagamentosPendentes.length > 5) {

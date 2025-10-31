@@ -5,6 +5,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Função para formatar mês de competência (YYYY-MM) para português
+function formatMesCompetencia(mesCompetencia: string): string {
+  const [ano, mes] = mesCompetencia.split('-');
+  const meses = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ];
+  const mesIndex = parseInt(mes, 10) - 1;
+  return `${meses[mesIndex]} de ${ano}`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -84,7 +95,7 @@ serve(async (req) => {
           medico_documento: medico?.documento || 'N/A',
           numero_whatsapp: medico?.numero_whatsapp || 'N/A',
           especialidade: medico?.especialidade || 'N/A',
-          mes_competencia: pagamento.mes_competencia,
+          mes_competencia: formatMesCompetencia(pagamento.mes_competencia),
           valor: pagamento.valor,
           data_solicitacao: pagamento.data_solicitacao,
           status: pagamento.status
@@ -99,7 +110,7 @@ serve(async (req) => {
           id: pagamento.id,
           medico_nome: medico?.nome || 'N/A',
           medico_documento: medico?.documento || 'N/A',
-          mes_competencia: pagamento.mes_competencia,
+          mes_competencia: formatMesCompetencia(pagamento.mes_competencia),
           valor: pagamento.valor,
           data_resposta: pagamento.data_resposta,
           status: pagamento.status,
@@ -116,7 +127,7 @@ serve(async (req) => {
           medico_nome: medico?.nome || 'N/A',
           medico_documento: medico?.documento || 'N/A',
           especialidade: medico?.especialidade || 'N/A',
-          mes_competencia: pagamento.mes_competencia,
+          mes_competencia: formatMesCompetencia(pagamento.mes_competencia),
           valor_bruto: pagamento.valor,
           valor_liquido: pagamento.valor_liquido || pagamento.valor,
           data_pagamento: pagamento.data_pagamento,

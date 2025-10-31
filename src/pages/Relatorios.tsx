@@ -8,6 +8,7 @@ import { Download, FileSpreadsheet, Search, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
+import { formatMesCompetencia } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -107,7 +108,7 @@ export default function Relatorios() {
         return {
           medico_nome: item.medicos.nome,
           numero_whatsapp: item.medicos.numero_whatsapp,
-          mes_competencia: item.mes_competencia,
+          mes_competencia: formatMesCompetencia(item.mes_competencia),
           valor: item.valor,
           valor_liquido: item.valor_liquido || 0,
           status: item.status,
