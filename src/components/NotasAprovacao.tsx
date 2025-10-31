@@ -52,11 +52,20 @@ interface NotaMedico {
 }
 
 export default function NotasAprovacao() {
-  // Definir mês anterior como filtro padrão
+  // Definir mês anterior como filtro padrão (sem problemas de timezone)
   const getDefaultMonth = () => {
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    return lastMonth.toISOString().slice(0, 7); // YYYY-MM
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-11
+    
+    // Se janeiro, volta para dezembro do ano anterior
+    if (month === 0) {
+      return `${year - 1}-12`;
+    }
+    
+    // Formatar mês anterior com zero à esquerda
+    const lastMonth = month.toString().padStart(2, '0');
+    return `${year}-${lastMonth}`;
   };
 
   const [notas, setNotas] = useState<NotaMedico[]>([]);
@@ -95,7 +104,7 @@ export default function NotasAprovacao() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [filtroMes]); // Recarregar quando o filtro de mês mudar
 
   useEffect(() => {
     let filtered = notas;
@@ -118,34 +127,52 @@ export default function NotasAprovacao() {
 
   const loadNotas = async () => {
     try {
-      // 1) Buscar notas sem joins
+      // 1) Buscar pagamentos primeiro (com filtro de mês se aplicável) para otimizar
+      let pagamentosQuery = supabase
+        .from("pagamentos")
+        .select("id, mes_competencia, valor, valor_liquido");
+      
+      // Aplicar filtro de mês se não for "todos"
+      if (filtroMes !== "todos") {
+        pagamentosQuery = pagamentosQuery.eq("mes_competencia", filtroMes);
+      }
+      
+      const { data: pagamentosData, error: pagamentosError } = await pagamentosQuery;
+      if (pagamentosError) throw pagamentosError;
+      
+      const pagamentoIds = (pagamentosData || []).map(p => p.id);
+      
+      // Se não houver pagamentos no período, retornar vazio
+      if (pagamentoIds.length === 0) {
+        setNotas([]);
+        setNotasFiltradas([]);
+        setLoading(false);
+        return;
+      }
+      
+      // 2) Buscar apenas notas dos pagamentos filtrados
       const { data: notasBase, error: notasError } = await supabase
         .from("notas_medicos")
         .select("*")
+        .in("pagamento_id", pagamentoIds)
         .order("created_at", { ascending: false });
 
       if (notasError) throw notasError;
 
       const medicoIds = Array.from(new Set((notasBase || []).map(n => n.medico_id)));
-      const pagamentoIds = Array.from(new Set((notasBase || []).map(n => n.pagamento_id)));
 
-      // 2) Buscar médicos e pagamentos necessários
-      const [medicosRes, pagamentosRes] = await Promise.all([
-        medicoIds.length
-          ? supabase.from("medicos").select("id, nome, documento").in("id", medicoIds)
-          : Promise.resolve({ data: [], error: null } as any),
-        pagamentoIds.length
-          ? supabase.from("pagamentos").select("id, mes_competencia, valor, valor_liquido").in("id", pagamentoIds)
-          : Promise.resolve({ data: [], error: null } as any),
-      ]);
+      // 3) Buscar médicos necessários
+      const { data: medicosData, error: medicosError } = await supabase
+        .from("medicos")
+        .select("id, nome, documento")
+        .in("id", medicoIds);
 
-      if (medicosRes.error) throw medicosRes.error;
-      if (pagamentosRes.error) throw pagamentosRes.error;
+      if (medicosError) throw medicosError;
 
-      const medicosMap: Map<string, any> = new Map((medicosRes.data || []).map((m: any) => [m.id, m]));
-      const pagamentosMap: Map<string, any> = new Map((pagamentosRes.data || []).map((p: any) => [p.id, p]));
+      const medicosMap: Map<string, any> = new Map((medicosData || []).map((m: any) => [m.id, m]));
+      const pagamentosMap: Map<string, any> = new Map((pagamentosData || []).map((p: any) => [p.id, p]));
 
-      // 3) Enriquecer estrutura esperada pelo componente
+      // 4) Enriquecer estrutura esperada pelo componente
       const enriquecidas = (notasBase || []).map((n: any) => ({
         ...n,
         medicos: {
@@ -213,7 +240,7 @@ export default function NotasAprovacao() {
         .from('profiles')
         .select('id')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
       // Atualizar nota com ajuste
       const { error: notaError } = await supabase
@@ -241,7 +268,7 @@ export default function NotasAprovacao() {
         .from("medicos")
         .select("*")
         .eq("id", nota.medico_id)
-        .single();
+        .maybeSingle();
 
       // Notificar médico sobre ajuste de valor
       await supabase.functions.invoke('send-whatsapp-template', {
@@ -322,7 +349,7 @@ export default function NotasAprovacao() {
         .from("medicos")
         .select("*")
         .eq("id", nota.medico_id)
-        .single();
+        .maybeSingle();
 
       // Enviar notificação via WhatsApp
       await supabase.functions.invoke('send-whatsapp-template', {
@@ -398,7 +425,7 @@ export default function NotasAprovacao() {
         .from("medicos")
         .select("*")
         .eq("id", nota.medico_id)
-        .single();
+        .maybeSingle();
 
       // Enviar notificação via WhatsApp
       await supabase.functions.invoke('send-whatsapp-template', {

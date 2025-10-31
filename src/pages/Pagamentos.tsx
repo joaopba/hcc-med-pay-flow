@@ -128,19 +128,27 @@ export default function Pagamentos() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [mesFilter]); // Recarregar quando mudar o filtro de mês
 
   const loadData = async () => {
     try {
       setErrorMsg(null);
       setLoading(true);
       
-      // Carregar pagamentos (sem join) e médicos ativos
+      // Construir query de pagamentos com filtro de mês aplicado no servidor
+      let pagamentosQuery = supabase
+        .from("pagamentos")
+        .select("*")
+        .order("mes_competencia", { ascending: false });
+      
+      // Aplicar filtro de mês no servidor se não for "todos"
+      if (mesFilter && mesFilter !== "todos") {
+        pagamentosQuery = pagamentosQuery.eq("mes_competencia", mesFilter);
+      }
+      
+      // Carregar pagamentos filtrados e médicos ativos em paralelo
       const [{ data: pagamentosData, error: pagamentosError }, { data: medicosData, error: medicosError }] = await Promise.all([
-        supabase
-          .from("pagamentos")
-          .select("*")
-          .order("mes_competencia", { ascending: false }),
+        pagamentosQuery,
         supabase
           .from("medicos")
           .select("id, nome, numero_whatsapp")
@@ -199,8 +207,12 @@ export default function Pagamentos() {
       setPagamentos(pagamentosComMedico);
       setMedicos(medicosData || []);
       
-      // Extrair meses únicos dos pagamentos para o filtro
-      const mesesUnicos = [...new Set((pagamentosData || []).map(p => p.mes_competencia))]
+      // Buscar todos os meses disponíveis para o filtro (query separada sem filtro)
+      const { data: todosPagamentos } = await supabase
+        .from("pagamentos")
+        .select("mes_competencia");
+      
+      const mesesUnicos = [...new Set((todosPagamentos || []).map(p => p.mes_competencia))]
         .sort((a, b) => b.localeCompare(a));
       setMesesDisponiveis(mesesUnicos);
     } catch (error: any) {
