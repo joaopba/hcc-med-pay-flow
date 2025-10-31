@@ -98,7 +98,7 @@ serve(async (req) => {
       try {
         console.log('Baixando PDF:', nota.arquivo_url);
         const { data: pdfData, error: downloadError } = await supabase.storage
-          .from('notas-medicos')
+          .from('notas')
           .download(nota.arquivo_url);
 
         if (downloadError || !pdfData) {

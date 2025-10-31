@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.resend-nota-gestores]
 verify_jwt = false
+
+[functions.notify-gestores-nova-nota]
+verify_jwt = false
+
+[functions.force-notify-pending-note]
+verify_jwt = false
