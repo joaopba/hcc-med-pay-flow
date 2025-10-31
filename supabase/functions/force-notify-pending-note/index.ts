@@ -84,6 +84,30 @@ serve(async (req) => {
 
     console.log(`Encontrados ${gestores.length} gestores para notificar`);
 
+    // Baixar o PDF do storage
+    let pdfBase64: string | undefined;
+    let pdfFilename: string | undefined;
+    
+    if (nota.arquivo_url) {
+      try {
+        console.log('Baixando PDF:', nota.arquivo_url);
+        const { data: pdfData, error: downloadError } = await supabase.storage
+          .from('notas-medicos')
+          .download(nota.arquivo_url);
+
+        if (downloadError || !pdfData) {
+          console.error('Erro ao baixar PDF:', downloadError);
+        } else {
+          const arrayBuffer = await pdfData.arrayBuffer();
+          pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+          pdfFilename = `nota_${medico.nome.replace(/\s+/g, '_')}_${pagamento.mes_competencia}.pdf`;
+          console.log('PDF convertido para base64');
+        }
+      } catch (e: any) {
+        console.error('Erro ao processar PDF:', e);
+      }
+    }
+
     // Formatar mensagem
     const mesFormatado = formatMesCompetencia(pagamento.mes_competencia);
     const valorFormatado = new Intl.NumberFormat('pt-BR', {
@@ -111,7 +135,9 @@ serve(async (req) => {
           const { data, error } = await supabase.functions.invoke('send-notification-gestores', {
             body: {
               phoneNumber: gestor.numero_whatsapp,
-              message: mensagem
+              message: mensagem,
+              pdf_base64: pdfBase64,
+              pdf_filename: pdfFilename
             }
           });
 
